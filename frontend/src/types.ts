@@ -57,6 +57,9 @@ export interface DashboardSummary {
   saved_cost_usd: number;
   savings_rate: number;
   measured_requests: number;
+  measurement_coverage: number;
+  avg_token_error_rate: number;
+  max_token_error_rate: number;
 }
 
 export interface AuditRecordSummary {
@@ -75,4 +78,17 @@ export interface AuditRecordSummary {
   savings_rate: number;
   pricing_version: string;
   applied_rules: string[];
+  tokenizer_version: string;
+  measured_input_tokens?: number | null;
+  measured_output_tokens?: number | null;
+  measured_original_tokens?: number | null;
+  token_error_rate?: number | null;
+}
+
+export interface MeasurementResponse {
+  request_id: string;
+  state: "measured";
+  estimated_input_tokens: number;
+  measured_input_tokens: number;
+  token_error_rate: number;
 }

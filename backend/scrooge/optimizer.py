@@ -67,8 +67,8 @@ def detect_task_type(prompt: str) -> TaskType:
 
 def optimize_prompt(request: OptimizeRequest) -> OptimizeResponse:
     draft = build_optimized_draft(request.prompt, request.task_type)
-    original_tokens = estimate_tokens(request.prompt)
-    optimized_tokens = estimate_tokens(draft.prompt)
+    original_tokens = estimate_tokens(request.prompt, request.provider, request.model)
+    optimized_tokens = estimate_tokens(draft.prompt, request.provider, request.model)
     original_cost = calculate_cost(
         original_tokens, request.provider, request.model, request.expected_output_tokens
     )
@@ -158,4 +158,3 @@ def _describe_rule(rule_id: str) -> str:
         "diff_changed_line_sampling": "Sampled changed diff lines.",
     }
     return descriptions.get(rule_id, rule_id.replace("_", " ").capitalize())
-

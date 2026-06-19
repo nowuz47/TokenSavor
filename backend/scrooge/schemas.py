@@ -78,6 +78,21 @@ class ApprovalResponse(BaseModel):
     state: UsageState
 
 
+class MeasurementRequest(BaseModel):
+    measured_input_tokens: int = Field(ge=0)
+    measured_output_tokens: int = Field(ge=0)
+    measured_original_tokens: int | None = Field(default=None, ge=0)
+    source: str = "provider_usage"
+
+
+class MeasurementResponse(BaseModel):
+    request_id: str
+    state: UsageState
+    estimated_input_tokens: int
+    measured_input_tokens: int
+    token_error_rate: float
+
+
 class DashboardSummary(BaseModel):
     period: str
     total_requests: int
@@ -91,6 +106,9 @@ class DashboardSummary(BaseModel):
     saved_cost_usd: float
     savings_rate: float
     measured_requests: int
+    measurement_coverage: float = 0
+    avg_token_error_rate: float = 0
+    max_token_error_rate: float = 0
 
 
 class AuditRecordSummary(BaseModel):
@@ -109,6 +127,11 @@ class AuditRecordSummary(BaseModel):
     savings_rate: float
     pricing_version: str
     applied_rules: list[str]
+    tokenizer_version: str
+    measured_input_tokens: int | None = None
+    measured_output_tokens: int | None = None
+    measured_original_tokens: int | None = None
+    token_error_rate: float | None = None
 
 
 class ProxyCaptureResponse(BaseModel):

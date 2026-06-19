@@ -1,4 +1,10 @@
-import type { AuditRecordSummary, DashboardSummary, OptimizeResponse, TaskType } from "./types";
+import type {
+  AuditRecordSummary,
+  DashboardSummary,
+  MeasurementResponse,
+  OptimizeResponse,
+  TaskType
+} from "./types";
 
 const API_BASE = import.meta.env.VITE_SCROOGE_API_BASE ?? "http://127.0.0.1:8750";
 
@@ -58,4 +64,27 @@ export async function clearAuditRecords(): Promise<void> {
   if (!response.ok) {
     throw new Error(`Clear audit records failed: ${response.status}`);
   }
+}
+
+export async function recordMeasurement(input: {
+  request_id: string;
+  measured_input_tokens: number;
+  measured_output_tokens: number;
+  measured_original_tokens?: number;
+  source?: string;
+}): Promise<MeasurementResponse> {
+  const response = await fetch(`${API_BASE}/api/audit/records/${input.request_id}/measurement`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      measured_input_tokens: input.measured_input_tokens,
+      measured_output_tokens: input.measured_output_tokens,
+      measured_original_tokens: input.measured_original_tokens ?? null,
+      source: input.source ?? "provider_usage"
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Measurement failed: ${response.status}`);
+  }
+  return response.json();
 }

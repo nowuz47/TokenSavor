@@ -12,6 +12,8 @@ from scrooge.schemas import (
     ApprovalRequest,
     ApprovalResponse,
     DashboardSummary,
+    MeasurementRequest,
+    MeasurementResponse,
     OptimizeRequest,
     OptimizeResponse,
     UsageState,
@@ -63,6 +65,18 @@ def approve_request(
     state = UsageState.SENT if approval.approved else UsageState.REJECTED
     store.mark_state(request_id, state)
     return ApprovalResponse(request_id=request_id, state=state)
+
+
+@app.post("/api/audit/records/{request_id}/measurement", response_model=MeasurementResponse)
+def record_measurement(
+    request_id: str,
+    measurement: MeasurementRequest,
+    store: UsageStore = Depends(get_store),
+) -> MeasurementResponse:
+    try:
+        return MeasurementResponse(**store.record_measurement(request_id, measurement))
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="request_id not found") from exc
 
 
 @app.get("/api/dashboard/summary", response_model=DashboardSummary)

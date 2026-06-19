@@ -99,15 +99,28 @@ def main() -> int:
         )
         assert_savings_math(response)
         post_json(args.api, f"/api/approvals/{response['request_id']}/approve", {"approved": True})
+        measurement = post_json(
+            args.api,
+            f"/api/audit/records/{response['request_id']}/measurement",
+            {
+                "measured_original_tokens": response["original_tokens"]["input_tokens"],
+                "measured_input_tokens": response["optimized_tokens"]["input_tokens"],
+                "measured_output_tokens": EXPECTED_OUTPUT_TOKENS,
+                "source": "simulated_provider_usage",
+            },
+        )
         results.append(
             {
                 "case": name,
                 "request_id": response["request_id"],
+                "state": measurement["state"],
                 "original_tokens": response["original_tokens"]["input_tokens"],
                 "optimized_tokens": response["optimized_tokens"]["input_tokens"],
+                "measured_input_tokens": measurement["measured_input_tokens"],
                 "saved_tokens": response["saved_tokens"],
                 "savings_rate": response["savings_rate"],
                 "saved_cost_usd": response["saved_cost_usd"],
+                "token_error_rate": measurement["token_error_rate"],
                 "pricing_version": response["optimized_cost"]["pricing_version"],
             }
         )
@@ -160,12 +173,14 @@ def assert_audit_records(results: list[dict[str, Any]], records: list[dict[str, 
     by_id = {record["request_id"]: record for record in records}
     for result in results:
         record = by_id[result["request_id"]]
-        assert record["state"] == "sent"
+        assert record["state"] == result["state"] == "measured"
         assert record["original_tokens"] == result["original_tokens"]
         assert record["optimized_tokens"] == result["optimized_tokens"]
+        assert record["measured_input_tokens"] == result["measured_input_tokens"]
         assert record["saved_tokens"] == result["saved_tokens"]
         assert record["savings_rate"] == result["savings_rate"]
         assert record["pricing_version"] == result["pricing_version"]
+        assert record["token_error_rate"] == result["token_error_rate"]
 
 
 def assert_summary_matches_records(summary: dict[str, Any], records: list[dict[str, Any]]) -> None:

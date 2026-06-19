@@ -66,6 +66,11 @@ interface AuditRecord {
   rules: string[];
   hashOrig: string;
   hashOpt: string;
+  tokenizer: string;
+  measuredInputTokens?: number | null;
+  measuredOutputTokens?: number | null;
+  measuredOriginalTokens?: number | null;
+  tokenErrorRate?: number | null;
 }
 
 const modelsRegistry: ModelOption[] = [
@@ -159,7 +164,12 @@ function toAuditRecord(record: AuditRecordSummary): AuditRecord {
     state: record.state,
     rules: record.applied_rules,
     hashOrig: `sha256:${record.original_hash.slice(0, 8)}...`,
-    hashOpt: `sha256:${record.optimized_hash.slice(0, 8)}...`
+    hashOpt: `sha256:${record.optimized_hash.slice(0, 8)}...`,
+    tokenizer: record.tokenizer_version,
+    measuredInputTokens: record.measured_input_tokens,
+    measuredOutputTokens: record.measured_output_tokens,
+    measuredOriginalTokens: record.measured_original_tokens,
+    tokenErrorRate: record.token_error_rate
   };
 }
 
@@ -193,7 +203,11 @@ export default function App() {
       savedCost: summary?.saved_cost_usd ?? 0,
       savingsRate: summary?.savings_rate ?? 0,
       approved: summary?.approved_requests ?? 0,
-      totalAudits: summary?.total_requests ?? auditRecords.length
+      totalAudits: summary?.total_requests ?? auditRecords.length,
+      measuredRequests: summary?.measured_requests ?? 0,
+      measurementCoverage: summary?.measurement_coverage ?? 0,
+      avgTokenErrorRate: summary?.avg_token_error_rate ?? 0,
+      maxTokenErrorRate: summary?.max_token_error_rate ?? 0
     };
   }, [auditRecords.length, summary]);
 
@@ -593,12 +607,18 @@ function PreviewPanel(props: {
         <div className="card-body">
           <div className="token-bar">
             <div>
-              Original: <strong>{props.result.original_tokens.input_tokens.toLocaleString()}</strong>
+              Estimated original: <strong>{props.result.original_tokens.input_tokens.toLocaleString()}</strong>
             </div>
             <div>
-              Optimized: <strong>{props.result.optimized_tokens.input_tokens.toLocaleString()}</strong>
+              Estimated optimized: <strong>{props.result.optimized_tokens.input_tokens.toLocaleString()}</strong>
             </div>
-            <span className="token-badge">{(props.result.savings_rate * 100).toFixed(1)}% Saved</span>
+            <span className="token-badge">{(props.result.savings_rate * 100).toFixed(1)}% Estimated Saved</span>
+          </div>
+          <div className="audit-footer-strip">
+            <div>
+              Tokenizer: <strong>{props.result.optimized_tokens.tokenizer}</strong>
+            </div>
+            <span>Measured usage will replace estimates after provider usage is recorded.</span>
           </div>
 
           <div className="form-group">
@@ -646,16 +666,28 @@ function PreviewPanel(props: {
 }
 
 function DashboardTab(props: {
-  aggregate: { approved: number; savedCost: number; savedTokens: number; savingsRate: number; totalAudits: number };
+  aggregate: {
+    approved: number;
+    avgTokenErrorRate: number;
+    maxTokenErrorRate: number;
+    measuredRequests: number;
+    measurementCoverage: number;
+    savedCost: number;
+    savedTokens: number;
+    savingsRate: number;
+    totalAudits: number;
+  };
   records: AuditRecord[];
 }) {
   return (
     <section className="tab-content active">
       <div className="db-grid">
-        <DashboardCard icon={<Flame />} label="Savings Rate" value={`${(props.aggregate.savingsRate * 100).toFixed(1)}%`} highlight />
+        <DashboardCard icon={<Flame />} label="Estimated/Measured Savings" value={`${(props.aggregate.savingsRate * 100).toFixed(1)}%`} highlight />
         <DashboardCard icon={<Award />} label="Saved Tokens" value={`${Math.round(props.aggregate.savedTokens / 1000)}K`} />
         <DashboardCard icon={<Banknote />} label="Saved USD" value={`$${props.aggregate.savedCost.toFixed(2)}`} />
         <DashboardCard icon={<Database />} label="Total Audits" value={props.aggregate.totalAudits} />
+        <DashboardCard icon={<ShieldCheck />} label="Measured Coverage" value={`${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`} />
+        <DashboardCard icon={<Activity />} label="Avg Token Error" value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
       </div>
 
       <div className="chart-card">
@@ -867,6 +899,22 @@ function AuditRows(props: { expanded: boolean; record: AuditRecord; onToggle: ()
                 <span className="hash-line">{props.record.hashOpt}</span>
               </div>
               <p>Prompt text was not written to local SQLite storage. Hashed-only mode is active.</p>
+              <div>
+                <strong>Token source</strong>
+                <span className="hash-line">{props.record.tokenizer}</span>
+              </div>
+              {props.record.state === "measured" ? (
+                <div>
+                  <strong>Measured usage</strong>
+                  <span className="hash-line">
+                    input {props.record.measuredInputTokens?.toLocaleString()} / output{" "}
+                    {props.record.measuredOutputTokens?.toLocaleString()} / error{" "}
+                    {(((props.record.tokenErrorRate ?? 0) * 100)).toFixed(1)}%
+                  </span>
+                </div>
+              ) : (
+                <p>Usage is estimated until provider usage metadata is recorded.</p>
+              )}
             </div>
           </td>
         </tr>
