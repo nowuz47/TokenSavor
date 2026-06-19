@@ -1,0 +1,66 @@
+{
+  "version": "2026-06-19-official-seed",
+  "models": [
+    {
+      "provider": "openai",
+      "model": "gpt-5.5",
+      "input_per_million_usd": 5.0,
+      "cached_input_per_million_usd": 0.5,
+      "output_per_million_usd": 30.0,
+      "effective_date": "2026-06-19",
+      "version": "openai-2026-06-19",
+      "source_url": "https://developers.openai.com/api/docs/pricing"
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.4-mini",
+      "input_per_million_usd": 0.75,
+      "cached_input_per_million_usd": 0.075,
+      "output_per_million_usd": 4.5,
+      "effective_date": "2026-06-19",
+      "version": "openai-2026-06-19",
+      "source_url": "https://developers.openai.com/api/docs/pricing"
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4.6",
+      "input_per_million_usd": 3.0,
+      "cached_input_per_million_usd": 0.3,
+      "output_per_million_usd": 15.0,
+      "effective_date": "2026-06-19",
+      "version": "anthropic-2026-06-19",
+      "source_url": "https://platform.claude.com/docs/en/about-claude/pricing"
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-haiku-4.5",
+      "input_per_million_usd": 1.0,
+      "cached_input_per_million_usd": 0.1,
+      "output_per_million_usd": 5.0,
+      "effective_date": "2026-06-19",
+      "version": "anthropic-2026-06-19",
+      "source_url": "https://platform.claude.com/docs/en/about-claude/pricing"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3-flash",
+      "input_per_million_usd": 0.25,
+      "cached_input_per_million_usd": 0.025,
+      "output_per_million_usd": 1.5,
+      "effective_date": "2026-06-19",
+      "version": "gemini-2026-06-19",
+      "source_url": "https://ai.google.dev/gemini-api/docs/pricing"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite",
+      "input_per_million_usd": 0.1,
+      "cached_input_per_million_usd": 0.01,
+      "output_per_million_usd": 0.4,
+      "effective_date": "2026-06-19",
+      "version": "gemini-2026-06-19",
+      "source_url": "https://ai.google.dev/gemini-api/docs/pricing"
+    }
+  ]
+}
+
