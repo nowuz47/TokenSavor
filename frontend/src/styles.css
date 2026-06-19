@@ -226,6 +226,92 @@ button {
   color: var(--text-primary);
 }
 
+.bridge-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+}
+
+.bridge-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--shadow-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.bridge-primary {
+  border-color: rgba(212, 175, 55, 0.22);
+}
+
+.bridge-title {
+  align-items: center;
+  color: var(--text-primary);
+  display: flex;
+  gap: 7px;
+  min-width: 0;
+}
+
+.bridge-title span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bridge-title strong {
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.24);
+  border-radius: 999px;
+  color: var(--gold);
+  font-size: 9px;
+  margin-left: auto;
+  padding: 2px 6px;
+}
+
+.hook-endpoint {
+  background: rgba(6, 9, 7, 0.42);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  overflow: hidden;
+  padding: 7px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.bridge-chips,
+.bridge-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.bridge-chips {
+  flex-wrap: wrap;
+}
+
+.bridge-chips span {
+  background: rgba(6, 9, 7, 0.45);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 3px 6px;
+}
+
+.bridge-actions {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .compact-card,
 .chart-card,
 .table-card {
@@ -1154,6 +1240,7 @@ select.form-control {
   }
 
   .form-row,
+  .bridge-grid,
   .db-grid {
     grid-template-columns: 1fr;
   }

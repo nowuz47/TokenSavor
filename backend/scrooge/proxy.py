@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Any
 
 import httpx
@@ -62,10 +63,13 @@ async def capture_and_forward(
 
     prompt = extract_prompt(payload)
     preview = None
+    optimized_payload = payload
+    optimized_forwarded = False
     if prompt:
         model = _extract_model(payload) or settings.default_model
         preview = optimize_prompt(OptimizeRequest(prompt=prompt, provider=provider, model=model))
         store.save_preview(preview, provider=provider, model=model)
+        optimized_payload, optimized_forwarded = apply_optimized_prompt(payload, preview.optimized_prompt)
 
     should_forward = x_scrooge_forward == "true"
     upstream_body = None
@@ -73,7 +77,7 @@ async def capture_and_forward(
     if should_forward:
         upstream_base = settings.upstream_for(provider)
         if upstream_base:
-            upstream_status, upstream_body = await _forward_request(upstream_base, path, request, payload)
+            upstream_status, upstream_body = await _forward_request(upstream_base, path, request, optimized_payload)
             if preview:
                 store.mark_state(
                     preview.request_id,
@@ -84,10 +88,50 @@ async def capture_and_forward(
         request_id=preview.request_id if preview else "uncaptured",
         captured=preview is not None,
         forwarded=should_forward and upstream_status is not None,
+        optimized_forwarded=optimized_forwarded and should_forward and upstream_status is not None,
         upstream_status=upstream_status,
         preview=preview,
         upstream_body=upstream_body,
     )
+
+
+def apply_optimized_prompt(payload: Any, optimized_prompt: str) -> tuple[Any, bool]:
+    if isinstance(payload, str):
+        return optimized_prompt, True
+    if not isinstance(payload, dict):
+        return payload, False
+
+    updated = deepcopy(payload)
+    if isinstance(updated.get("prompt"), str):
+        updated["prompt"] = optimized_prompt
+        return updated, True
+    if isinstance(updated.get("input"), str):
+        updated["input"] = optimized_prompt
+        return updated, True
+    if isinstance(updated.get("input"), list):
+        updated["input"] = [optimized_prompt]
+        return updated, True
+
+    messages = updated.get("messages")
+    if isinstance(messages, list):
+        for message in reversed(messages):
+            if not isinstance(message, dict):
+                continue
+            if message.get("role") not in {None, "user"}:
+                continue
+            content = message.get("content")
+            if isinstance(content, str):
+                message["content"] = optimized_prompt
+                return updated, True
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") in {None, "text", "input_text"}:
+                        block["text"] = optimized_prompt
+                        return updated, True
+        updated["messages"].append({"role": "user", "content": optimized_prompt})
+        return updated, True
+
+    return payload, False
 
 
 async def _forward_request(
@@ -120,4 +164,3 @@ def _extract_model(payload: Any) -> str | None:
     if isinstance(payload, dict) and isinstance(payload.get("model"), str):
         return payload["model"]
     return None
-

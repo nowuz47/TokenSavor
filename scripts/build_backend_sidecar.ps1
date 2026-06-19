@@ -23,6 +23,7 @@ try {
         --clean `
         --noconfirm `
         --onefile `
+        --windowed `
         --name $sidecarName `
         --paths $backendDir `
         --collect-submodules scrooge `

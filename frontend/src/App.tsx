@@ -5,6 +5,8 @@ import {
   BarChart3,
   Check,
   CheckCircle,
+  Clipboard,
+  ClipboardCheck,
   Cpu,
   Database,
   Edit3,
@@ -303,13 +305,73 @@ export default function App() {
     setLoading(true);
     try {
       await approvePrompt(result.request_id, approved);
-      setStatus(approved ? "Request approved & sent via proxy" : "Optimized prompt rejected");
-      showToast(approved ? "Request approved & sent via proxy." : "Optimized prompt rejected.");
+      if (approved) {
+        await copyOptimizedPrompt(result.optimized_prompt);
+      }
+      setStatus(approved ? "Optimized prompt copied for Codex" : "Optimized prompt rejected");
+      showToast(approved ? "Optimized prompt copied. Paste it into Codex." : "Optimized prompt rejected.");
       setResult(null);
       setWorkspacePanel("input");
       await refreshTelemetry();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Approval failed";
+      setStatus(message);
+      showToast(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copyOptimizedPrompt(text: string) {
+    if (!navigator.clipboard?.writeText) {
+      throw new Error("Clipboard write is unavailable in this environment");
+    }
+    await navigator.clipboard.writeText(text);
+  }
+
+  async function captureClipboardPrompt() {
+    try {
+      if (!navigator.clipboard?.readText) {
+        throw new Error("Clipboard read is unavailable in this environment");
+      }
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        showToast("Clipboard is empty.");
+        return null;
+      }
+      setPrompt(text);
+      setWorkspacePanel("input");
+      setStatus("Codex Bridge captured clipboard prompt");
+      showToast("Clipboard prompt captured for optimization.");
+      return text;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Clipboard capture failed";
+      setStatus(message);
+      showToast(message);
+      return null;
+    }
+  }
+
+  async function optimizeClipboardPrompt() {
+    const text = await captureClipboardPrompt();
+    if (!text?.trim()) return;
+    setLoading(true);
+    setStatus("Optimizing Codex clipboard prompt");
+    try {
+      const response = await optimizePrompt({
+        prompt: text,
+        provider,
+        model,
+        task_type: taskType,
+        expected_output_tokens: expectedOutputTokens
+      });
+      setResult(response);
+      setWorkspacePanel("preview");
+      setStatus("Codex Bridge preview loaded");
+      showToast("Review and approve to copy the optimized prompt.");
+      await refreshTelemetry();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Clipboard optimize failed";
       setStatus(message);
       showToast(message);
     } finally {
@@ -378,9 +440,11 @@ export default function App() {
         taskType={taskType}
         workspacePanel={workspacePanel}
         onApprove={() => decide(true)}
+        onCaptureClipboard={captureClipboardPrompt}
         onExpectedOutputTokensChange={setExpectedOutputTokens}
         onModelChange={setModel}
         onOptimize={runOptimize}
+        onOptimizeClipboard={optimizeClipboardPrompt}
         onPromptChange={setPrompt}
         onProviderChange={setProvider}
         onReject={() => decide(false)}
@@ -476,9 +540,11 @@ function WorkspaceTab(props: {
   taskType: TaskType | "";
   workspacePanel: WorkspacePanel;
   onApprove: () => void;
+  onCaptureClipboard: () => void;
   onExpectedOutputTokensChange: (value: number) => void;
   onModelChange: (value: string) => void;
   onOptimize: () => void;
+  onOptimizeClipboard: () => void;
   onPromptChange: (value: string) => void;
   onProviderChange: (value: string) => void;
   onReject: () => void;
@@ -507,91 +573,126 @@ function WorkspaceTab(props: {
       </div>
 
       {props.workspacePanel === "input" ? (
-        <div className="compact-card">
-          <div className="card-header">
-            <h3>
-              <Terminal size={14} />
-              Original Request
-            </h3>
-            <button className="btn btn-primary" type="button" onClick={props.onOptimize} disabled={props.loading}>
-              <Sparkles size={12} />
-              Optimize
-            </button>
-          </div>
-          <div className="card-body">
-            <div className="form-row">
-              <label className="form-group">
-                Provider
-                <select
-                  className="form-control"
-                  value={props.provider}
-                  onChange={(event) => props.onProviderChange(event.target.value)}
-                >
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Anthropic</option>
-                  <option value="gemini">Gemini</option>
-                </select>
-              </label>
-              <label className="form-group">
-                Target Model
-                <select
-                  className="form-control"
-                  value={props.model}
-                  onChange={(event) => props.onModelChange(event.target.value)}
-                >
-                  {props.availableModels.map((item) => (
-                    <option key={item.model} value={item.model}>
-                      {item.model}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <label className="form-group">
-              Max Out Tokens: {props.expectedOutputTokens}
-              <div className="slider-box">
-                <input
-                  max={4000}
-                  min={100}
-                  step={100}
-                  type="range"
-                  value={props.expectedOutputTokens}
-                  onChange={(event) => props.onExpectedOutputTokensChange(Number(event.target.value))}
-                />
-                <span className="slider-val">~{Math.round(props.expectedOutputTokens / 1000)}K</span>
+        <>
+          <div className="bridge-grid">
+            <div className="bridge-panel bridge-primary">
+              <div className="bridge-title">
+                <Server size={14} />
+                <span>Hook Proxy</span>
+                <strong>Primary</strong>
               </div>
-            </label>
+              <div className="hook-endpoint mono">http://127.0.0.1:8750/proxy/{props.provider}/v1/responses</div>
+              <div className="bridge-chips">
+                <span>capture</span>
+                <span>rewrite</span>
+                <span>forward</span>
+              </div>
+            </div>
+            <div className="bridge-panel">
+              <div className="bridge-title">
+                <ClipboardCheck size={14} />
+                <span>Codex Bridge</span>
+                <strong>Assist</strong>
+              </div>
+              <div className="bridge-actions">
+                <button className="btn btn-outline" type="button" onClick={props.onCaptureClipboard} disabled={props.loading}>
+                  <Clipboard size={12} />
+                  Capture
+                </button>
+                <button className="btn btn-primary" type="button" onClick={props.onOptimizeClipboard} disabled={props.loading}>
+                  <Sparkles size={12} />
+                  Optimize Clip
+                </button>
+              </div>
+            </div>
+          </div>
 
-            <div className="form-group">
-              <span className="form-label">Task Template</span>
-              <div className="task-tags">
-                {taskOptions.map((option) => (
-                  <button
-                    key={option.label}
-                    className={`tag-btn ${props.taskType === option.value ? "active" : ""}`}
-                    type="button"
-                    onClick={() => props.onTaskTypeChange(option.value)}
+          <div className="compact-card">
+            <div className="card-header">
+              <h3>
+                <Terminal size={14} />
+                Original Request
+              </h3>
+              <button className="btn btn-primary" type="button" onClick={props.onOptimize} disabled={props.loading}>
+                <Sparkles size={12} />
+                Optimize
+              </button>
+            </div>
+            <div className="card-body">
+              <div className="form-row">
+                <label className="form-group">
+                  Provider
+                  <select
+                    className="form-control"
+                    value={props.provider}
+                    onChange={(event) => props.onProviderChange(event.target.value)}
                   >
-                    {option.label}
-                  </button>
-                ))}
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="gemini">Gemini</option>
+                  </select>
+                </label>
+                <label className="form-group">
+                  Target Model
+                  <select
+                    className="form-control"
+                    value={props.model}
+                    onChange={(event) => props.onModelChange(event.target.value)}
+                  >
+                    {props.availableModels.map((item) => (
+                      <option key={item.model} value={item.model}>
+                        {item.model}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
-            </div>
 
-            <label className="form-group grow">
-              Context / Query Body
-              <div className="editor-box">
-                <textarea
-                  className="editor-textarea"
-                  placeholder="Paste noisy logs or code blocks here..."
-                  value={props.prompt}
-                  onChange={(event) => props.onPromptChange(event.target.value)}
-                />
+              <label className="form-group">
+                Max Out Tokens: {props.expectedOutputTokens}
+                <div className="slider-box">
+                  <input
+                    max={4000}
+                    min={100}
+                    step={100}
+                    type="range"
+                    value={props.expectedOutputTokens}
+                    onChange={(event) => props.onExpectedOutputTokensChange(Number(event.target.value))}
+                  />
+                  <span className="slider-val">~{Math.round(props.expectedOutputTokens / 1000)}K</span>
+                </div>
+              </label>
+
+              <div className="form-group">
+                <span className="form-label">Task Template</span>
+                <div className="task-tags">
+                  {taskOptions.map((option) => (
+                    <button
+                      key={option.label}
+                      className={`tag-btn ${props.taskType === option.value ? "active" : ""}`}
+                      type="button"
+                      onClick={() => props.onTaskTypeChange(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </label>
+
+              <label className="form-group grow">
+                Context / Query Body
+                <div className="editor-box">
+                  <textarea
+                    className="editor-textarea"
+                    placeholder="Paste noisy logs or code blocks here..."
+                    value={props.prompt}
+                    onChange={(event) => props.onPromptChange(event.target.value)}
+                  />
+                </div>
+              </label>
+            </div>
           </div>
-        </div>
+        </>
       ) : (
         <PreviewPanel result={props.result} onApprove={props.onApprove} onReject={props.onReject} />
       )}
@@ -974,8 +1075,12 @@ function SettingsTab() {
         </div>
         <div className="card-body">
           <label className="form-group">
-            Local Intercept Endpoint
-            <input className="form-control mono highlight-input" readOnly value="http://localhost:8750/proxy" />
+            Local Hook Endpoint
+            <input className="form-control mono highlight-input" readOnly value="http://127.0.0.1:8750/proxy/openai/v1/responses" />
+          </label>
+          <label className="form-group">
+            Forward Header
+            <input className="form-control mono" readOnly value="x-scrooge-forward: true" />
           </label>
           <label className="form-group">
             Upstream Target (OpenAI)

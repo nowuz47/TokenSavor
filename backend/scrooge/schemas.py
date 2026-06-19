@@ -180,6 +180,7 @@ class ProxyCaptureResponse(BaseModel):
     request_id: str
     captured: bool
     forwarded: bool
+    optimized_forwarded: bool = False
     upstream_status: int | None = None
     preview: OptimizeResponse | None = None
     upstream_body: Any | None = None
