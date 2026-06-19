@@ -79,12 +79,14 @@ fn start_backend_sidecar(app: &tauri::App) {
 
 fn stop_backend_sidecar(app: &AppHandle) {
     let state = app.state::<BackendState>();
-    if let Some(child) = state
-        .child
-        .lock()
-        .expect("backend child mutex poisoned")
-        .take()
-    {
+    let child = {
+        state
+            .child
+            .lock()
+            .expect("backend child mutex poisoned")
+            .take()
+    };
+    if let Some(child) = child {
         let _ = child.kill();
     }
 }
