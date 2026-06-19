@@ -30,9 +30,16 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": [
+      "binaries/scrooge-backend"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      }
+    },
     "icon": [
       "icons/icon.png"
     ]
   }
 }
-

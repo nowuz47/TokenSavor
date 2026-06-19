@@ -44,6 +44,28 @@ cd frontend
 npm run tauri:dev
 ```
 
+## Windows Install Smoke
+
+Scrooge packages the FastAPI backend as a Tauri sidecar. Build the backend
+sidecar before running a Tauri installer build:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_backend_sidecar.ps1 -TargetTriple aarch64-pc-windows-msvc
+cd frontend
+npm run tauri:build
+```
+
+On Windows ARM64, native Tauri packaging also requires Rust and the Visual
+Studio C++ ARM64 build tools. The backend sidecar can be smoke-tested without a
+Python runtime by running the generated `frontend/src-tauri/binaries` executable
+and checking `GET http://127.0.0.1:8750/health`.
+
+Run the reliability gate against a running backend:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\verify_install_smoke.ps1 -ApiBase http://127.0.0.1:8750
+```
+
 ## API Sketch
 
 - `POST /api/optimize`: analyze and optimize a prompt for preview.
@@ -66,4 +88,3 @@ The intended implementation milestones are:
 4. `feat: add token meter and pricing registry`
 5. `feat: add sqlite usage storage and dashboard`
 6. `test: add optimizer quality and cost reliability checks`
-
