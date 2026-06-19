@@ -1,0 +1,61 @@
+export type TaskType =
+  | "bug_analysis"
+  | "code_review"
+  | "refactoring"
+  | "test_generation"
+  | "architecture_review"
+  | "log_analysis"
+  | "general";
+
+export interface TokenBreakdown {
+  input_tokens: number;
+  output_tokens: number;
+  tokenizer: string;
+  is_estimate: boolean;
+}
+
+export interface CostBreakdown {
+  input_cost_usd: number;
+  output_cost_usd: number;
+  total_cost_usd: number;
+  pricing_version: string;
+  source_url: string;
+  is_estimate: boolean;
+}
+
+export interface OptimizationReason {
+  rule_id: string;
+  description: string;
+}
+
+export interface OptimizeResponse {
+  request_id: string;
+  task_type: TaskType;
+  original_prompt: string;
+  optimized_prompt: string;
+  original_tokens: TokenBreakdown;
+  optimized_tokens: TokenBreakdown;
+  original_cost: CostBreakdown;
+  optimized_cost: CostBreakdown;
+  saved_tokens: number;
+  saved_cost_usd: number;
+  savings_rate: number;
+  reasons: OptimizationReason[];
+  created_at: string;
+}
+
+export interface DashboardSummary {
+  period: string;
+  total_requests: number;
+  approved_requests: number;
+  rejected_requests: number;
+  original_tokens: number;
+  optimized_tokens: number;
+  saved_tokens: number;
+  original_cost_usd: number;
+  optimized_cost_usd: number;
+  saved_cost_usd: number;
+  savings_rate: number;
+  measured_requests: number;
+}
+
