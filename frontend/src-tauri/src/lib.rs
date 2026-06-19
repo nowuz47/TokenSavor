@@ -2,6 +2,8 @@ use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, WindowEvent};
+use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 
@@ -77,6 +79,76 @@ fn start_backend_sidecar(app: &tauri::App) {
     }
 }
 
+fn optimize_clipboard_via_backend(app: AppHandle) {
+    thread::spawn(move || {
+        let Ok(text) = app.clipboard().read_text() else {
+            return;
+        };
+        if text.trim().is_empty() {
+            return;
+        }
+        let body = serde_json::json!({
+            "prompt": text,
+            "provider": "openai",
+            "model": "gpt-5.4-mini",
+            "task_type": null,
+            "expected_output_tokens": 1000
+        });
+        let Some(response) = post_json("/api/optimize", &body) else {
+            return;
+        };
+        let request_id = response
+            .get("request_id")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default()
+            .to_string();
+        let saved_tokens = response
+            .get("saved_tokens")
+            .and_then(|value| value.as_i64())
+            .unwrap_or(0);
+
+        if saved_tokens <= 0 {
+            if !request_id.is_empty() {
+                let _ = post_json(
+                    &format!("/api/approvals/{request_id}/approve"),
+                    &serde_json::json!({ "approved": false }),
+                );
+            }
+            return;
+        }
+
+        let Some(optimized_prompt) = response.get("optimized_prompt").and_then(|value| value.as_str()) else {
+            return;
+        };
+        if app.clipboard().write_text(optimized_prompt).is_ok() && !request_id.is_empty() {
+            let _ = post_json(
+                &format!("/api/approvals/{request_id}/approve"),
+                &serde_json::json!({ "approved": true }),
+            );
+        }
+    });
+}
+
+fn post_json(path: &str, body: &serde_json::Value) -> Option<serde_json::Value> {
+    let payload = serde_json::to_string(body).ok()?;
+    let mut stream = TcpStream::connect_timeout(
+        &"127.0.0.1:8750".parse().expect("valid local socket address"),
+        Duration::from_millis(700),
+    )
+    .ok()?;
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+    let request = format!(
+        "POST {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+        payload.len()
+    );
+    stream.write_all(request.as_bytes()).ok()?;
+
+    let mut response = String::new();
+    stream.read_to_string(&mut response).ok()?;
+    let (_, body) = response.split_once("\r\n\r\n")?;
+    serde_json::from_str(body).ok()
+}
+
 fn stop_backend_sidecar(app: &AppHandle) {
     let state = app.state::<BackendState>();
     let child = {
@@ -93,10 +165,23 @@ fn stop_backend_sidecar(app: &AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let shortcut_plugin = match tauri_plugin_global_shortcut::Builder::new().with_shortcuts(["ctrl+alt+s"]) {
+        Ok(builder) => builder
+            .with_handler(|app, _shortcut, event| {
+                if event.state == ShortcutState::Pressed {
+                    optimize_clipboard_via_backend(app.clone());
+                }
+            })
+            .build(),
+        Err(_) => tauri_plugin_global_shortcut::Builder::new().build(),
+    };
+
     tauri::Builder::default()
         .manage(BackendState {
             child: Mutex::new(None),
         })
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(shortcut_plugin)
         .plugin(tauri_plugin_shell::init())
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

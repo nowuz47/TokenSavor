@@ -26,6 +26,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
+import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useMemo, useState } from "react";
 
@@ -168,6 +169,7 @@ const copy = {
       minimize: "Minimize",
       optimize: "Optimize",
       optimizeClip: "Optimize Clip",
+      optimizeHotkey: "Optimize Clipboard",
       refresh: "Refresh",
       reject: "Reject",
       verifyRates: "Verify Official Rates"
@@ -183,6 +185,10 @@ const copy = {
       clipboardCaptured: "Clipboard prompt captured for optimization.",
       clipboardEmpty: "Clipboard is empty.",
       clipboardOptimized: "Review and approve to copy the optimized prompt.",
+      hotkeyCopied: "Clipboard optimized and replaced. Paste it into Codex.",
+      hotkeyNoSavings: "No token savings found. Clipboard was left unchanged.",
+      hotkeyRegistered: "Global shortcut ready: Ctrl+Alt+S",
+      hotkeyRegisterFailed: "Global shortcut registration failed. Use the Optimize Clipboard button.",
       dbCleared: "Local SQLite audit records cleared.",
       defaultDone: "Task complete.",
       disabled: "Optimization disabled while proxy router is stopped.",
@@ -201,6 +207,7 @@ const copy = {
       bridge: "Codex Bridge",
       context: "Context / Query Body",
       endpointChips: ["capture", "rewrite", "forward"],
+      hotkeyHint: "Copy text in Codex, press Ctrl+Alt+S, then paste the optimized prompt.",
       hookProxy: "Hook Proxy",
       inputTab: "Workbench Input",
       maxOut: "Max Out Tokens",
@@ -278,6 +285,8 @@ const copy = {
       forwardHeader: "Forward Header",
       hashedOnly: "Hashed-Only Telemetry",
       hashedOnlyNote: "Do not save raw prompt bodies.",
+      hotkey: "Global Shortcut",
+      hotkeyNote: "Ctrl+Alt+S optimizes current clipboard text and replaces it with the optimized prompt.",
       language: "Language",
       languageNote: "Switch primary UI labels between Korean and English.",
       localEndpoint: "Local Hook Endpoint",
@@ -327,6 +336,7 @@ const copy = {
       minimize: "최소화",
       optimize: "최적화",
       optimizeClip: "클립보드 최적화",
+      optimizeHotkey: "클립보드 즉시 최적화",
       refresh: "새로고침",
       reject: "거절",
       verifyRates: "공식 단가 확인"
@@ -342,6 +352,10 @@ const copy = {
       clipboardCaptured: "클립보드 프롬프트를 최적화 대상으로 가져왔습니다.",
       clipboardEmpty: "클립보드가 비어 있습니다.",
       clipboardOptimized: "검토 후 승인하면 최적화 프롬프트를 복사합니다.",
+      hotkeyCopied: "클립보드를 최적화 프롬프트로 교체했습니다. Codex에 붙여넣으세요.",
+      hotkeyNoSavings: "절감 가능한 토큰이 없어 클립보드를 원문 그대로 유지했습니다.",
+      hotkeyRegistered: "전역 단축키 준비됨: Ctrl+Alt+S",
+      hotkeyRegisterFailed: "전역 단축키 등록 실패. 클립보드 최적화 버튼을 사용하세요.",
       dbCleared: "로컬 SQLite 감사 기록을 삭제했습니다.",
       defaultDone: "작업이 완료되었습니다.",
       disabled: "프록시 라우터가 중지되어 최적화를 사용할 수 없습니다.",
@@ -360,6 +374,7 @@ const copy = {
       bridge: "Codex 브리지",
       context: "컨텍스트 / 요청 본문",
       endpointChips: ["수집", "재작성", "전송"],
+      hotkeyHint: "Codex에서 텍스트를 복사하고 Ctrl+Alt+S를 누른 뒤 최적화 프롬프트를 붙여넣으세요.",
       hookProxy: "후킹 프록시",
       inputTab: "입력 작업대",
       maxOut: "최대 출력 토큰",
@@ -437,6 +452,8 @@ const copy = {
       forwardHeader: "전송 헤더",
       hashedOnly: "해시 전용 텔레메트리",
       hashedOnlyNote: "원본 프롬프트 본문을 저장하지 않습니다.",
+      hotkey: "전역 단축키",
+      hotkeyNote: "Ctrl+Alt+S가 현재 클립보드 텍스트를 최적화하고 클립보드를 교체합니다.",
       language: "언어",
       languageNote: "주요 UI 문구를 한국어/영어로 전환합니다.",
       localEndpoint: "로컬 후킹 엔드포인트",
@@ -713,18 +730,12 @@ export default function App() {
   }
 
   async function copyOptimizedPrompt(text: string) {
-    if (!navigator.clipboard?.writeText) {
-      throw new Error("Clipboard write is unavailable in this environment");
-    }
-    await navigator.clipboard.writeText(text);
+    await writeText(text);
   }
 
   async function captureClipboardPrompt() {
     try {
-      if (!navigator.clipboard?.readText) {
-        throw new Error("Clipboard read is unavailable in this environment");
-      }
-      const text = await navigator.clipboard.readText();
+      const text = await readText();
       if (!text.trim()) {
         showToast(labels.toast.clipboardEmpty);
         return null;
@@ -739,6 +750,53 @@ export default function App() {
       setStatus(message);
       showToast(message);
       return null;
+    }
+  }
+
+  async function optimizeClipboardDirect() {
+    if (!proxyRunning) {
+      showToast(labels.toast.disabled);
+      return;
+    }
+    try {
+      const text = await readText();
+      if (!text.trim()) {
+        showToast(labels.toast.clipboardEmpty);
+        return;
+      }
+      setLoading(true);
+      setStatus(locale === "ko" ? "클립보드 즉시 최적화 중" : "Optimizing clipboard");
+      const response = await optimizePrompt({
+        prompt: text,
+        provider,
+        model,
+        task_type: taskType,
+        expected_output_tokens: expectedOutputTokens
+      });
+      if (response.saved_tokens <= 0) {
+        await approvePrompt(response.request_id, false);
+        setResult(response);
+        setPrompt(text);
+        setWorkspacePanel("preview");
+        setStatus(locale === "ko" ? "절감 없음 - 클립보드 유지" : "No savings - clipboard unchanged");
+        showToast(labels.toast.hotkeyNoSavings);
+        await refreshTelemetry();
+        return;
+      }
+      await approvePrompt(response.request_id, true);
+      await writeText(response.optimized_prompt);
+      setResult(response);
+      setPrompt(text);
+      setWorkspacePanel("preview");
+      setStatus(locale === "ko" ? "클립보드가 최적화 프롬프트로 교체됨" : "Clipboard replaced with optimized prompt");
+      showToast(labels.toast.hotkeyCopied);
+      await refreshTelemetry();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Clipboard optimize failed";
+      setStatus(message);
+      showToast(message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -837,6 +895,7 @@ export default function App() {
         onModelChange={setModel}
         onOptimize={runOptimize}
         onOptimizeClipboard={optimizeClipboardPrompt}
+        onOptimizeClipboardDirect={optimizeClipboardDirect}
         onPromptChange={setPrompt}
         onProviderChange={setProvider}
         onReject={() => decide(false)}
@@ -953,6 +1012,7 @@ function WorkspaceTab(props: {
   onModelChange: (value: string) => void;
   onOptimize: () => void;
   onOptimizeClipboard: () => void;
+  onOptimizeClipboardDirect: () => void;
   onPromptChange: (value: string) => void;
   onProviderChange: (value: string) => void;
   onReject: () => void;
@@ -1003,15 +1063,20 @@ function WorkspaceTab(props: {
                 <strong>{props.copy.workspace.assist}</strong>
               </div>
               <div className="bridge-actions">
+                <button className="btn btn-primary" type="button" onClick={props.onOptimizeClipboardDirect} disabled={props.loading}>
+                  <Sparkles size={12} />
+                  {props.copy.actions.optimizeHotkey}
+                </button>
                 <button className="btn btn-outline" type="button" onClick={props.onCaptureClipboard} disabled={props.loading}>
                   <Clipboard size={12} />
                   {props.copy.actions.capture}
                 </button>
-                <button className="btn btn-primary" type="button" onClick={props.onOptimizeClipboard} disabled={props.loading}>
+                <button className="btn btn-outline" type="button" onClick={props.onOptimizeClipboard} disabled={props.loading}>
                   <Sparkles size={12} />
                   {props.copy.actions.optimizeClip}
                 </button>
               </div>
+              <div className="hook-endpoint mono">{props.copy.workspace.hotkeyHint}</div>
             </div>
           </div>
 
@@ -1504,6 +1569,14 @@ function SettingsTab(props: {
               <option value="en">{props.copy.languageOptions.en}</option>
             </select>
           </label>
+
+          <div className="row-switch">
+            <div>
+              <strong>{props.copy.settings.hotkey}</strong>
+              <span>{props.copy.settings.hotkeyNote}</span>
+            </div>
+            <span className="shortcut-key">Ctrl+Alt+S</span>
+          </div>
         </div>
       </div>
 

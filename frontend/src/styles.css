@@ -1048,6 +1048,18 @@ select.form-control {
   min-height: 28px;
 }
 
+.shortcut-key {
+  background: var(--bg-main);
+  border: 1px solid var(--border-hover);
+  border-radius: 5px;
+  color: var(--gold);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
 .row-switch div {
   display: flex;
   flex-direction: column;
