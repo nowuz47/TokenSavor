@@ -7,6 +7,7 @@ from scrooge.config import Settings, get_settings
 from scrooge.optimizer import optimize_prompt
 from scrooge.pricing import get_pricing_registry
 from scrooge.proxy import router as proxy_router
+from scrooge.quality import evaluate_quality_report
 from scrooge.schemas import (
     AuditRecordSummary,
     ApprovalRequest,
@@ -16,6 +17,7 @@ from scrooge.schemas import (
     MeasurementResponse,
     OptimizeRequest,
     OptimizeResponse,
+    QualitySummary,
     UsageState,
 )
 from scrooge.storage import UsageStore
@@ -84,6 +86,54 @@ def dashboard_summary(period: str = "month", store: UsageStore = Depends(get_sto
     if period not in {"day", "week", "month", "all"}:
         raise HTTPException(status_code=400, detail="period must be day, week, month, or all")
     return DashboardSummary(**store.summary(period=period))
+
+
+@app.get("/api/quality/summary", response_model=QualitySummary)
+def quality_summary() -> QualitySummary:
+    report = evaluate_quality_report()
+    return QualitySummary(
+        total_cases=report.total_cases,
+        passed_cases=report.passed_cases,
+        quality_preservation_rate=report.quality_preservation_rate,
+        average_savings_rate=report.average_savings_rate,
+        harmful_omission_count=report.harmful_omission_count,
+        hallucinated_constraint_count=report.hallucinated_constraint_count,
+        over_optimization_count=report.over_optimization_count,
+        category_summaries=[
+            {
+                "category": item.category.value,
+                "total_cases": item.total_cases,
+                "passed_cases": item.passed_cases,
+                "preservation_pass_rate": item.preservation_pass_rate,
+                "average_savings_rate": item.average_savings_rate,
+                "harmful_omission_count": item.harmful_omission_count,
+                "hallucinated_constraint_count": item.hallucinated_constraint_count,
+                "over_optimization_count": item.over_optimization_count,
+                "savings_floor_failures": item.savings_floor_failures,
+            }
+            for item in report.category_summaries
+        ],
+        results=[
+            {
+                "name": item.name,
+                "category": item.category.value,
+                "passed": item.passed,
+                "preservation_passed": item.preservation_passed,
+                "behavior_passed": item.behavior_passed,
+                "hallucination_passed": item.hallucination_passed,
+                "savings_passed": item.savings_passed,
+                "savings_rate": item.savings_rate,
+                "original_tokens": item.original_tokens,
+                "optimized_tokens": item.optimized_tokens,
+                "missing_terms": list(item.missing_terms),
+                "missing_behaviors": list(item.missing_behaviors),
+                "hallucinated_terms": list(item.hallucinated_terms),
+                "short_prompt": item.short_prompt,
+                "over_optimized": item.over_optimized,
+            }
+            for item in report.results
+        ],
+    )
 
 
 @app.get("/api/audit/records", response_model=list[AuditRecordSummary])

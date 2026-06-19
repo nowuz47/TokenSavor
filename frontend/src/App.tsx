@@ -28,6 +28,7 @@ import {
   clearAuditRecords,
   getAuditRecords,
   getDashboardSummary,
+  getQualitySummary,
   optimizePrompt
 } from "./api";
 import type {
@@ -35,6 +36,7 @@ import type {
   DashboardSummary,
   OptimizationReason,
   OptimizeResponse,
+  QualitySummary,
   TaskType
 } from "./types";
 
@@ -183,6 +185,7 @@ export default function App() {
   const [expectedOutputTokens, setExpectedOutputTokens] = useState(1000);
   const [result, setResult] = useState<OptimizeResponse | null>(null);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [qualitySummary, setQualitySummary] = useState<QualitySummary | null>(null);
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
   const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
   const [auditSearch, setAuditSearch] = useState("");
@@ -244,15 +247,18 @@ export default function App() {
 
   async function refreshTelemetry() {
     try {
-      const [nextSummary, nextRecords] = await Promise.all([
+      const [nextSummary, nextRecords, nextQuality] = await Promise.all([
         getDashboardSummary("month"),
-        getAuditRecords(100)
+        getAuditRecords(100),
+        getQualitySummary()
       ]);
       setSummary(nextSummary);
       setAuditRecords(nextRecords.map(toAuditRecord));
+      setQualitySummary(nextQuality);
     } catch {
       setSummary(null);
       setAuditRecords([]);
+      setQualitySummary(null);
     }
   }
 
@@ -364,7 +370,7 @@ export default function App() {
       />
     ),
     dashboard: (
-      <DashboardTab aggregate={aggregate} records={auditRecords} />
+      <DashboardTab aggregate={aggregate} qualitySummary={qualitySummary} records={auditRecords} />
     ),
     audit: (
       <AuditTab
@@ -677,8 +683,11 @@ function DashboardTab(props: {
     savingsRate: number;
     totalAudits: number;
   };
+  qualitySummary: QualitySummary | null;
   records: AuditRecord[];
 }) {
+  const quality = props.qualitySummary;
+
   return (
     <section className="tab-content active">
       <div className="db-grid">
@@ -688,6 +697,81 @@ function DashboardTab(props: {
         <DashboardCard icon={<Database />} label="Total Audits" value={props.aggregate.totalAudits} />
         <DashboardCard icon={<ShieldCheck />} label="Measured Coverage" value={`${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`} />
         <DashboardCard icon={<Activity />} label="Avg Token Error" value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
+      </div>
+
+      <div className="db-grid">
+        <DashboardCard
+          highlight
+          icon={<ShieldCheck />}
+          label="Quality Preservation"
+          value={quality ? `${(quality.quality_preservation_rate * 100).toFixed(0)}%` : "--"}
+        />
+        <DashboardCard
+          icon={<CheckCircle />}
+          label="Golden Cases"
+          value={quality ? `${quality.passed_cases}/${quality.total_cases}` : "--"}
+        />
+        <DashboardCard
+          icon={<X />}
+          label="Harmful Omissions"
+          value={quality?.harmful_omission_count ?? "--"}
+        />
+        <DashboardCard
+          icon={<Sparkles />}
+          label="Over-Optimization"
+          value={quality?.over_optimization_count ?? "--"}
+        />
+      </div>
+
+      <div className="table-card">
+        <div className="quality-card-header">
+          <h3>
+            <ShieldCheck size={14} />
+            Quality Uniformity By Work Type
+          </h3>
+          <span>
+            {quality
+              ? `${(quality.average_savings_rate * 100).toFixed(1)}% avg savings`
+              : "quality gate unavailable"}
+          </span>
+        </div>
+        <div className="table-scroll">
+          <table className="compact-table quality-table">
+            <thead>
+              <tr>
+                <th>Work Type</th>
+                <th>Cases</th>
+                <th>Preserve</th>
+                <th>Avg Saved</th>
+                <th>Issues</th>
+              </tr>
+            </thead>
+            <tbody>
+              {quality ? (
+                quality.category_summaries.map((item) => (
+                  <tr key={item.category}>
+                    <td className="model-cell">{formatQualityCategory(item.category)}</td>
+                    <td>{item.passed_cases}/{item.total_cases}</td>
+                    <td>{(item.preservation_pass_rate * 100).toFixed(0)}%</td>
+                    <td className="highlight-text">{(item.average_savings_rate * 100).toFixed(1)}%</td>
+                    <td>
+                      {item.harmful_omission_count +
+                        item.hallucinated_constraint_count +
+                        item.over_optimization_count +
+                        item.savings_floor_failures}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td className="empty-table" colSpan={5}>
+                    Quality gate summary unavailable
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="chart-card">
@@ -942,6 +1026,17 @@ function NavItem(props: { active: boolean; icon: JSX.Element; label: string; onC
       <span>{props.label}</span>
     </button>
   );
+}
+
+function formatQualityCategory(category: string) {
+  const labels: Record<string, string> = {
+    coding: "Coding",
+    debugging: "Debugging",
+    logs: "Logs",
+    data: "Data",
+    docs_planning: "Docs/Planning"
+  };
+  return labels[category] ?? category;
 }
 
 function renderDiffLines(text: string, reasons: OptimizationReason[], mode: "added" | "removed") {

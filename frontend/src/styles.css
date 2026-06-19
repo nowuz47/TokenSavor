@@ -632,6 +632,35 @@ select.form-control {
   padding: 10px;
 }
 
+.quality-card-header {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.006);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 10px 14px;
+}
+
+.quality-card-header h3 {
+  align-items: center;
+  display: flex;
+  font-size: 12px;
+  gap: 6px;
+  margin: 0;
+}
+
+.quality-card-header span {
+  color: var(--gold);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.quality-table {
+  min-width: 560px;
+}
+
 .chart-title {
   color: var(--text-secondary);
   font-size: 11px;
@@ -1084,4 +1113,3 @@ select.form-control {
     display: none;
   }
 }
-

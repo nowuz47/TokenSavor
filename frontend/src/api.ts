@@ -3,6 +3,7 @@ import type {
   DashboardSummary,
   MeasurementResponse,
   OptimizeResponse,
+  QualitySummary,
   TaskType
 } from "./types";
 
@@ -47,6 +48,14 @@ export async function getDashboardSummary(period = "month"): Promise<DashboardSu
   const response = await fetch(`${API_BASE}/api/dashboard/summary?period=${period}`);
   if (!response.ok) {
     throw new Error(`Dashboard failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getQualitySummary(): Promise<QualitySummary> {
+  const response = await fetch(`${API_BASE}/api/quality/summary`);
+  if (!response.ok) {
+    throw new Error(`Quality summary failed: ${response.status}`);
   }
   return response.json();
 }

@@ -62,6 +62,48 @@ export interface DashboardSummary {
   max_token_error_rate: number;
 }
 
+export interface QualityCategorySummary {
+  category: string;
+  total_cases: number;
+  passed_cases: number;
+  preservation_pass_rate: number;
+  average_savings_rate: number;
+  harmful_omission_count: number;
+  hallucinated_constraint_count: number;
+  over_optimization_count: number;
+  savings_floor_failures: number;
+}
+
+export interface QualityCaseResult {
+  name: string;
+  category: string;
+  passed: boolean;
+  preservation_passed: boolean;
+  behavior_passed: boolean;
+  hallucination_passed: boolean;
+  savings_passed: boolean;
+  savings_rate: number;
+  original_tokens: number;
+  optimized_tokens: number;
+  missing_terms: string[];
+  missing_behaviors: string[];
+  hallucinated_terms: string[];
+  short_prompt: boolean;
+  over_optimized: boolean;
+}
+
+export interface QualitySummary {
+  total_cases: number;
+  passed_cases: number;
+  quality_preservation_rate: number;
+  average_savings_rate: number;
+  harmful_omission_count: number;
+  hallucinated_constraint_count: number;
+  over_optimization_count: number;
+  category_summaries: QualityCategorySummary[];
+  results: QualityCaseResult[];
+}
+
 export interface AuditRecordSummary {
   request_id: string;
   created_at: string;

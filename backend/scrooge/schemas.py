@@ -111,6 +111,48 @@ class DashboardSummary(BaseModel):
     max_token_error_rate: float = 0
 
 
+class QualityCaseResult(BaseModel):
+    name: str
+    category: str
+    passed: bool
+    preservation_passed: bool
+    behavior_passed: bool
+    hallucination_passed: bool
+    savings_passed: bool
+    savings_rate: float
+    original_tokens: int
+    optimized_tokens: int
+    missing_terms: list[str]
+    missing_behaviors: list[str]
+    hallucinated_terms: list[str]
+    short_prompt: bool
+    over_optimized: bool
+
+
+class QualityCategorySummary(BaseModel):
+    category: str
+    total_cases: int
+    passed_cases: int
+    preservation_pass_rate: float
+    average_savings_rate: float
+    harmful_omission_count: int
+    hallucinated_constraint_count: int
+    over_optimization_count: int
+    savings_floor_failures: int
+
+
+class QualitySummary(BaseModel):
+    total_cases: int
+    passed_cases: int
+    quality_preservation_rate: float
+    average_savings_rate: float
+    harmful_omission_count: int
+    hallucinated_constraint_count: int
+    over_optimization_count: int
+    category_summaries: list[QualityCategorySummary]
+    results: list[QualityCaseResult]
+
+
 class AuditRecordSummary(BaseModel):
     request_id: str
     created_at: datetime
