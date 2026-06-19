@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Codex Calculator Sample</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="calculator" aria-label="Calculator">
+      <section class="screen">
+        <p data-expression>No expression</p>
+        <output data-display>0</output>
+        <span data-status>Ready</span>
+      </section>
+      <section class="keys" aria-label="Calculator keys">
+        <button data-key="clear" class="utility">AC</button>
+        <button data-key="backspace" class="utility">DEL</button>
+        <button data-key="%" class="operator">%</button>
+        <button data-key="/" class="operator">/</button>
+        <button data-key="7">7</button>
+        <button data-key="8">8</button>
+        <button data-key="9">9</button>
+        <button data-key="*" class="operator">*</button>
+        <button data-key="4">4</button>
+        <button data-key="5">5</button>
+        <button data-key="6">6</button>
+        <button data-key="-" class="operator">-</button>
+        <button data-key="1">1</button>
+        <button data-key="2">2</button>
+        <button data-key="3">3</button>
+        <button data-key="+" class="operator">+</button>
+        <button data-key="(">(</button>
+        <button data-key="0">0</button>
+        <button data-key=".">.</button>
+        <button data-key=")" class="operator">)</button>
+        <button data-key="^" class="operator">^</button>
+        <button data-key="=" class="equals">=</button>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -45,6 +45,37 @@ CALCULATOR_PROMPTS = {
             "출력 형식은 코드 변경 요약, 테스트, 실행 방법 순서로 주세요.",
         ]
     ),
+    "codex_calculator_app_request": "\n".join(
+        [
+            "Please implement a real browser calculator app in this repository as if you were Codex.",
+            "Requirements:",
+            "- Use plain HTML, CSS, and JavaScript with no framework or build step.",
+            "- Provide a calculator UI with a display, digit keys, decimal key, operators, clear, delete, and equals.",
+            "- Support +, -, *, /, %, exponentiation, parentheses, decimals, and negative numbers.",
+            "- Keep the core arithmetic parser separate from DOM code so it can be tested with Node.",
+            "- Add tests for precedence, parentheses, unary minus, exponent associativity, bad input, and divide by zero.",
+            "- Make the UI usable on a narrow mobile viewport and avoid overflowing display text.",
+            "- Return the changed files, how to run the app, and how to run tests.",
+            "",
+            "Existing rough notes from the team:",
+            "The display overflows on long results.",
+            "The display overflows on long results.",
+            "The old prototype used eval(), which is not allowed.",
+            "The old prototype used eval(), which is not allowed.",
+            "Bug report: 2 + 2 * 3 should be 8 but the prototype returned 12.",
+            "Bug report: 2 + 2 * 3 should be 8 but the prototype returned 12.",
+            "Bug report: -4 + 10 / 2 should be 1 but unary minus failed.",
+            "Bug report: -4 + 10 / 2 should be 1 but unary minus failed.",
+            "",
+            "Current prototype snippets:",
+            "function calculate(expr) { return eval(expr); }",
+            "function calculate(expr) { return eval(expr); }",
+            "button.onclick = () => display.innerText += button.innerText;",
+            "button.onclick = () => display.innerText += button.innerText;",
+            "",
+            "Please keep the implementation small, readable, and easy to audit.",
+        ]
+    ),
 }
 
 
@@ -62,7 +93,7 @@ def main() -> int:
                 "prompt": prompt,
                 "provider": PROVIDER,
                 "model": MODEL,
-                "task_type": "test_generation" if name.endswith("simple") else "bug_analysis",
+                "task_type": task_type_for_case(name),
                 "expected_output_tokens": EXPECTED_OUTPUT_TOKENS,
             },
         )
@@ -88,6 +119,14 @@ def main() -> int:
 
     print(json.dumps({"validated": results, "summary": summary}, ensure_ascii=False, indent=2))
     return 0
+
+
+def task_type_for_case(name: str) -> str:
+    if name == "calculator_simple":
+        return "test_generation"
+    if name == "codex_calculator_app_request":
+        return "general"
+    return "bug_analysis"
 
 
 def assert_savings_math(response: dict[str, Any]) -> None:
