@@ -1,3 +1,4 @@
+use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, WindowEvent};
@@ -52,7 +53,6 @@ fn health_check_backend() -> bool {
 
 fn start_backend_sidecar(app: &tauri::App) {
     if health_check_backend() {
-        println!("Scrooge backend already healthy on 127.0.0.1:8750");
         return;
     }
 
@@ -63,7 +63,7 @@ fn start_backend_sidecar(app: &tauri::App) {
                 *state.child.lock().expect("backend child mutex poisoned") = Some(child);
                 thread::spawn(move || {
                     while let Some(event) = rx.blocking_recv() {
-                        println!("scrooge-backend sidecar: {:?}", event);
+                        let _ = event;
                     }
                 });
             }
@@ -107,6 +107,11 @@ pub fn run() {
         .setup(|app| {
             start_backend_sidecar(app);
 
+            let app_icon = Image::from_bytes(include_bytes!("../icons/icon.png"))?;
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_icon(app_icon.clone());
+            }
+
             let show = MenuItem::with_id(app, "show", "Show Scrooge", true, None::<&str>)?;
             let hide = MenuItem::with_id(app, "hide", "Hide to Tray", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -114,6 +119,7 @@ pub fn run() {
             let app_handle = app.handle().clone();
 
             TrayIconBuilder::new()
+                .icon(app_icon)
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {

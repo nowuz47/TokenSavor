@@ -12,13 +12,16 @@ import {
   Edit3,
   Eye,
   Flame,
+  Languages,
   Minus,
+  Moon,
   RefreshCw,
   Server,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Sun,
   Terminal,
   Trash2,
   X
@@ -45,6 +48,8 @@ import type {
 
 type TabId = "workspace" | "dashboard" | "audit" | "pricing" | "settings";
 type WorkspacePanel = "input" | "preview";
+type ThemeMode = "dark" | "light";
+type Locale = "ko" | "en";
 
 const APP_LOGO_SRC = "/scrooge_flat_no_coin.png";
 
@@ -146,6 +151,329 @@ const taskOptions: Array<{ label: string; value: TaskType | "" }> = [
   { label: "Logs", value: "log_analysis" }
 ];
 
+const copy = {
+  en: {
+    nav: {
+      workspace: "Workspace",
+      dashboard: "Dashboard",
+      audit: "Audit Logs",
+      pricing: "Rates",
+      settings: "Settings"
+    },
+    actions: {
+      approve: "Approve",
+      capture: "Capture",
+      clearDb: "Clear DB",
+      hideToTray: "Hide to tray",
+      minimize: "Minimize",
+      optimize: "Optimize",
+      optimizeClip: "Optimize Clip",
+      refresh: "Refresh",
+      reject: "Reject",
+      verifyRates: "Verify Official Rates"
+    },
+    status: {
+      proxyRunning: "Proxy Running (Port 8750)",
+      proxyInactive: "Proxy Inactive (Stopped)",
+      records: "records",
+      lastSync: "Last sync",
+      notSynced: "Not synced yet"
+    },
+    toast: {
+      clipboardCaptured: "Clipboard prompt captured for optimization.",
+      clipboardEmpty: "Clipboard is empty.",
+      clipboardOptimized: "Review and approve to copy the optimized prompt.",
+      dbCleared: "Local SQLite audit records cleared.",
+      defaultDone: "Task complete.",
+      disabled: "Optimization disabled while proxy router is stopped.",
+      hideFallback: "Scrooge tray daemon keeps running.",
+      minimizeFallback: "Window minimize is available in the installed desktop app.",
+      optimizedCopied: "Optimized prompt copied. Paste it into Codex.",
+      optimizedLoaded: "Optimization preview loaded.",
+      optimizedRejected: "Optimized prompt rejected.",
+      promptRequired: "Paste context or a request first.",
+      proxyBypass: "Requests will bypass optimization.",
+      proxyStarted: "Scrooge local proxy router started.",
+      refreshed: "Dashboard refreshed from local hook telemetry."
+    },
+    workspace: {
+      assist: "Assist",
+      bridge: "Codex Bridge",
+      context: "Context / Query Body",
+      endpointChips: ["capture", "rewrite", "forward"],
+      hookProxy: "Hook Proxy",
+      inputTab: "Workbench Input",
+      maxOut: "Max Out Tokens",
+      originalRequest: "Original Request",
+      placeholder: "Paste noisy logs or code blocks here...",
+      previewTab: "Optimization View",
+      primary: "Primary",
+      provider: "Provider",
+      targetModel: "Target Model",
+      taskTemplate: "Task Template"
+    },
+    preview: {
+      added: "ADDED / TARGET DIRECTIVES",
+      appliedRules: "Applied Reduction Rules",
+      empty: "Run prompt optimization first under the workbench tab to view savings and code diffs.",
+      estimatedOptimized: "Estimated optimized",
+      estimatedOriginal: "Estimated original",
+      estimatedSaved: "Estimated Saved",
+      pricingRegistry: "Pricing Registry",
+      removed: "REMOVED / CLEANED UP",
+      structuralChanges: "Structural Context Changes",
+      title: "Optimization Preview",
+      tokenizer: "Tokenizer",
+      usageNote: "Measured usage will replace estimates after provider usage is recorded."
+    },
+    dashboard: {
+      avgSaved: "avg savings",
+      avgTokenError: "Avg Token Error",
+      cases: "Cases",
+      estimatedSavings: "Estimated/Measured Savings",
+      goldenCases: "Golden Cases",
+      harmfulOmissions: "Harmful Omissions",
+      issues: "Issues",
+      measuredCoverage: "Measured Coverage",
+      noQuality: "Quality gate summary unavailable",
+      overOptimization: "Over-Optimization",
+      preserve: "Preserve",
+      qualityPreservation: "Quality Preservation",
+      qualityTitle: "Quality Uniformity By Work Type",
+      recentActivity: "Recent Activity Logs",
+      saved: "saved",
+      savedTokens: "Saved Tokens",
+      savedUsd: "Saved USD",
+      telemetryNote: "Local hook telemetry refreshes every 5 seconds.",
+      totalAudits: "Total Audits",
+      trend: "Token Savings Trend",
+      workType: "Work Type"
+    },
+    audit: {
+      costSaved: "Cost Saved",
+      empty: "No records in database",
+      measuredUsage: "Measured usage",
+      optimizedHash: "Optimized SHA-256 Hash",
+      originalHash: "Original SHA-256 Hash",
+      privacy: "Prompt text was not written to local SQLite storage. Hashed-only mode is active.",
+      requestId: "Request ID",
+      search: "Search audit logs...",
+      state: "State",
+      task: "Task",
+      tokenSource: "Token source",
+      usageEstimated: "Usage is estimated until provider usage metadata is recorded."
+    },
+    pricing: {
+      input: "Input / M",
+      model: "Model",
+      output: "Output / M",
+      rates: "Rates",
+      ratesLink: "Rates Link",
+      search: "Search pricing registry..."
+    },
+    settings: {
+      brand: "Scrooge Desktop",
+      compliance: "Security & Compliance",
+      databaseUrl: "SQLite Database URL",
+      forwardHeader: "Forward Header",
+      hashedOnly: "Hashed-Only Telemetry",
+      hashedOnlyNote: "Do not save raw prompt bodies.",
+      language: "Language",
+      languageNote: "Switch primary UI labels between Korean and English.",
+      localEndpoint: "Local Hook Endpoint",
+      proxyConfig: "Local Proxy Configuration",
+      subtitle: "Local-first token efficiency guardrail",
+      theme: "Theme",
+      themeNote: "Use dark or light mode for the desktop shell.",
+      upstream: "Upstream Target (OpenAI)"
+    },
+    languageOptions: {
+      en: "English",
+      ko: "Korean"
+    },
+    themeOptions: {
+      dark: "Dark",
+      light: "Light"
+    },
+    taskOptions: {
+      auto: "Auto",
+      bug_analysis: "Bug",
+      code_review: "Review",
+      refactoring: "Refactor",
+      test_generation: "Test",
+      log_analysis: "Logs"
+    },
+    qualityCategories: {
+      coding: "Coding",
+      debugging: "Debugging",
+      logs: "Logs",
+      data: "Data",
+      docs_planning: "Docs/Planning"
+    }
+  },
+  ko: {
+    nav: {
+      workspace: "작업",
+      dashboard: "대시보드",
+      audit: "감사 로그",
+      pricing: "단가",
+      settings: "설정"
+    },
+    actions: {
+      approve: "승인",
+      capture: "캡처",
+      clearDb: "DB 삭제",
+      hideToTray: "트레이로 숨기기",
+      minimize: "최소화",
+      optimize: "최적화",
+      optimizeClip: "클립보드 최적화",
+      refresh: "새로고침",
+      reject: "거절",
+      verifyRates: "공식 단가 확인"
+    },
+    status: {
+      proxyRunning: "프록시 실행 중 (8750)",
+      proxyInactive: "프록시 중지됨",
+      records: "건",
+      lastSync: "마지막 동기화",
+      notSynced: "아직 동기화 안 됨"
+    },
+    toast: {
+      clipboardCaptured: "클립보드 프롬프트를 최적화 대상으로 가져왔습니다.",
+      clipboardEmpty: "클립보드가 비어 있습니다.",
+      clipboardOptimized: "검토 후 승인하면 최적화 프롬프트를 복사합니다.",
+      dbCleared: "로컬 SQLite 감사 기록을 삭제했습니다.",
+      defaultDone: "작업이 완료되었습니다.",
+      disabled: "프록시 라우터가 중지되어 최적화를 사용할 수 없습니다.",
+      hideFallback: "Scrooge 트레이 데몬은 계속 실행됩니다.",
+      minimizeFallback: "설치된 데스크톱 앱에서 창 최소화를 사용할 수 있습니다.",
+      optimizedCopied: "최적화 프롬프트를 복사했습니다. Codex에 붙여넣으세요.",
+      optimizedLoaded: "최적화 미리보기를 불러왔습니다.",
+      optimizedRejected: "최적화 프롬프트를 거절했습니다.",
+      promptRequired: "먼저 요청이나 컨텍스트를 입력하세요.",
+      proxyBypass: "요청이 최적화를 우회합니다.",
+      proxyStarted: "Scrooge 로컬 프록시 라우터를 시작했습니다.",
+      refreshed: "로컬 후킹 텔레메트리에서 대시보드를 새로고침했습니다."
+    },
+    workspace: {
+      assist: "보조",
+      bridge: "Codex 브리지",
+      context: "컨텍스트 / 요청 본문",
+      endpointChips: ["수집", "재작성", "전송"],
+      hookProxy: "후킹 프록시",
+      inputTab: "입력 작업대",
+      maxOut: "최대 출력 토큰",
+      originalRequest: "원본 요청",
+      placeholder: "긴 로그나 코드 블록을 붙여넣으세요...",
+      previewTab: "최적화 보기",
+      primary: "기본",
+      provider: "Provider",
+      targetModel: "대상 모델",
+      taskTemplate: "작업 템플릿"
+    },
+    preview: {
+      added: "추가 / 목표 지시",
+      appliedRules: "적용된 절감 규칙",
+      empty: "먼저 작업 탭에서 프롬프트 최적화를 실행하면 절감량과 변경 내용을 볼 수 있습니다.",
+      estimatedOptimized: "추정 최적화",
+      estimatedOriginal: "추정 원본",
+      estimatedSaved: "예상 절감",
+      pricingRegistry: "가격표 버전",
+      removed: "제거 / 정리",
+      structuralChanges: "구조적 컨텍스트 변경",
+      title: "최적화 미리보기",
+      tokenizer: "토크나이저",
+      usageNote: "provider 사용량이 기록되면 추정값이 실측값으로 대체됩니다."
+    },
+    dashboard: {
+      avgSaved: "평균 절감",
+      avgTokenError: "평균 토큰 오차",
+      cases: "케이스",
+      estimatedSavings: "예상/실측 절감률",
+      goldenCases: "골든 케이스",
+      harmfulOmissions: "심각 누락",
+      issues: "이슈",
+      measuredCoverage: "실측 커버리지",
+      noQuality: "품질 게이트 요약을 불러올 수 없습니다",
+      overOptimization: "과최적화",
+      preserve: "보존율",
+      qualityPreservation: "품질 보존율",
+      qualityTitle: "작업 유형별 품질 균일성",
+      recentActivity: "최근 활동 로그",
+      saved: "절감",
+      savedTokens: "절감 토큰",
+      savedUsd: "절감 비용",
+      telemetryNote: "로컬 후킹 텔레메트리는 5초마다 새로고침됩니다.",
+      totalAudits: "전체 감사",
+      trend: "토큰 절감 추이",
+      workType: "작업 유형"
+    },
+    audit: {
+      costSaved: "절감 비용",
+      empty: "데이터베이스에 기록이 없습니다",
+      measuredUsage: "실측 사용량",
+      optimizedHash: "최적화 SHA-256 해시",
+      originalHash: "원본 SHA-256 해시",
+      privacy: "프롬프트 전문은 로컬 SQLite에 저장하지 않습니다. 해시 전용 모드가 활성화되어 있습니다.",
+      requestId: "요청 ID",
+      search: "감사 로그 검색...",
+      state: "상태",
+      task: "작업",
+      tokenSource: "토큰 기준",
+      usageEstimated: "provider 사용량 메타데이터가 기록될 때까지 추정값으로 표시됩니다."
+    },
+    pricing: {
+      input: "입력 / M",
+      model: "모델",
+      output: "출력 / M",
+      rates: "단가",
+      ratesLink: "단가 링크",
+      search: "가격표 검색..."
+    },
+    settings: {
+      brand: "Scrooge 데스크톱",
+      compliance: "보안 및 컴플라이언스",
+      databaseUrl: "SQLite 데이터베이스 URL",
+      forwardHeader: "전송 헤더",
+      hashedOnly: "해시 전용 텔레메트리",
+      hashedOnlyNote: "원본 프롬프트 본문을 저장하지 않습니다.",
+      language: "언어",
+      languageNote: "주요 UI 문구를 한국어/영어로 전환합니다.",
+      localEndpoint: "로컬 후킹 엔드포인트",
+      proxyConfig: "로컬 프록시 설정",
+      subtitle: "로컬 우선 토큰 효율 가드레일",
+      theme: "테마",
+      themeNote: "데스크톱 셸을 다크/라이트 모드로 전환합니다.",
+      upstream: "업스트림 대상 (OpenAI)"
+    },
+    languageOptions: {
+      en: "영어",
+      ko: "한국어"
+    },
+    themeOptions: {
+      dark: "다크",
+      light: "라이트"
+    },
+    taskOptions: {
+      auto: "자동",
+      bug_analysis: "버그",
+      code_review: "리뷰",
+      refactoring: "리팩터링",
+      test_generation: "테스트",
+      log_analysis: "로그"
+    },
+    qualityCategories: {
+      coding: "코딩",
+      debugging: "디버깅",
+      logs: "로그",
+      data: "데이터",
+      docs_planning: "문서/기획"
+    }
+  }
+} as const;
+
+type Copy = (typeof copy)[Locale];
+
 const defaultPrompt =
   "이 코드가 이상한 것 같은데 한번 확인해 주세요.\n\n" +
   "ERROR 12:04:15 c.s.config.ServerBootstrap - failed to parse config\n" +
@@ -200,6 +528,13 @@ export default function App() {
   const [proxyRunning, setProxyRunning] = useState(true);
   const [loading, setLoading] = useState(false);
   const [lastTelemetryRefresh, setLastTelemetryRefresh] = useState("Not synced yet");
+  const [theme, setTheme] = useState<ThemeMode>(() =>
+    window.localStorage.getItem("scrooge-theme") === "light" ? "light" : "dark"
+  );
+  const [locale, setLocale] = useState<Locale>(() =>
+    window.localStorage.getItem("scrooge-locale") === "en" ? "en" : "ko"
+  );
+  const labels = copy[locale];
 
   const availableModels = useMemo(
     () => modelsRegistry.filter((item) => item.provider === provider),
@@ -239,6 +574,30 @@ export default function App() {
   useEffect(() => {
     refreshTelemetry();
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("scrooge-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    window.localStorage.setItem("scrooge-locale", locale);
+    setStatus((current) => {
+      if (current === copy.en.status.proxyRunning || current === copy.ko.status.proxyRunning) {
+        return labels.status.proxyRunning;
+      }
+      if (current === copy.en.status.proxyInactive || current === copy.ko.status.proxyInactive) {
+        return labels.status.proxyInactive;
+      }
+      return current;
+    });
+    setLastTelemetryRefresh((current) =>
+      current === copy.en.status.notSynced || current === copy.ko.status.notSynced
+        ? labels.status.notSynced
+        : current
+    );
+  }, [labels, locale]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -300,15 +659,15 @@ export default function App() {
 
   async function runOptimize() {
     if (!proxyRunning) {
-      showToast("Optimization disabled while proxy router is stopped.");
+      showToast(labels.toast.disabled);
       return;
     }
     if (!prompt.trim()) {
-      showToast("Paste context or a request first.");
+      showToast(labels.toast.promptRequired);
       return;
     }
     setLoading(true);
-    setStatus("Optimizing request");
+    setStatus(locale === "ko" ? "요청 최적화 중" : "Optimizing request");
     try {
       const response = await optimizePrompt({
         prompt,
@@ -319,8 +678,8 @@ export default function App() {
       });
       setResult(response);
       setWorkspacePanel("preview");
-      setStatus("Optimization preview loaded");
-      showToast("Optimization preview loaded.");
+      setStatus(locale === "ko" ? "최적화 미리보기 로드됨" : "Optimization preview loaded");
+      showToast(labels.toast.optimizedLoaded);
       await refreshTelemetry();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Optimize failed";
@@ -339,8 +698,8 @@ export default function App() {
       if (approved) {
         await copyOptimizedPrompt(result.optimized_prompt);
       }
-      setStatus(approved ? "Optimized prompt copied for Codex" : "Optimized prompt rejected");
-      showToast(approved ? "Optimized prompt copied. Paste it into Codex." : "Optimized prompt rejected.");
+      setStatus(approved ? (locale === "ko" ? "Codex용 최적화 프롬프트 복사됨" : "Optimized prompt copied for Codex") : (locale === "ko" ? "최적화 프롬프트 거절됨" : "Optimized prompt rejected"));
+      showToast(approved ? labels.toast.optimizedCopied : labels.toast.optimizedRejected);
       setResult(null);
       setWorkspacePanel("input");
       await refreshTelemetry();
@@ -367,13 +726,13 @@ export default function App() {
       }
       const text = await navigator.clipboard.readText();
       if (!text.trim()) {
-        showToast("Clipboard is empty.");
+        showToast(labels.toast.clipboardEmpty);
         return null;
       }
       setPrompt(text);
       setWorkspacePanel("input");
-      setStatus("Codex Bridge captured clipboard prompt");
-      showToast("Clipboard prompt captured for optimization.");
+      setStatus(locale === "ko" ? "Codex 브리지가 클립보드 프롬프트를 캡처함" : "Codex Bridge captured clipboard prompt");
+      showToast(labels.toast.clipboardCaptured);
       return text;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Clipboard capture failed";
@@ -387,7 +746,7 @@ export default function App() {
     const text = await captureClipboardPrompt();
     if (!text?.trim()) return;
     setLoading(true);
-    setStatus("Optimizing Codex clipboard prompt");
+    setStatus(locale === "ko" ? "Codex 클립보드 프롬프트 최적화 중" : "Optimizing Codex clipboard prompt");
     try {
       const response = await optimizePrompt({
         prompt: text,
@@ -398,8 +757,8 @@ export default function App() {
       });
       setResult(response);
       setWorkspacePanel("preview");
-      setStatus("Codex Bridge preview loaded");
-      showToast("Review and approve to copy the optimized prompt.");
+      setStatus(locale === "ko" ? "Codex 브리지 미리보기 로드됨" : "Codex Bridge preview loaded");
+      showToast(labels.toast.clipboardOptimized);
       await refreshTelemetry();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Clipboard optimize failed";
@@ -417,15 +776,15 @@ export default function App() {
   function toggleProxy() {
     setProxyRunning((current) => {
       const next = !current;
-      setStatus(next ? "Proxy Running (Port 8750)" : "Proxy Inactive (Stopped)");
-      showToast(next ? "Scrooge local proxy router started." : "Requests will bypass optimization.");
+      setStatus(next ? labels.status.proxyRunning : labels.status.proxyInactive);
+      showToast(next ? labels.toast.proxyStarted : labels.toast.proxyBypass);
       return next;
     });
   }
 
   async function syncLogs() {
     await refreshTelemetry();
-    showToast("Dashboard refreshed from local hook telemetry.");
+    showToast(labels.toast.refreshed);
   }
 
   async function clearLocalRecords() {
@@ -434,7 +793,7 @@ export default function App() {
       setAuditRecords([]);
       setSummary(null);
       setExpandedAuditId(null);
-      showToast("Local SQLite audit records cleared.");
+      showToast(labels.toast.dbCleared);
       await refreshTelemetry();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Clear audit records failed";
@@ -447,7 +806,7 @@ export default function App() {
     try {
       await getCurrentWindow().minimize();
     } catch {
-      showToast("Window minimize is available in the installed desktop app.");
+      showToast(labels.toast.minimizeFallback);
     }
   }
 
@@ -455,7 +814,7 @@ export default function App() {
     try {
       await getCurrentWindow().close();
     } catch {
-      showToast("Scrooge tray daemon keeps running.");
+      showToast(labels.toast.hideFallback);
     }
   }
 
@@ -463,6 +822,7 @@ export default function App() {
     workspace: (
       <WorkspaceTab
         availableModels={availableModels}
+        copy={labels}
         expectedOutputTokens={expectedOutputTokens}
         loading={loading}
         model={model}
@@ -487,6 +847,7 @@ export default function App() {
     dashboard: (
       <DashboardTab
         aggregate={aggregate}
+        copy={labels}
         lastTelemetryRefresh={lastTelemetryRefresh}
         qualitySummary={qualitySummary}
         records={auditRecords}
@@ -494,6 +855,7 @@ export default function App() {
     ),
     audit: (
       <AuditTab
+        copy={labels}
         expandedAuditId={expandedAuditId}
         records={filteredAuditRecords}
         search={auditSearch}
@@ -502,9 +864,17 @@ export default function App() {
       />
     ),
     pricing: (
-      <PricingTab prices={filteredPrices} search={pricingSearch} onSearch={setPricingSearch} />
+      <PricingTab copy={labels} prices={filteredPrices} search={pricingSearch} onSearch={setPricingSearch} />
     ),
-    settings: <SettingsTab />
+    settings: (
+      <SettingsTab
+        copy={labels}
+        locale={locale}
+        theme={theme}
+        onLocaleChange={setLocale}
+        onThemeChange={setTheme}
+      />
+    )
   } satisfies Record<TabId, JSX.Element>;
 
   return (
@@ -521,10 +891,10 @@ export default function App() {
           <strong>${aggregate.savedCost.toFixed(2)}</strong>
         </div>
         <div className="window-actions">
-          <button className="win-btn" type="button" title="Minimize" onClick={minimizeWindow}>
+          <button className="win-btn" type="button" title={labels.actions.minimize} onClick={minimizeWindow}>
             <Minus size={14} />
           </button>
-          <button className="win-btn close" type="button" title="Hide to tray" onClick={hideWindowToTray}>
+          <button className="win-btn close" type="button" title={labels.actions.hideToTray} onClick={hideWindowToTray}>
             <X size={14} />
           </button>
         </div>
@@ -538,29 +908,29 @@ export default function App() {
           <span>{status}</span>
         </button>
         <div className="status-right">
-          <span>scrooge.db ({aggregate.totalAudits} records) · {lastTelemetryRefresh}</span>
+          <span>scrooge.db ({aggregate.totalAudits} {labels.status.records}) - {labels.status.lastSync}: {lastTelemetryRefresh}</span>
           <button className="status-btn" type="button" onClick={syncLogs}>
             <RefreshCw size={11} />
-            <span>Refresh</span>
+            <span>{labels.actions.refresh}</span>
           </button>
           <button className="status-btn" type="button" onClick={clearLocalRecords}>
             <Trash2 size={11} />
-            <span>Clear DB</span>
+            <span>{labels.actions.clearDb}</span>
           </button>
         </div>
       </div>
 
       <nav className="bottom-nav">
-        <NavItem active={activeTab === "workspace"} icon={<SlidersHorizontal />} label="Workspace" onClick={() => setActiveTab("workspace")} />
-        <NavItem active={activeTab === "dashboard"} icon={<BarChart3 />} label="Dashboard" onClick={() => setActiveTab("dashboard")} />
-        <NavItem active={activeTab === "audit"} icon={<Database />} label="Audit Logs" onClick={() => setActiveTab("audit")} />
-        <NavItem active={activeTab === "pricing"} icon={<Banknote />} label="Rates" onClick={() => setActiveTab("pricing")} />
-        <NavItem active={activeTab === "settings"} icon={<Settings />} label="Settings" onClick={() => setActiveTab("settings")} />
+        <NavItem active={activeTab === "workspace"} icon={<SlidersHorizontal />} label={labels.nav.workspace} onClick={() => setActiveTab("workspace")} />
+        <NavItem active={activeTab === "dashboard"} icon={<BarChart3 />} label={labels.nav.dashboard} onClick={() => setActiveTab("dashboard")} />
+        <NavItem active={activeTab === "audit"} icon={<Database />} label={labels.nav.audit} onClick={() => setActiveTab("audit")} />
+        <NavItem active={activeTab === "pricing"} icon={<Banknote />} label={labels.nav.pricing} onClick={() => setActiveTab("pricing")} />
+        <NavItem active={activeTab === "settings"} icon={<Settings />} label={labels.nav.settings} onClick={() => setActiveTab("settings")} />
       </nav>
 
       <div className={`toast ${toast ? "active" : ""}`}>
         <CheckCircle size={16} />
-        <span>{toast || "Task complete."}</span>
+        <span>{toast || labels.toast.defaultDone}</span>
       </div>
     </main>
   );
@@ -568,6 +938,7 @@ export default function App() {
 
 function WorkspaceTab(props: {
   availableModels: ModelOption[];
+  copy: Copy;
   expectedOutputTokens: number;
   loading: boolean;
   model: string;
@@ -597,7 +968,7 @@ function WorkspaceTab(props: {
           onClick={() => props.onWorkspacePanelChange("input")}
         >
           <Edit3 size={12} />
-          Workbench Input
+          {props.copy.workspace.inputTab}
         </button>
         <button
           className={`panel-toggle-btn ${props.workspacePanel === "preview" ? "active" : ""}`}
@@ -605,7 +976,7 @@ function WorkspaceTab(props: {
           onClick={() => props.onWorkspacePanelChange("preview")}
         >
           <Eye size={12} />
-          Optimization View
+          {props.copy.workspace.previewTab}
         </button>
       </div>
 
@@ -615,30 +986,30 @@ function WorkspaceTab(props: {
             <div className="bridge-panel bridge-primary">
               <div className="bridge-title">
                 <Server size={14} />
-                <span>Hook Proxy</span>
-                <strong>Primary</strong>
+                <span>{props.copy.workspace.hookProxy}</span>
+                <strong>{props.copy.workspace.primary}</strong>
               </div>
               <div className="hook-endpoint mono">http://127.0.0.1:8750/proxy/{props.provider}/v1/responses</div>
               <div className="bridge-chips">
-                <span>capture</span>
-                <span>rewrite</span>
-                <span>forward</span>
+                {props.copy.workspace.endpointChips.map((chip) => (
+                  <span key={chip}>{chip}</span>
+                ))}
               </div>
             </div>
             <div className="bridge-panel">
               <div className="bridge-title">
                 <ClipboardCheck size={14} />
-                <span>Codex Bridge</span>
-                <strong>Assist</strong>
+                <span>{props.copy.workspace.bridge}</span>
+                <strong>{props.copy.workspace.assist}</strong>
               </div>
               <div className="bridge-actions">
                 <button className="btn btn-outline" type="button" onClick={props.onCaptureClipboard} disabled={props.loading}>
                   <Clipboard size={12} />
-                  Capture
+                  {props.copy.actions.capture}
                 </button>
                 <button className="btn btn-primary" type="button" onClick={props.onOptimizeClipboard} disabled={props.loading}>
                   <Sparkles size={12} />
-                  Optimize Clip
+                  {props.copy.actions.optimizeClip}
                 </button>
               </div>
             </div>
@@ -648,17 +1019,17 @@ function WorkspaceTab(props: {
             <div className="card-header">
               <h3>
                 <Terminal size={14} />
-                Original Request
+                {props.copy.workspace.originalRequest}
               </h3>
               <button className="btn btn-primary" type="button" onClick={props.onOptimize} disabled={props.loading}>
                 <Sparkles size={12} />
-                Optimize
+                {props.copy.actions.optimize}
               </button>
             </div>
             <div className="card-body">
               <div className="form-row">
                 <label className="form-group">
-                  Provider
+                  {props.copy.workspace.provider}
                   <select
                     className="form-control"
                     value={props.provider}
@@ -670,7 +1041,7 @@ function WorkspaceTab(props: {
                   </select>
                 </label>
                 <label className="form-group">
-                  Target Model
+                  {props.copy.workspace.targetModel}
                   <select
                     className="form-control"
                     value={props.model}
@@ -686,7 +1057,7 @@ function WorkspaceTab(props: {
               </div>
 
               <label className="form-group">
-                Max Out Tokens: {props.expectedOutputTokens}
+                {props.copy.workspace.maxOut}: {props.expectedOutputTokens}
                 <div className="slider-box">
                   <input
                     max={4000}
@@ -701,7 +1072,7 @@ function WorkspaceTab(props: {
               </label>
 
               <div className="form-group">
-                <span className="form-label">Task Template</span>
+                <span className="form-label">{props.copy.workspace.taskTemplate}</span>
                 <div className="task-tags">
                   {taskOptions.map((option) => (
                     <button
@@ -710,18 +1081,18 @@ function WorkspaceTab(props: {
                       type="button"
                       onClick={() => props.onTaskTypeChange(option.value)}
                     >
-                      {option.label}
+                      {props.copy.taskOptions[(option.value || "auto") as keyof Copy["taskOptions"]]}
                     </button>
                   ))}
                 </div>
               </div>
 
               <label className="form-group grow">
-                Context / Query Body
+                {props.copy.workspace.context}
                 <div className="editor-box">
                   <textarea
                     className="editor-textarea"
-                    placeholder="Paste noisy logs or code blocks here..."
+                    placeholder={props.copy.workspace.placeholder}
                     value={props.prompt}
                     onChange={(event) => props.onPromptChange(event.target.value)}
                   />
@@ -731,13 +1102,14 @@ function WorkspaceTab(props: {
           </div>
         </>
       ) : (
-        <PreviewPanel result={props.result} onApprove={props.onApprove} onReject={props.onReject} />
+        <PreviewPanel copy={props.copy} result={props.result} onApprove={props.onApprove} onReject={props.onReject} />
       )}
     </section>
   );
 }
 
 function PreviewPanel(props: {
+  copy: Copy;
   result: OptimizeResponse | null;
   onApprove: () => void;
   onReject: () => void;
@@ -747,16 +1119,16 @@ function PreviewPanel(props: {
       <div className="card-header">
         <h3>
           <Eye size={14} />
-          Optimization Preview
+          {props.copy.preview.title}
         </h3>
         <div className="card-actions">
           <button className="btn btn-outline" type="button" disabled={!props.result} onClick={props.onReject}>
             <X size={12} />
-            Reject
+            {props.copy.actions.reject}
           </button>
           <button className="btn btn-primary" type="button" disabled={!props.result} onClick={props.onApprove}>
             <Check size={12} />
-            Approve
+            {props.copy.actions.approve}
           </button>
         </div>
       </div>
@@ -764,37 +1136,37 @@ function PreviewPanel(props: {
       {!props.result ? (
         <div className="empty-preview-pane">
           <Cpu size={28} />
-          <p>Run prompt optimization first under the workbench tab to view savings and code diffs.</p>
+          <p>{props.copy.preview.empty}</p>
         </div>
       ) : (
         <div className="card-body">
           <div className="token-bar">
             <div>
-              Estimated original: <strong>{props.result.original_tokens.input_tokens.toLocaleString()}</strong>
+              {props.copy.preview.estimatedOriginal}: <strong>{props.result.original_tokens.input_tokens.toLocaleString()}</strong>
             </div>
             <div>
-              Estimated optimized: <strong>{props.result.optimized_tokens.input_tokens.toLocaleString()}</strong>
+              {props.copy.preview.estimatedOptimized}: <strong>{props.result.optimized_tokens.input_tokens.toLocaleString()}</strong>
             </div>
-            <span className="token-badge">{(props.result.savings_rate * 100).toFixed(1)}% Estimated Saved</span>
+            <span className="token-badge">{(props.result.savings_rate * 100).toFixed(1)}% {props.copy.preview.estimatedSaved}</span>
           </div>
           <div className="audit-footer-strip">
             <div>
-              Tokenizer: <strong>{props.result.optimized_tokens.tokenizer}</strong>
+              {props.copy.preview.tokenizer}: <strong>{props.result.optimized_tokens.tokenizer}</strong>
             </div>
-            <span>Measured usage will replace estimates after provider usage is recorded.</span>
+            <span>{props.copy.preview.usageNote}</span>
           </div>
 
           <div className="form-group">
-            <span className="form-label">Structural Context Changes</span>
+            <span className="form-label">{props.copy.preview.structuralChanges}</span>
             <div className="diff-tray-layout">
               <div className="diff-section">
-                <div className="diff-header-line">REMOVED / CLEANED UP</div>
+                <div className="diff-header-line">{props.copy.preview.removed}</div>
                 <div className="diff-body-text">
                   {renderDiffLines(props.result.original_prompt, props.result.reasons, "removed")}
                 </div>
               </div>
               <div className="diff-section">
-                <div className="diff-header-line">ADDED / TARGET DIRECTIVES</div>
+                <div className="diff-header-line">{props.copy.preview.added}</div>
                 <div className="diff-body-text">
                   {renderDiffLines(props.result.optimized_prompt, props.result.reasons, "added")}
                 </div>
@@ -803,7 +1175,7 @@ function PreviewPanel(props: {
           </div>
 
           <div className="form-group">
-            <span className="form-label">Applied Reduction Rules</span>
+            <span className="form-label">{props.copy.preview.appliedRules}</span>
             <div className="rules-grid">
               {props.result.reasons.map((reason) => (
                 <span className="rule-chip" key={`${reason.rule_id}-${reason.description}`}>
@@ -816,10 +1188,10 @@ function PreviewPanel(props: {
 
           <div className="audit-footer-strip">
             <div>
-              Pricing Registry: <strong>{props.result.optimized_cost.pricing_version}</strong>
+              {props.copy.preview.pricingRegistry}: <strong>{props.result.optimized_cost.pricing_version}</strong>
             </div>
             <a className="audit-ref-link" href={props.result.optimized_cost.source_url} rel="noreferrer" target="_blank">
-              Verify Official Rates
+              {props.copy.actions.verifyRates}
             </a>
           </div>
         </div>
@@ -840,6 +1212,7 @@ function DashboardTab(props: {
     savingsRate: number;
     totalAudits: number;
   };
+  copy: Copy;
   lastTelemetryRefresh: string;
   qualitySummary: QualitySummary | null;
   records: AuditRecord[];
@@ -849,39 +1222,39 @@ function DashboardTab(props: {
   return (
     <section className="tab-content active">
       <div className="db-grid">
-        <DashboardCard icon={<Flame />} label="Estimated/Measured Savings" value={`${(props.aggregate.savingsRate * 100).toFixed(1)}%`} highlight />
-        <DashboardCard icon={<Award />} label="Saved Tokens" value={`${Math.round(props.aggregate.savedTokens / 1000)}K`} />
-        <DashboardCard icon={<Banknote />} label="Saved USD" value={`$${props.aggregate.savedCost.toFixed(2)}`} />
-        <DashboardCard icon={<Database />} label="Total Audits" value={props.aggregate.totalAudits} />
-        <DashboardCard icon={<ShieldCheck />} label="Measured Coverage" value={`${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`} />
-        <DashboardCard icon={<Activity />} label="Avg Token Error" value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
+        <DashboardCard icon={<Flame />} label={props.copy.dashboard.estimatedSavings} value={`${(props.aggregate.savingsRate * 100).toFixed(1)}%`} highlight />
+        <DashboardCard icon={<Award />} label={props.copy.dashboard.savedTokens} value={`${Math.round(props.aggregate.savedTokens / 1000)}K`} />
+        <DashboardCard icon={<Banknote />} label={props.copy.dashboard.savedUsd} value={`$${props.aggregate.savedCost.toFixed(2)}`} />
+        <DashboardCard icon={<Database />} label={props.copy.dashboard.totalAudits} value={props.aggregate.totalAudits} />
+        <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.measuredCoverage} value={`${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`} />
+        <DashboardCard icon={<Activity />} label={props.copy.dashboard.avgTokenError} value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
       </div>
 
       <div className="telemetry-refresh-note">
         <RefreshCw size={12} />
-        <span>Local hook telemetry refreshes every 5 seconds. Last refresh: {props.lastTelemetryRefresh}</span>
+        <span>{props.copy.dashboard.telemetryNote} {props.copy.status.lastSync}: {props.lastTelemetryRefresh}</span>
       </div>
 
       <div className="db-grid">
         <DashboardCard
           highlight
           icon={<ShieldCheck />}
-          label="Quality Preservation"
+          label={props.copy.dashboard.qualityPreservation}
           value={quality ? `${(quality.quality_preservation_rate * 100).toFixed(0)}%` : "--"}
         />
         <DashboardCard
           icon={<CheckCircle />}
-          label="Golden Cases"
+          label={props.copy.dashboard.goldenCases}
           value={quality ? `${quality.passed_cases}/${quality.total_cases}` : "--"}
         />
         <DashboardCard
           icon={<X />}
-          label="Harmful Omissions"
+          label={props.copy.dashboard.harmfulOmissions}
           value={quality?.harmful_omission_count ?? "--"}
         />
         <DashboardCard
           icon={<Sparkles />}
-          label="Over-Optimization"
+          label={props.copy.dashboard.overOptimization}
           value={quality?.over_optimization_count ?? "--"}
         />
       </div>
@@ -890,30 +1263,30 @@ function DashboardTab(props: {
         <div className="quality-card-header">
           <h3>
             <ShieldCheck size={14} />
-            Quality Uniformity By Work Type
+            {props.copy.dashboard.qualityTitle}
           </h3>
           <span>
             {quality
-              ? `${(quality.average_savings_rate * 100).toFixed(1)}% avg savings`
-              : "quality gate unavailable"}
+              ? `${(quality.average_savings_rate * 100).toFixed(1)}% ${props.copy.dashboard.avgSaved}`
+              : props.copy.dashboard.noQuality}
           </span>
         </div>
         <div className="table-scroll">
           <table className="compact-table quality-table">
             <thead>
               <tr>
-                <th>Work Type</th>
-                <th>Cases</th>
-                <th>Preserve</th>
-                <th>Avg Saved</th>
-                <th>Issues</th>
+                <th>{props.copy.dashboard.workType}</th>
+                <th>{props.copy.dashboard.cases}</th>
+                <th>{props.copy.dashboard.preserve}</th>
+                <th>{props.copy.dashboard.avgSaved}</th>
+                <th>{props.copy.dashboard.issues}</th>
               </tr>
             </thead>
             <tbody>
               {quality ? (
                 quality.category_summaries.map((item) => (
                   <tr key={item.category}>
-                    <td className="model-cell">{formatQualityCategory(item.category)}</td>
+                    <td className="model-cell">{formatQualityCategory(item.category, props.copy)}</td>
                     <td>{item.passed_cases}/{item.total_cases}</td>
                     <td>{(item.preservation_pass_rate * 100).toFixed(0)}%</td>
                     <td className="highlight-text">{(item.average_savings_rate * 100).toFixed(1)}%</td>
@@ -928,7 +1301,7 @@ function DashboardTab(props: {
               ) : (
                 <tr>
                   <td className="empty-table" colSpan={5}>
-                    Quality gate summary unavailable
+                    {props.copy.dashboard.noQuality}
                   </td>
                 </tr>
               )}
@@ -938,7 +1311,7 @@ function DashboardTab(props: {
       </div>
 
       <div className="chart-card">
-        <div className="chart-title">Token Savings Trend</div>
+        <div className="chart-title">{props.copy.dashboard.trend}</div>
         <div className="chart-holder" aria-label="Token savings trend">
           <span style={{ height: "64%" }} />
           <span style={{ height: "45%" }} />
@@ -954,7 +1327,7 @@ function DashboardTab(props: {
         <div className="card-header">
           <h3>
             <Activity size={14} />
-            Recent Activity Logs
+            {props.copy.dashboard.recentActivity}
           </h3>
         </div>
         <div className="activity-list">
@@ -963,7 +1336,7 @@ function DashboardTab(props: {
               <span className={`activity-dot ${record.state}`} />
               <strong>{record.id}</strong>
               <span>{record.type}</span>
-              <em>{(record.rate * 100).toFixed(0)}% saved</em>
+              <em>{(record.rate * 100).toFixed(0)}% {props.copy.dashboard.saved}</em>
             </div>
           ))}
         </div>
@@ -973,6 +1346,7 @@ function DashboardTab(props: {
 }
 
 function AuditTab(props: {
+  copy: Copy;
   expandedAuditId: string | null;
   records: AuditRecord[];
   search: string;
@@ -984,7 +1358,7 @@ function AuditTab(props: {
       <div className="table-card">
         <div className="table-search-box">
           <input
-            placeholder="Search audit logs..."
+            placeholder={props.copy.audit.search}
             value={props.search}
             onChange={(event) => props.onSearch(event.target.value)}
           />
@@ -993,23 +1367,24 @@ function AuditTab(props: {
           <table className="compact-table">
             <thead>
               <tr>
-                <th>Request ID</th>
-                <th>Task</th>
-                <th>Savings %</th>
-                <th>Cost Saved</th>
-                <th>State</th>
+                <th>{props.copy.audit.requestId}</th>
+                <th>{props.copy.audit.task}</th>
+                <th>{props.copy.dashboard.estimatedSavings}</th>
+                <th>{props.copy.audit.costSaved}</th>
+                <th>{props.copy.audit.state}</th>
               </tr>
             </thead>
             <tbody>
               {props.records.length === 0 ? (
                 <tr>
                   <td className="empty-table" colSpan={5}>
-                    No records in database
+                    {props.copy.audit.empty}
                   </td>
                 </tr>
               ) : (
                 props.records.map((record) => (
                   <AuditRows
+                    copy={props.copy}
                     expanded={props.expandedAuditId === record.id}
                     key={record.id}
                     record={record}
@@ -1026,6 +1401,7 @@ function AuditTab(props: {
 }
 
 function PricingTab(props: {
+  copy: Copy;
   prices: ModelOption[];
   search: string;
   onSearch: (value: string) => void;
@@ -1035,7 +1411,7 @@ function PricingTab(props: {
       <div className="table-card">
         <div className="table-search-box">
           <input
-            placeholder="Search pricing registry..."
+            placeholder={props.copy.pricing.search}
             value={props.search}
             onChange={(event) => props.onSearch(event.target.value)}
           />
@@ -1044,10 +1420,10 @@ function PricingTab(props: {
           <table className="compact-table">
             <thead>
               <tr>
-                <th>Model</th>
-                <th>Input / M</th>
-                <th>Output / M</th>
-                <th>Rates Link</th>
+                <th>{props.copy.pricing.model}</th>
+                <th>{props.copy.pricing.input}</th>
+                <th>{props.copy.pricing.output}</th>
+                <th>{props.copy.pricing.ratesLink}</th>
               </tr>
             </thead>
             <tbody>
@@ -1058,7 +1434,7 @@ function PricingTab(props: {
                   <td>${price.output.toFixed(2)}</td>
                   <td>
                     <a className="audit-ref-link" href={price.url} rel="noreferrer" target="_blank">
-                      Rates
+                      {props.copy.pricing.rates}
                     </a>
                   </td>
                 </tr>
@@ -1071,7 +1447,13 @@ function PricingTab(props: {
   );
 }
 
-function SettingsTab() {
+function SettingsTab(props: {
+  copy: Copy;
+  locale: Locale;
+  theme: ThemeMode;
+  onLocaleChange: (value: Locale) => void;
+  onThemeChange: (value: ThemeMode) => void;
+}) {
   return (
     <section className="tab-content active">
       <div className="compact-card settings-brand-card">
@@ -1079,8 +1461,49 @@ function SettingsTab() {
           <img src={APP_LOGO_SRC} alt="Scrooge" />
         </div>
         <div className="settings-brand-copy">
-          <span>Scrooge Desktop</span>
-          <strong>Local-first token efficiency guardrail</strong>
+          <span>{props.copy.settings.brand}</span>
+          <strong>{props.copy.settings.subtitle}</strong>
+        </div>
+      </div>
+
+      <div className="compact-card">
+        <div className="card-header">
+          <h3>
+            <Languages size={14} />
+            {props.copy.nav.settings}
+          </h3>
+        </div>
+        <div className="card-body">
+          <label className="row-switch control-row">
+            <div>
+              <strong>{props.copy.settings.theme}</strong>
+              <span>{props.copy.settings.themeNote}</span>
+            </div>
+            <select
+              className="form-control compact-select"
+              value={props.theme}
+              onChange={(event) => props.onThemeChange(event.target.value as ThemeMode)}
+            >
+              <option value="dark">{props.copy.themeOptions.dark}</option>
+              <option value="light">{props.copy.themeOptions.light}</option>
+            </select>
+            {props.theme === "dark" ? <Moon size={14} /> : <Sun size={14} />}
+          </label>
+
+          <label className="row-switch control-row">
+            <div>
+              <strong>{props.copy.settings.language}</strong>
+              <span>{props.copy.settings.languageNote}</span>
+            </div>
+            <select
+              className="form-control compact-select"
+              value={props.locale}
+              onChange={(event) => props.onLocaleChange(event.target.value as Locale)}
+            >
+              <option value="ko">{props.copy.languageOptions.ko}</option>
+              <option value="en">{props.copy.languageOptions.en}</option>
+            </select>
+          </label>
         </div>
       </div>
 
@@ -1088,14 +1511,14 @@ function SettingsTab() {
         <div className="card-header">
           <h3>
             <ShieldCheck size={14} />
-            Security & Compliance
+            {props.copy.settings.compliance}
           </h3>
         </div>
         <div className="card-body">
           <div className="row-switch">
             <div>
-              <strong>Hashed-Only Telemetry</strong>
-              <span>Do not save raw prompt bodies.</span>
+              <strong>{props.copy.settings.hashedOnly}</strong>
+              <span>{props.copy.settings.hashedOnlyNote}</span>
             </div>
             <label className="switch">
               <input defaultChecked type="checkbox" />
@@ -1103,7 +1526,7 @@ function SettingsTab() {
             </label>
           </div>
           <label className="form-group">
-            SQLite Database URL
+            {props.copy.settings.databaseUrl}
             <input className="form-control mono" readOnly value="sqlite:///./scrooge.db" />
           </label>
         </div>
@@ -1113,20 +1536,20 @@ function SettingsTab() {
         <div className="card-header">
           <h3>
             <Server size={14} />
-            Local Proxy Configuration
+            {props.copy.settings.proxyConfig}
           </h3>
         </div>
         <div className="card-body">
           <label className="form-group">
-            Local Hook Endpoint
+            {props.copy.settings.localEndpoint}
             <input className="form-control mono highlight-input" readOnly value="http://127.0.0.1:8750/proxy/openai/v1/responses" />
           </label>
           <label className="form-group">
-            Forward Header
+            {props.copy.settings.forwardHeader}
             <input className="form-control mono" readOnly value="x-scrooge-forward: true" />
           </label>
           <label className="form-group">
-            Upstream Target (OpenAI)
+            {props.copy.settings.upstream}
             <input className="form-control" readOnly value="https://api.openai.com" />
           </label>
         </div>
@@ -1135,7 +1558,7 @@ function SettingsTab() {
   );
 }
 
-function AuditRows(props: { expanded: boolean; record: AuditRecord; onToggle: () => void }) {
+function AuditRows(props: { copy: Copy; expanded: boolean; record: AuditRecord; onToggle: () => void }) {
   return (
     <>
       <tr className="clickable-row" onClick={props.onToggle}>
@@ -1152,21 +1575,21 @@ function AuditRows(props: { expanded: boolean; record: AuditRecord; onToggle: ()
           <td colSpan={5}>
             <div className="expanded-info">
               <div>
-                <strong>Original SHA-256 Hash</strong>
+                <strong>{props.copy.audit.originalHash}</strong>
                 <span className="hash-line">{props.record.hashOrig}</span>
               </div>
               <div>
-                <strong>Optimized SHA-256 Hash</strong>
+                <strong>{props.copy.audit.optimizedHash}</strong>
                 <span className="hash-line">{props.record.hashOpt}</span>
               </div>
-              <p>Prompt text was not written to local SQLite storage. Hashed-only mode is active.</p>
+              <p>{props.copy.audit.privacy}</p>
               <div>
-                <strong>Token source</strong>
+                <strong>{props.copy.audit.tokenSource}</strong>
                 <span className="hash-line">{props.record.tokenizer}</span>
               </div>
               {props.record.state === "measured" ? (
                 <div>
-                  <strong>Measured usage</strong>
+                  <strong>{props.copy.audit.measuredUsage}</strong>
                   <span className="hash-line">
                     input {props.record.measuredInputTokens?.toLocaleString()} / output{" "}
                     {props.record.measuredOutputTokens?.toLocaleString()} / error{" "}
@@ -1174,7 +1597,7 @@ function AuditRows(props: { expanded: boolean; record: AuditRecord; onToggle: ()
                   </span>
                 </div>
               ) : (
-                <p>Usage is estimated until provider usage metadata is recorded.</p>
+                <p>{props.copy.audit.usageEstimated}</p>
               )}
             </div>
           </td>
@@ -1205,15 +1628,8 @@ function NavItem(props: { active: boolean; icon: JSX.Element; label: string; onC
   );
 }
 
-function formatQualityCategory(category: string) {
-  const labels: Record<string, string> = {
-    coding: "Coding",
-    debugging: "Debugging",
-    logs: "Logs",
-    data: "Data",
-    docs_planning: "Docs/Planning"
-  };
-  return labels[category] ?? category;
+function formatQualityCategory(category: string, labels: Copy) {
+  return labels.qualityCategories[category as keyof Copy["qualityCategories"]] ?? category;
 }
 
 function renderDiffLines(text: string, reasons: OptimizationReason[], mode: "added" | "removed") {
