@@ -59,3 +59,20 @@ export interface DashboardSummary {
   measured_requests: number;
 }
 
+export interface AuditRecordSummary {
+  request_id: string;
+  created_at: string;
+  provider: string;
+  model: string;
+  task_type: TaskType;
+  state: "estimated" | "sent" | "measured" | "rejected" | "failed";
+  original_hash: string;
+  optimized_hash: string;
+  original_tokens: number;
+  optimized_tokens: number;
+  saved_tokens: number;
+  saved_cost_usd: number;
+  savings_rate: number;
+  pricing_version: string;
+  applied_rules: string[];
+}

@@ -13,8 +13,15 @@ def test_storage_records_preview_without_prompt_body_by_default(tmp_path) -> Non
     store.save_preview(response, provider="openai", model="gpt-5.4-mini")
     store.mark_state(response.request_id, UsageState.SENT)
     summary = store.summary("all")
+    records = store.list_records()
 
     assert summary["total_requests"] == 1
     assert summary["approved_requests"] == 1
     assert summary["original_tokens"] > 0
+    assert len(records) == 1
+    assert records[0]["request_id"] == response.request_id
+    assert records[0]["state"] == UsageState.SENT.value
 
+    store.clear_records()
+    assert store.summary("all")["total_requests"] == 0
+    assert store.list_records() == []

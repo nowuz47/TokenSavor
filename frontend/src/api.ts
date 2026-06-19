@@ -1,4 +1,4 @@
-import type { DashboardSummary, OptimizeResponse, TaskType } from "./types";
+import type { AuditRecordSummary, DashboardSummary, OptimizeResponse, TaskType } from "./types";
 
 const API_BASE = import.meta.env.VITE_SCROOGE_API_BASE ?? "http://127.0.0.1:8750";
 
@@ -43,4 +43,19 @@ export async function getDashboardSummary(period = "month"): Promise<DashboardSu
     throw new Error(`Dashboard failed: ${response.status}`);
   }
   return response.json();
+}
+
+export async function getAuditRecords(limit = 100): Promise<AuditRecordSummary[]> {
+  const response = await fetch(`${API_BASE}/api/audit/records?limit=${limit}`);
+  if (!response.ok) {
+    throw new Error(`Audit records failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function clearAuditRecords(): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/audit/records`, { method: "DELETE" });
+  if (!response.ok) {
+    throw new Error(`Clear audit records failed: ${response.status}`);
+  }
 }

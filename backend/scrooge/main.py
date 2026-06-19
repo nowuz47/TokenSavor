@@ -8,6 +8,7 @@ from scrooge.optimizer import optimize_prompt
 from scrooge.pricing import get_pricing_registry
 from scrooge.proxy import router as proxy_router
 from scrooge.schemas import (
+    AuditRecordSummary,
     ApprovalRequest,
     ApprovalResponse,
     DashboardSummary,
@@ -69,6 +70,17 @@ def dashboard_summary(period: str = "month", store: UsageStore = Depends(get_sto
     if period not in {"day", "week", "month", "all"}:
         raise HTTPException(status_code=400, detail="period must be day, week, month, or all")
     return DashboardSummary(**store.summary(period=period))
+
+
+@app.get("/api/audit/records", response_model=list[AuditRecordSummary])
+def audit_records(limit: int = 100, store: UsageStore = Depends(get_store)) -> list[AuditRecordSummary]:
+    return [AuditRecordSummary(**record) for record in store.list_records(limit=limit)]
+
+
+@app.delete("/api/audit/records")
+def clear_audit_records(store: UsageStore = Depends(get_store)) -> dict[str, bool]:
+    store.clear_records()
+    return {"cleared": True}
 
 
 @app.get("/api/pricing")

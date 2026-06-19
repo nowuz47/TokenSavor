@@ -108,6 +108,52 @@ class UsageStore:
         with self.connect() as db:
             db.execute("UPDATE usage_records SET state = ? WHERE request_id = ?", (state.value, request_id))
 
+    def list_records(self, limit: int = 100) -> list[dict[str, object]]:
+        with self.connect() as db:
+            rows = db.execute(
+                """
+                SELECT
+                    request_id, created_at, provider, model, task_type, state,
+                    original_hash, optimized_hash, original_tokens, optimized_tokens,
+                    saved_tokens, saved_cost_usd, pricing_version, applied_rules
+                FROM usage_records
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+
+        records: list[dict[str, object]] = []
+        for row in rows:
+            original_tokens = int(row["original_tokens"] or 0)
+            saved_tokens = int(row["saved_tokens"] or 0)
+            records.append(
+                {
+                    "request_id": row["request_id"],
+                    "created_at": row["created_at"],
+                    "provider": row["provider"],
+                    "model": row["model"],
+                    "task_type": row["task_type"],
+                    "state": row["state"],
+                    "original_hash": row["original_hash"],
+                    "optimized_hash": row["optimized_hash"],
+                    "original_tokens": original_tokens,
+                    "optimized_tokens": int(row["optimized_tokens"] or 0),
+                    "saved_tokens": saved_tokens,
+                    "saved_cost_usd": round(float(row["saved_cost_usd"] or 0), 8),
+                    "savings_rate": round(saved_tokens / original_tokens, 4) if original_tokens else 0,
+                    "pricing_version": row["pricing_version"],
+                    "applied_rules": [
+                        rule for rule in str(row["applied_rules"] or "").split(",") if rule
+                    ],
+                }
+            )
+        return records
+
+    def clear_records(self) -> None:
+        with self.connect() as db:
+            db.execute("DELETE FROM usage_records")
+
     def summary(self, period: str = "month") -> dict[str, float | int | str]:
         where = _period_clause(period)
         with self.connect() as db:
@@ -160,4 +206,3 @@ def _period_clause(period: str) -> str:
     if period == "month":
         return "WHERE created_at >= datetime('now', '-31 days')"
     return ""
-

@@ -93,6 +93,24 @@ class DashboardSummary(BaseModel):
     measured_requests: int
 
 
+class AuditRecordSummary(BaseModel):
+    request_id: str
+    created_at: datetime
+    provider: str
+    model: str
+    task_type: TaskType
+    state: UsageState
+    original_hash: str
+    optimized_hash: str
+    original_tokens: int
+    optimized_tokens: int
+    saved_tokens: int
+    saved_cost_usd: float
+    savings_rate: float
+    pricing_version: str
+    applied_rules: list[str]
+
+
 class ProxyCaptureResponse(BaseModel):
     request_id: str
     captured: bool
@@ -100,4 +118,3 @@ class ProxyCaptureResponse(BaseModel):
     upstream_status: int | None = None
     preview: OptimizeResponse | None = None
     upstream_body: Any | None = None
-

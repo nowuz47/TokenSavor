@@ -23,8 +23,20 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { approvePrompt, getDashboardSummary, optimizePrompt } from "./api";
-import type { DashboardSummary, OptimizationReason, OptimizeResponse, TaskType } from "./types";
+import {
+  approvePrompt,
+  clearAuditRecords,
+  getAuditRecords,
+  getDashboardSummary,
+  optimizePrompt
+} from "./api";
+import type {
+  AuditRecordSummary,
+  DashboardSummary,
+  OptimizationReason,
+  OptimizeResponse,
+  TaskType
+} from "./types";
 
 type TabId = "workspace" | "dashboard" | "audit" | "pricing" | "settings";
 type WorkspacePanel = "input" | "preview";
@@ -50,7 +62,7 @@ interface AuditRecord {
   savedTokens: number;
   rate: number;
   savedCost: number;
-  state: "sent" | "rejected" | "estimated";
+  state: "sent" | "rejected" | "estimated" | "measured" | "failed";
   rules: string[];
   hashOrig: string;
   hashOpt: string;
@@ -122,57 +134,6 @@ const taskOptions: Array<{ label: string; value: TaskType | "" }> = [
   { label: "Logs", value: "log_analysis" }
 ];
 
-const seedAuditRecords: AuditRecord[] = [
-  {
-    id: "req-c62f91",
-    time: "14:32:01",
-    provider: "anthropic",
-    model: "claude-sonnet-4.6",
-    type: "bug_analysis",
-    originalTokens: 14500,
-    optimizedTokens: 7800,
-    savedTokens: 6700,
-    rate: 0.46,
-    savedCost: 0.0201,
-    state: "sent",
-    rules: ["stacktrace_cause_preservation", "task_template"],
-    hashOrig: "sha256:d8c47f3b...",
-    hashOpt: "sha256:ef8a42b1..."
-  },
-  {
-    id: "req-29b19e",
-    time: "11:22:15",
-    provider: "openai",
-    model: "gpt-5.4-mini",
-    type: "log_analysis",
-    originalTokens: 25000,
-    optimizedTokens: 4500,
-    savedTokens: 20500,
-    rate: 0.82,
-    savedCost: 0.0154,
-    state: "sent",
-    rules: ["log_error_frequency_summary", "task_template"],
-    hashOrig: "sha256:88fa29cc...",
-    hashOpt: "sha256:92cb911a..."
-  },
-  {
-    id: "req-72fc10",
-    time: "15:10:04",
-    provider: "anthropic",
-    model: "claude-sonnet-4.6",
-    type: "test_generation",
-    originalTokens: 12000,
-    optimizedTokens: 9200,
-    savedTokens: 2800,
-    rate: 0.23,
-    savedCost: 0.0084,
-    state: "rejected",
-    rules: ["generic_head_tail_compaction", "task_template"],
-    hashOrig: "sha256:bb291aef...",
-    hashOpt: "sha256:cc98df0a..."
-  }
-];
-
 const defaultPrompt =
   "이 코드가 이상한 것 같은데 한번 확인해 주세요.\n\n" +
   "ERROR 12:04:15 c.s.config.ServerBootstrap - failed to parse config\n" +
@@ -182,6 +143,25 @@ const defaultPrompt =
   '  File "/app/scrooge/config.py", line 45, in parse_yaml\n' +
   "    config = yaml.safe_load(f)\n" +
   "yaml.parser.ParserError: expected '<document start>', but found '<block start>'";
+
+function toAuditRecord(record: AuditRecordSummary): AuditRecord {
+  return {
+    id: record.request_id.slice(0, 10),
+    time: new Date(record.created_at).toTimeString().split(" ")[0],
+    provider: record.provider,
+    model: record.model,
+    type: record.task_type,
+    originalTokens: record.original_tokens,
+    optimizedTokens: record.optimized_tokens,
+    savedTokens: record.saved_tokens,
+    rate: record.savings_rate,
+    savedCost: record.saved_cost_usd,
+    state: record.state,
+    rules: record.applied_rules,
+    hashOrig: `sha256:${record.original_hash.slice(0, 8)}...`,
+    hashOpt: `sha256:${record.optimized_hash.slice(0, 8)}...`
+  };
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>("workspace");
@@ -193,7 +173,7 @@ export default function App() {
   const [expectedOutputTokens, setExpectedOutputTokens] = useState(1000);
   const [result, setResult] = useState<OptimizeResponse | null>(null);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [auditRecords, setAuditRecords] = useState<AuditRecord[]>(seedAuditRecords);
+  const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
   const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
   const [auditSearch, setAuditSearch] = useState("");
   const [pricingSearch, setPricingSearch] = useState("");
@@ -207,28 +187,15 @@ export default function App() {
     [provider]
   );
 
-  const activeRecords = useMemo(
-    () => auditRecords.filter((record) => record.state === "sent"),
-    [auditRecords]
-  );
-
   const aggregate = useMemo(() => {
-    const originalTokens = activeRecords.reduce((total, record) => total + record.originalTokens, 0);
-    const optimizedTokens = activeRecords.reduce((total, record) => total + record.optimizedTokens, 0);
-    const savedTokens = originalTokens - optimizedTokens + (summary?.saved_tokens ?? 0);
-    const savedCost =
-      activeRecords.reduce((total, record) => total + record.savedCost, 0) +
-      (summary?.saved_cost_usd ?? 0);
-    const backendOriginal = summary?.original_tokens ?? 0;
-    const denominator = originalTokens + backendOriginal;
     return {
-      savedTokens,
-      savedCost,
-      savingsRate: denominator > 0 ? savedTokens / denominator : 0,
-      approved: activeRecords.length + (summary?.approved_requests ?? 0),
-      totalAudits: auditRecords.length + (summary?.total_requests ?? 0)
+      savedTokens: summary?.saved_tokens ?? 0,
+      savedCost: summary?.saved_cost_usd ?? 0,
+      savingsRate: summary?.savings_rate ?? 0,
+      approved: summary?.approved_requests ?? 0,
+      totalAudits: summary?.total_requests ?? auditRecords.length
     };
-  }, [activeRecords, auditRecords.length, summary]);
+  }, [auditRecords.length, summary]);
 
   const filteredAuditRecords = useMemo(() => {
     const needle = auditSearch.toLowerCase();
@@ -247,7 +214,7 @@ export default function App() {
   }, [pricingSearch]);
 
   useEffect(() => {
-    refreshSummary();
+    refreshTelemetry();
   }, []);
 
   useEffect(() => {
@@ -261,11 +228,17 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  async function refreshSummary() {
+  async function refreshTelemetry() {
     try {
-      setSummary(await getDashboardSummary("month"));
+      const [nextSummary, nextRecords] = await Promise.all([
+        getDashboardSummary("month"),
+        getAuditRecords(100)
+      ]);
+      setSummary(nextSummary);
+      setAuditRecords(nextRecords.map(toAuditRecord));
     } catch {
       setSummary(null);
+      setAuditRecords([]);
     }
   }
 
@@ -292,7 +265,7 @@ export default function App() {
       setWorkspacePanel("preview");
       setStatus("Optimization preview loaded");
       showToast("Optimization preview loaded.");
-      await refreshSummary();
+      await refreshTelemetry();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Optimize failed";
       setStatus(message);
@@ -307,28 +280,11 @@ export default function App() {
     setLoading(true);
     try {
       await approvePrompt(result.request_id, approved);
-      const record: AuditRecord = {
-        id: result.request_id.slice(0, 10),
-        time: new Date().toTimeString().split(" ")[0],
-        provider,
-        model,
-        type: result.task_type,
-        originalTokens: result.original_tokens.input_tokens,
-        optimizedTokens: result.optimized_tokens.input_tokens,
-        savedTokens: result.saved_tokens,
-        rate: result.savings_rate,
-        savedCost: result.saved_cost_usd,
-        state: approved ? "sent" : "rejected",
-        rules: result.reasons.map((reason) => reason.rule_id),
-        hashOrig: `sha256:${result.request_id.slice(0, 8)}...`,
-        hashOpt: `sha256:${result.request_id.slice(9, 17)}...`
-      };
-      setAuditRecords((current) => [record, ...current]);
       setStatus(approved ? "Request approved & sent via proxy" : "Optimized prompt rejected");
       showToast(approved ? "Request approved & sent via proxy." : "Optimized prompt rejected.");
       setResult(null);
       setWorkspacePanel("input");
-      await refreshSummary();
+      await refreshTelemetry();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Approval failed";
       setStatus(message);
@@ -355,10 +311,19 @@ export default function App() {
     showToast("Sync complete: audit hashes uploaded to enterprise telemetry.");
   }
 
-  function clearLocalRecords() {
-    setAuditRecords([]);
-    setExpandedAuditId(null);
-    showToast("Local UI audit records cleared.");
+  async function clearLocalRecords() {
+    try {
+      await clearAuditRecords();
+      setAuditRecords([]);
+      setSummary(null);
+      setExpandedAuditId(null);
+      showToast("Local SQLite audit records cleared.");
+      await refreshTelemetry();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Clear audit records failed";
+      setStatus(message);
+      showToast(message);
+    }
   }
 
   const tabContent = {
@@ -956,4 +921,3 @@ function renderDiffLines(text: string, reasons: OptimizationReason[], mode: "add
       );
     });
 }
-
