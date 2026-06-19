@@ -21,6 +21,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -42,6 +43,8 @@ import type {
 
 type TabId = "workspace" | "dashboard" | "audit" | "pricing" | "settings";
 type WorkspacePanel = "input" | "preview";
+
+const APP_LOGO_SRC = "/scrooge_flat_no_coin.png";
 
 interface ModelOption {
   provider: string;
@@ -346,6 +349,22 @@ export default function App() {
     }
   }
 
+  async function minimizeWindow() {
+    try {
+      await getCurrentWindow().minimize();
+    } catch {
+      showToast("Window minimize is available in the installed desktop app.");
+    }
+  }
+
+  async function hideWindowToTray() {
+    try {
+      await getCurrentWindow().close();
+    } catch {
+      showToast("Scrooge tray daemon keeps running.");
+    }
+  }
+
   const tabContent = {
     workspace: (
       <WorkspaceTab
@@ -389,22 +408,22 @@ export default function App() {
 
   return (
     <main className="app-container">
-      <header className="app-header">
-        <div className="brand-group">
+      <header className="app-header" data-tauri-drag-region>
+        <div className="brand-group" data-tauri-drag-region>
           <div className="brand-logo">
-            <img src="/scrooge_flat_no_coin.png" alt="Scrooge" />
+            <img src={APP_LOGO_SRC} alt="Scrooge" />
           </div>
           <span className="brand-title">Scrooge</span>
         </div>
-        <div className="header-metrics">
+        <div className="header-metrics" data-tauri-drag-region>
           <span>{(aggregate.savingsRate * 100).toFixed(0)}%</span>
           <strong>${aggregate.savedCost.toFixed(2)}</strong>
         </div>
         <div className="window-actions">
-          <button className="win-btn" type="button" title="Minimize to tray" onClick={() => showToast("Window minimized to tray.")}>
+          <button className="win-btn" type="button" title="Minimize" onClick={minimizeWindow}>
             <Minus size={14} />
           </button>
-          <button className="win-btn close" type="button" title="Quit Scrooge" onClick={() => showToast("Scrooge tray daemon keeps running.")}>
+          <button className="win-btn close" type="button" title="Hide to tray" onClick={hideWindowToTray}>
             <X size={14} />
           </button>
         </div>
@@ -911,6 +930,16 @@ function PricingTab(props: {
 function SettingsTab() {
   return (
     <section className="tab-content active">
+      <div className="compact-card settings-brand-card">
+        <div className="settings-brand-logo">
+          <img src={APP_LOGO_SRC} alt="Scrooge" />
+        </div>
+        <div className="settings-brand-copy">
+          <span>Scrooge Desktop</span>
+          <strong>Local-first token efficiency guardrail</strong>
+        </div>
+      </div>
+
       <div className="compact-card">
         <div className="card-header">
           <h3>
