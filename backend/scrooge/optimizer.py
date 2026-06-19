@@ -156,5 +156,12 @@ def _describe_rule(rule_id: str) -> str:
         "stacktrace_frame_limit": "Limited repeated stack frames.",
         "diff_header_preservation": "Preserved diff file and hunk headers.",
         "diff_changed_line_sampling": "Sampled changed diff lines.",
+        "command_output_test_summary": "Summarized test runner output by failure signals.",
+        "command_output_failure_preservation": "Preserved failing tests, assertion lines, and file references.",
+        "command_output_git_status_summary": "Summarized git status output by branch and change counts.",
+        "command_output_changed_file_sampling": "Kept representative changed file samples.",
+        "command_output_search_summary": "Summarized search output by matched files and total hits.",
+        "command_output_match_sampling": "Kept representative search matches.",
+        "protected_block_preservation": "Kept user-marked protected context verbatim.",
     }
     return descriptions.get(rule_id, rule_id.replace("_", " ").capitalize())
