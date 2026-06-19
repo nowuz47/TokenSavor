@@ -7,6 +7,7 @@ export async function optimizePrompt(input: {
   provider: string;
   model: string;
   task_type?: TaskType | "";
+  expected_output_tokens?: number;
 }): Promise<OptimizeResponse> {
   const response = await fetch(`${API_BASE}/api/optimize`, {
     method: "POST",
@@ -15,7 +16,8 @@ export async function optimizePrompt(input: {
       prompt: input.prompt,
       provider: input.provider,
       model: input.model,
-      task_type: input.task_type || null
+      task_type: input.task_type || null,
+      expected_output_tokens: input.expected_output_tokens ?? 1000
     })
   });
   if (!response.ok) {
@@ -42,4 +44,3 @@ export async function getDashboardSummary(period = "month"): Promise<DashboardSu
   }
   return response.json();
 }
-
