@@ -199,6 +199,7 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [proxyRunning, setProxyRunning] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [lastTelemetryRefresh, setLastTelemetryRefresh] = useState("Not synced yet");
 
   const availableModels = useMemo(
     () => modelsRegistry.filter((item) => item.provider === provider),
@@ -240,6 +241,35 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refreshTelemetry();
+      }
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "dashboard" || activeTab === "audit") {
+      void refreshTelemetry();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const refreshOnFocus = () => {
+      if (document.visibilityState === "visible") {
+        void refreshTelemetry();
+      }
+    };
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnFocus);
+    return () => {
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
+    };
+  }, []);
+
+  useEffect(() => {
     const next = modelsRegistry.find((item) => item.provider === provider);
     if (next) setModel(next.model);
   }, [provider]);
@@ -260,6 +290,7 @@ export default function App() {
       setSummary(nextSummary);
       setAuditRecords(nextRecords.map(toAuditRecord));
       setQualitySummary(nextQuality);
+      setLastTelemetryRefresh(new Date().toLocaleTimeString());
     } catch {
       setSummary(null);
       setAuditRecords([]);
@@ -392,8 +423,9 @@ export default function App() {
     });
   }
 
-  function syncLogs() {
-    showToast("Sync complete: audit hashes uploaded to enterprise telemetry.");
+  async function syncLogs() {
+    await refreshTelemetry();
+    showToast("Dashboard refreshed from local hook telemetry.");
   }
 
   async function clearLocalRecords() {
@@ -453,7 +485,12 @@ export default function App() {
       />
     ),
     dashboard: (
-      <DashboardTab aggregate={aggregate} qualitySummary={qualitySummary} records={auditRecords} />
+      <DashboardTab
+        aggregate={aggregate}
+        lastTelemetryRefresh={lastTelemetryRefresh}
+        qualitySummary={qualitySummary}
+        records={auditRecords}
+      />
     ),
     audit: (
       <AuditTab
@@ -501,10 +538,10 @@ export default function App() {
           <span>{status}</span>
         </button>
         <div className="status-right">
-          <span>scrooge.db ({aggregate.totalAudits} records)</span>
+          <span>scrooge.db ({aggregate.totalAudits} records) · {lastTelemetryRefresh}</span>
           <button className="status-btn" type="button" onClick={syncLogs}>
             <RefreshCw size={11} />
-            <span>Sync Logs</span>
+            <span>Refresh</span>
           </button>
           <button className="status-btn" type="button" onClick={clearLocalRecords}>
             <Trash2 size={11} />
@@ -803,6 +840,7 @@ function DashboardTab(props: {
     savingsRate: number;
     totalAudits: number;
   };
+  lastTelemetryRefresh: string;
   qualitySummary: QualitySummary | null;
   records: AuditRecord[];
 }) {
@@ -817,6 +855,11 @@ function DashboardTab(props: {
         <DashboardCard icon={<Database />} label="Total Audits" value={props.aggregate.totalAudits} />
         <DashboardCard icon={<ShieldCheck />} label="Measured Coverage" value={`${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`} />
         <DashboardCard icon={<Activity />} label="Avg Token Error" value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
+      </div>
+
+      <div className="telemetry-refresh-note">
+        <RefreshCw size={12} />
+        <span>Local hook telemetry refreshes every 5 seconds. Last refresh: {props.lastTelemetryRefresh}</span>
       </div>
 
       <div className="db-grid">

@@ -726,6 +726,23 @@ select.form-control {
   color: var(--gold);
 }
 
+.telemetry-refresh-note {
+  align-items: center;
+  background: rgba(6, 9, 7, 0.36);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  display: flex;
+  font-size: 10px;
+  gap: 7px;
+  padding: 8px 10px;
+}
+
+.telemetry-refresh-note svg {
+  color: var(--gold);
+  flex: 0 0 auto;
+}
+
 .chart-card {
   padding: 10px;
 }
