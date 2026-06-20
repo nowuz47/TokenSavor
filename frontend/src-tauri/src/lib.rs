@@ -65,7 +65,23 @@ fn start_backend_sidecar(app: &tauri::App) {
     }
 
     let state = app.state::<BackendState>();
-    match app.shell().sidecar("scrooge-backend") {
+    if state
+        .child
+        .lock()
+        .expect("backend child mutex poisoned")
+        .is_some()
+    {
+        return;
+    }
+
+    match app
+        .shell()
+        .sidecar("scrooge-backend")
+        .map(|command| {
+            command
+                .env("SCROOGE_SIDECAR_STATUS", "managed")
+                .env("SCROOGE_HOTKEY_STATUS", "registered")
+        }) {
         Ok(command) => match command.spawn() {
             Ok((mut rx, child)) => {
                 *state.child.lock().expect("backend child mutex poisoned") = Some(child);
@@ -131,10 +147,11 @@ fn optimize_active_field_via_backend(app: AppHandle) {
             .unwrap_or(0);
 
         if saved_tokens <= 0 {
+            let rejection_note = no_savings_note(&response);
             if !request_id.is_empty() {
                 let _ = post_json(
                     &format!("/api/approvals/{request_id}/approve"),
-                    &serde_json::json!({ "approved": false, "notes": "no_savings" }),
+                    &serde_json::json!({ "approved": false, "notes": rejection_note }),
                 );
             }
             let _ = app.clipboard().write_text(text);
@@ -167,6 +184,26 @@ fn optimize_active_field_via_backend(app: AppHandle) {
             emit_hotkey_result(&app, "failed", 0, &request_id);
         }
     });
+}
+
+fn no_savings_note(response: &serde_json::Value) -> &'static str {
+    let original_tokens = response
+        .get("original_tokens")
+        .and_then(|value| value.get("input_tokens"))
+        .and_then(|value| value.as_i64())
+        .unwrap_or(0);
+    let optimized_tokens = response
+        .get("optimized_tokens")
+        .and_then(|value| value.get("input_tokens"))
+        .and_then(|value| value.as_i64())
+        .unwrap_or(0);
+    if original_tokens <= 120 {
+        "no_savings_short_prompt"
+    } else if optimized_tokens >= original_tokens {
+        "no_savings_quality_guard"
+    } else {
+        "no_savings"
+    }
 }
 
 fn emit_hotkey_result(app: &AppHandle, status: &str, saved_tokens: i64, request_id: &str) {

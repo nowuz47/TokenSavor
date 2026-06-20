@@ -1,5 +1,7 @@
 param(
-    [string]$TargetTriple = "aarch64-pc-windows-msvc"
+    [string]$TargetTriple = "aarch64-pc-windows-msvc",
+    [ValidateSet("onefile", "onedir")]
+    [string]$PackagingMode = "onefile"
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,19 +22,38 @@ New-Item -ItemType Directory -Force -Path $sidecarDir | Out-Null
 Push-Location $backendDir
 try {
     & $pythonExe -m pip install -e ".[dev]"
-    & $pythonExe -m PyInstaller `
-        --clean `
-        --noconfirm `
-        --onefile `
-        --windowed `
-        --name $sidecarName `
-        --paths $backendDir `
-        --collect-submodules scrooge `
-        --collect-data scrooge `
-        --distpath $sidecarDir `
-        --workpath (Join-Path $backendDir "build\pyinstaller") `
-        --specpath (Join-Path $backendDir "build") `
-        scrooge_backend.py
+    $pyInstallerArgs = @(
+        "--clean",
+        "--noconfirm",
+        "--windowed",
+        "--name", $sidecarName,
+        "--paths", $backendDir,
+        "--collect-submodules", "scrooge",
+        "--collect-data", "scrooge",
+        "--distpath", $sidecarDir,
+        "--workpath", (Join-Path $backendDir "build\pyinstaller"),
+        "--specpath", (Join-Path $backendDir "build")
+    )
+    if ($PackagingMode -eq "onefile") {
+        $pyInstallerArgs += "--onefile"
+    } else {
+        $pyInstallerArgs += "--onedir"
+    }
+    $pyInstallerArgs += "scrooge_backend.py"
+
+    & $pythonExe -m PyInstaller @pyInstallerArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "PyInstaller failed with exit code $LASTEXITCODE"
+    }
+
+    if ($PackagingMode -eq "onedir") {
+        $oneDirExe = Join-Path (Join-Path $sidecarDir $sidecarName) "$sidecarName.exe"
+        if (-not (Test-Path $oneDirExe)) {
+            throw "Expected onedir sidecar artifact was not created: $oneDirExe"
+        }
+        Write-Host "Built backend sidecar directory: $(Split-Path $oneDirExe -Parent)"
+        return
+    }
 }
 finally {
     Pop-Location

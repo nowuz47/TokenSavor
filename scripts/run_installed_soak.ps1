@@ -39,4 +39,14 @@ finally {
 }
 
 $output | Set-Content -Path $ReportPath -Encoding UTF8
+$report = ($output -join "`n") | ConvertFrom-Json
+if ($report.soak.health_success_rate -lt 0.99) {
+    throw "Installed soak health success rate is below 99%: $($report.soak.health_success_rate)"
+}
+if ($report.soak.optimize_success_rate -lt 0.99) {
+    throw "Installed soak optimize success rate is below 99%: $($report.soak.optimize_success_rate)"
+}
+if (@($report.soak.failed_events).Count -gt 0) {
+    throw "Installed soak recorded failed events: $(@($report.soak.failed_events) -join '; ')"
+}
 Write-Host "Installed soak report written to $ReportPath"

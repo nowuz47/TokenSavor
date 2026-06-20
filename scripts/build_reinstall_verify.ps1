@@ -3,6 +3,9 @@ param(
     [string]$ApiBase = "http://127.0.0.1:8750",
     [string]$NodePath = "C:\Users\juwonkim\AppData\Local\Microsoft\WinGet\Packages\OpenJS.NodeJS.LTS_Microsoft.Winget.Source_8wekyb3d8bbwe\node-v24.17.0-win-arm64",
     [string]$CargoTargetDir = "",
+    [ValidateSet("onefile", "onedir")]
+    [string]$BackendPackagingMode = "onefile",
+    [int]$InstallTimeoutSeconds = 120,
     [switch]$SkipInstall,
     [switch]$SkipSmoke
 )
@@ -41,7 +44,7 @@ function Invoke-CmdChecked {
 Stop-Process -Name "Scrooge" -ErrorAction SilentlyContinue
 Stop-Process -Name "scrooge-backend" -ErrorAction SilentlyContinue
 
-& (Join-Path $scriptRoot "build_backend_sidecar.ps1") -TargetTriple $TargetTriple
+& (Join-Path $scriptRoot "build_backend_sidecar.ps1") -TargetTriple $TargetTriple -PackagingMode $BackendPackagingMode
 if ($LASTEXITCODE -ne 0) {
     throw "Backend sidecar build failed with exit code $LASTEXITCODE"
 }
@@ -71,18 +74,32 @@ finally {
     Remove-Item -Path $frontendBuildDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-$installer = Get-ChildItem -Path $CargoTargetDir -Recurse -Filter "*setup.exe" |
+$installerSearchDirs = @(
+    (Join-Path $CargoTargetDir "$TargetTriple\release\bundle\nsis"),
+    (Join-Path $CargoTargetDir "release\bundle\nsis")
+) | Where-Object { Test-Path $_ }
+
+$installer = $installerSearchDirs |
+    ForEach-Object { Get-ChildItem -Path $_ -Filter "*setup.exe" -File -ErrorAction SilentlyContinue } |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1
 
 if (-not $installer) {
-    throw "No installer was produced under $CargoTargetDir"
+    throw "No NSIS installer was produced under the expected bundle directories in $CargoTargetDir"
 }
 
 Write-Host "Built installer: $($installer.FullName)"
 
 if (-not $SkipInstall) {
-    Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait
+    $installProcess = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -PassThru
+    if (-not $installProcess.WaitForExit($InstallTimeoutSeconds * 1000)) {
+        Stop-Process -Id $installProcess.Id -Force -ErrorAction SilentlyContinue
+        throw "Installer did not exit within $InstallTimeoutSeconds seconds: $($installer.FullName)"
+    }
+
+    if ($installProcess.ExitCode -ne 0) {
+        throw "Installer failed with exit code $($installProcess.ExitCode): $($installer.FullName)"
+    }
 
     $exeCandidates = @(
         (Join-Path $env:LOCALAPPDATA "Scrooge\Scrooge.exe"),

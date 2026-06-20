@@ -114,7 +114,14 @@ export const copy = {
       followupRequests: "Likely Re-asks",
       goldenCases: "Golden Cases",
       harmfulOmissions: "Harmful Omissions",
+      hotkeyFailures: "Hotkey Failures",
       hotkeySuccess: "Hotkey Success",
+      hotkeyValidation: "Hotkey Validation",
+      hotkeyValidationStates: {
+        failed: "Failed",
+        needs_validation: "Needs 30 uses",
+        passed: "Passed"
+      },
       issues: "Issues",
       longContextSavings: "Long Context Savings",
       measuredData: "measured",
@@ -135,7 +142,9 @@ export const copy = {
       saved: "saved",
       savedTokens: "Saved Tokens",
       savedUsd: "Saved USD",
+      shortPromptProtected: "Short Prompt Guard",
       shortOverOptimization: "Short Over-Opt",
+      sidecarStatus: "Sidecar",
       telemetryNote: "Local hook telemetry refreshes every 5 seconds.",
       totalAudits: "Total Audits",
       trend: "Token Savings Trend",
@@ -154,6 +163,9 @@ export const copy = {
       rejectionReason: "Reject reason",
       rejectionReasons: {
         no_savings: "No token savings were found, so the original prompt was kept.",
+        no_savings_quality_guard: "The optimized draft was not shorter, so Scrooge kept the original to avoid over-optimization.",
+        no_savings_short_prompt: "This prompt was already short and clear, so Scrooge kept the original.",
+        no_savings_structured_prompt: "This prompt was already structured, so Scrooge kept the original.",
         user_kept_original: "The original prompt was kept by user choice.",
         unknown: "No reject reason was recorded."
       },
@@ -338,7 +350,14 @@ export const copy = {
       followupRequests: "재질문 추정",
       goldenCases: "골든 케이스",
       harmfulOmissions: "심각 누락",
+      hotkeyFailures: "단축키 실패",
       hotkeySuccess: "단축키 성공률",
+      hotkeyValidation: "단축키 검증",
+      hotkeyValidationStates: {
+        failed: "실패",
+        needs_validation: "30회 검증 필요",
+        passed: "통과"
+      },
       issues: "이슈",
       longContextSavings: "긴 컨텍스트 절감률",
       measuredData: "실측",
@@ -359,7 +378,9 @@ export const copy = {
       saved: "절감",
       savedTokens: "절감 토큰",
       savedUsd: "절감 비용",
+      shortPromptProtected: "짧은 요청 보호",
       shortOverOptimization: "짧은 요청 과최적화",
+      sidecarStatus: "사이드카",
       telemetryNote: "로컬 후킹 텔레메트리는 5초마다 새로고침됩니다.",
       totalAudits: "전체 감사",
       trend: "토큰 절감 추이",
@@ -378,6 +399,9 @@ export const copy = {
       rejectionReason: "거절 사유",
       rejectionReasons: {
         no_savings: "절감 가능한 토큰이 없어 원문을 유지했습니다.",
+        no_savings_quality_guard: "최적화 문구가 더 짧지 않아 과최적화를 막기 위해 원문을 유지했습니다.",
+        no_savings_short_prompt: "이미 짧고 명확한 프롬프트라 줄이지 않고 원문을 유지했습니다.",
+        no_savings_structured_prompt: "이미 구조화된 프롬프트라 원문을 유지했습니다.",
         user_kept_original: "사용자가 원문 유지를 선택했습니다.",
         unknown: "거절 사유가 기록되지 않았습니다."
       },

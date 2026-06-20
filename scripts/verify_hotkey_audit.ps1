@@ -22,6 +22,12 @@ $hotkeyRecords = @($records | Where-Object {
 $failedRecords = @($hotkeyRecords | Where-Object {
     ($_.state -eq "failed") -or $_.failure_reason -or $_.failureReason
 })
+$optimizedRecords = @($hotkeyRecords | Where-Object {
+    ($_.state -in @("sent", "measured")) -and (($_.saved_tokens -gt 0) -or ($_.savedTokens -gt 0))
+})
+$noSavingsRecords = @($hotkeyRecords | Where-Object {
+    ($_.state -eq "rejected") -and (($_.rejection_reason -like "no_savings*") -or ($_.rejectionReason -like "no_savings*"))
+})
 
 $attempts = $hotkeyRecords.Count
 $successes = [Math]::Max(0, $attempts - $failedRecords.Count)
@@ -43,6 +49,8 @@ $summary = [ordered]@{
     successes = $successes
     failures = $failedRecords.Count
     successRate = [Math]::Round($successRate, 4)
+    optimized = $optimizedRecords.Count
+    noSavings = $noSavingsRecords.Count
     savedTokens = [int]$savedTokens
     failedRequestIds = @($failedRecords | Select-Object -ExpandProperty request_id -ErrorAction SilentlyContinue)
 }

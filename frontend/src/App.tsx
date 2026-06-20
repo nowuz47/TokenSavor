@@ -243,9 +243,14 @@ export default function App() {
       reaskRate: summary?.reask_rate ?? 0,
       longContextSavingsRate: summary?.long_context_savings_rate ?? 0,
       shortPromptOverOptimizationCount: summary?.short_prompt_over_optimization_count ?? 0,
+      shortPromptProtectedCount: summary?.short_prompt_protected_count ?? 0,
+      hotkeyAttempts: summary?.hotkey_attempts ?? 0,
+      hotkeyFailedRequests: summary?.hotkey_failed_requests ?? 0,
       hotkeySuccessRate: summary?.hotkey_success_rate ?? 0,
+      hotkeyValidationStatus: summary?.hotkey_validation_status ?? "needs_validation",
       backendHealthStatus: runtimeStatus?.backend_status ?? summary?.backend_health_status ?? "unknown",
       databaseStatus: runtimeStatus?.database_status ?? "unknown",
+      sidecarStatus: runtimeStatus?.sidecar_status ?? "unknown",
       qualityPreservationRate:
         summary?.quality_preservation_rate ?? qualitySummary?.quality_preservation_rate ?? 0
     };
@@ -481,11 +486,12 @@ export default function App() {
         capture_source: "clipboard"
       });
       if (response.saved_tokens <= 0) {
-        await approvePrompt(response.request_id, false, "no_savings");
+        const reason = getNoSavingsReason(response);
+        await approvePrompt(response.request_id, false, reason);
         setResult(response);
         setPrompt(text);
-        setStatus(locale === "ko" ? "절감 없음 - 클립보드 유지" : "No savings - clipboard unchanged");
-        showToast(labels.toast.hotkeyNoSavings);
+        setStatus(labels.audit.rejectionReasons[reason]);
+        showToast(labels.audit.rejectionReasons[reason]);
         await refreshTelemetry();
         return;
       }
@@ -1001,6 +1007,9 @@ function DashboardTab(props: {
     databaseStatus: string;
     followupRequests: number;
     hotkeySuccessRate: number;
+    hotkeyAttempts: number;
+    hotkeyFailedRequests: number;
+    hotkeyValidationStatus: "needs_validation" | "passed" | "failed";
     longContextSavingsRate: number;
     maxTokenErrorRate: number;
     measuredRequests: number;
@@ -1011,6 +1020,8 @@ function DashboardTab(props: {
     savedTokens: number;
     savingsRate: number;
     shortPromptOverOptimizationCount: number;
+    shortPromptProtectedCount: number;
+    sidecarStatus: string;
     totalAudits: number;
   };
   copy: Copy;
@@ -1118,10 +1129,18 @@ function DashboardTab(props: {
             <DashboardCard icon={<Banknote />} label={props.copy.dashboard.savedUsd} value={`$${props.aggregate.savedCost.toFixed(2)}`} />
             <DashboardCard icon={<Flame />} label={props.copy.dashboard.estimatedSavings} value={`${(props.aggregate.savingsRate * 100).toFixed(1)}%`} />
             <DashboardCard icon={<RefreshCw />} label={props.copy.dashboard.reaskRate} value={`${(props.aggregate.reaskRate * 100).toFixed(1)}%`} />
-            <DashboardCard icon={<ClipboardCheck />} label={props.copy.dashboard.hotkeySuccess} value={`${(props.aggregate.hotkeySuccessRate * 100).toFixed(0)}%`} />
+            <DashboardCard
+              icon={<ClipboardCheck />}
+              label={props.copy.dashboard.hotkeyValidation}
+              value={formatHotkeyValidation(props.aggregate.hotkeyValidationStatus, props.copy)}
+            />
+            <DashboardCard icon={<ClipboardCheck />} label={props.copy.dashboard.hotkeySuccess} value={`${props.aggregate.hotkeyAttempts} / ${(props.aggregate.hotkeySuccessRate * 100).toFixed(0)}%`} />
+            <DashboardCard icon={<X />} label={props.copy.dashboard.hotkeyFailures} value={props.aggregate.hotkeyFailedRequests} />
+            <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.shortPromptProtected} value={props.aggregate.shortPromptProtectedCount} />
             <DashboardCard icon={<X />} label={props.copy.dashboard.shortOverOptimization} value={props.aggregate.shortPromptOverOptimizationCount} />
             <DashboardCard icon={<Server />} label={props.copy.dashboard.backendHealth} value={props.aggregate.backendHealthStatus} />
             <DashboardCard icon={<Database />} label={props.copy.dashboard.databaseHealth} value={props.aggregate.databaseStatus} />
+            <DashboardCard icon={<Cpu />} label={props.copy.dashboard.sidecarStatus} value={props.aggregate.sidecarStatus} />
             <DashboardCard icon={<Activity />} label={props.copy.dashboard.avgTokenError} value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
             <DashboardCard
               highlight
@@ -1559,6 +1578,20 @@ function formatRejectionReason(reason: string | null | undefined, labels: Copy) 
   return key && labels.audit.rejectionReasons[key]
     ? labels.audit.rejectionReasons[key]
     : labels.audit.rejectionReasons.unknown;
+}
+
+function formatHotkeyValidation(status: "needs_validation" | "passed" | "failed", labels: Copy) {
+  return labels.dashboard.hotkeyValidationStates[status] ?? status;
+}
+
+function getNoSavingsReason(response: OptimizeResponse): keyof Copy["audit"]["rejectionReasons"] {
+  if (response.original_tokens.input_tokens <= 120) {
+    return "no_savings_short_prompt";
+  }
+  if (response.optimized_tokens.input_tokens >= response.original_tokens.input_tokens) {
+    return "no_savings_quality_guard";
+  }
+  return "no_savings";
 }
 
 function formatTokenCount(tokens: number) {

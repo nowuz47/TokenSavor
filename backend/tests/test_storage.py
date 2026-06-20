@@ -95,8 +95,33 @@ def test_rejected_records_include_reason_or_inferred_reason(tmp_path) -> None:
 
     records = {record["request_id"]: record for record in store.list_records()}
 
-    assert records[no_savings.request_id]["rejection_reason"] == "no_savings"
+    assert records[no_savings.request_id]["rejection_reason"] == "no_savings_short_prompt"
     assert records[user_choice.request_id]["rejection_reason"] == "user_kept_original"
+
+
+def test_summary_reports_hotkey_validation_and_short_prompt_protection(tmp_path) -> None:
+    db_path = tmp_path / "scrooge.db"
+    settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)
+    store = UsageStore(settings)
+
+    for index in range(30):
+        response = optimize_prompt(
+            OptimizeRequest(
+                prompt=f"짧은 요청 {index}",
+                provider="openai",
+                capture_source=CaptureSource.HOTKEY,
+            )
+        )
+        store.save_preview(response, provider="openai", model="gpt-5.4-mini", capture_source=CaptureSource.HOTKEY)
+        store.mark_state(response.request_id, UsageState.REJECTED, notes="no_savings_short_prompt")
+
+    summary = store.summary("all")
+
+    assert summary["hotkey_attempts"] == 30
+    assert summary["hotkey_failed_requests"] == 0
+    assert summary["hotkey_success_rate"] == 1
+    assert summary["hotkey_validation_status"] == "passed"
+    assert summary["short_prompt_protected_count"] == 30
 
 
 def test_summary_counts_repeated_prompt_family_as_followup_request(tmp_path) -> None:

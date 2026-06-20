@@ -356,6 +356,8 @@ class UsageStore:
                         row["state"],
                         row["decision_notes"],
                         saved_tokens,
+                        original_tokens,
+                        int(row["optimized_tokens"] or 0),
                     ),
                     "provider_usage_source": row["provider_usage_source"],
                     "upstream_status": row["upstream_status"],
@@ -415,7 +417,8 @@ class UsageStore:
             ).fetchone()
             followup_requests = self._count_followups(db, where)
             long_context_savings_rate = self._long_context_savings_rate(db, where)
-            hotkey_success_rate = self._hotkey_success_rate(db, where)
+            hotkey_metrics = self._hotkey_metrics(db, where)
+            short_prompt_protected_count = self._short_prompt_protected_count(db, where)
 
         total_original = int(row["original_tokens"] or 0)
         saved = int(row["saved_tokens"] or 0)
@@ -442,7 +445,11 @@ class UsageStore:
             "followup_requests": followup_requests,
             "reask_rate": round(followup_requests / total_requests, 4) if total_requests else 0,
             "long_context_savings_rate": long_context_savings_rate,
-            "hotkey_success_rate": hotkey_success_rate,
+            "short_prompt_protected_count": short_prompt_protected_count,
+            "hotkey_attempts": hotkey_metrics["attempts"],
+            "hotkey_failed_requests": hotkey_metrics["failed_requests"],
+            "hotkey_success_rate": hotkey_metrics["success_rate"],
+            "hotkey_validation_status": hotkey_metrics["validation_status"],
             "backend_health_status": "ok",
         }
 
@@ -532,20 +539,54 @@ class UsageStore:
         saved_tokens = int(row["saved_tokens"] or 0)
         return round(saved_tokens / original_tokens, 4) if original_tokens else 0
 
-    def _hotkey_success_rate(self, db: sqlite3.Connection, where: str) -> float:
+    def _hotkey_metrics(self, db: sqlite3.Connection, where: str) -> dict[str, float | int | str]:
         row = db.execute(
             f"""
             SELECT
                 COUNT(*) as total_requests,
-                SUM(CASE WHEN state IN ('sent', 'measured') THEN 1 ELSE 0 END) as successful_requests
+                SUM(CASE WHEN state = 'failed' OR failure_reason IS NOT NULL THEN 1 ELSE 0 END) as failed_requests
             FROM usage_records
             {where}
             {'AND' if where else 'WHERE'} capture_source = 'hotkey'
             """
         ).fetchone()
         total_requests = int(row["total_requests"] or 0)
-        successful_requests = int(row["successful_requests"] or 0)
-        return round(successful_requests / total_requests, 4) if total_requests else 0
+        failed_requests = int(row["failed_requests"] or 0)
+        successful_requests = max(0, total_requests - failed_requests)
+        success_rate = round(successful_requests / total_requests, 4) if total_requests else 0
+        if total_requests < 30:
+            validation_status = "needs_validation"
+        elif success_rate >= 0.9 and failed_requests == 0:
+            validation_status = "passed"
+        else:
+            validation_status = "failed"
+        return {
+            "attempts": total_requests,
+            "failed_requests": failed_requests,
+            "success_rate": success_rate,
+            "validation_status": validation_status,
+        }
+
+    def _short_prompt_protected_count(self, db: sqlite3.Connection, where: str) -> int:
+        row = db.execute(
+            f"""
+            SELECT COUNT(*) as protected_count
+            FROM usage_records
+            {where}
+            {'AND' if where else 'WHERE'} state = 'rejected'
+            AND saved_tokens = 0
+            AND (
+                original_tokens <= 120
+                OR decision_notes IN (
+                    'no_savings',
+                    'no_savings_short_prompt',
+                    'no_savings_structured_prompt',
+                    'no_savings_quality_guard'
+                )
+            )
+            """
+        ).fetchone()
+        return int(row["protected_count"] or 0)
 
 
 def _hash_text(text: str) -> str:
@@ -572,12 +613,22 @@ def _parse_datetime(value: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def _rejection_reason(state: str, notes: str | None, saved_tokens: int) -> str | None:
+def _rejection_reason(
+    state: str,
+    notes: str | None,
+    saved_tokens: int,
+    original_tokens: int = 0,
+    optimized_tokens: int = 0,
+) -> str | None:
     if state != UsageState.REJECTED.value:
         return None
     if notes:
         return notes
     if saved_tokens <= 0:
+        if original_tokens <= 120:
+            return "no_savings_short_prompt"
+        if optimized_tokens >= original_tokens:
+            return "no_savings_quality_guard"
         return "no_savings"
     return "user_kept_original"
 

@@ -132,7 +132,11 @@ class DashboardSummary(BaseModel):
     quality_preservation_rate: float = 0
     long_context_savings_rate: float = 0
     short_prompt_over_optimization_count: int = 0
+    short_prompt_protected_count: int = 0
+    hotkey_attempts: int = 0
+    hotkey_failed_requests: int = 0
     hotkey_success_rate: float = 0
+    hotkey_validation_status: str = "needs_validation"
     backend_health_status: str = "ok"
 
 

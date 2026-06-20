@@ -1,4 +1,5 @@
 from functools import lru_cache
+import os
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -127,6 +128,8 @@ def runtime_status(store: UsageStore = Depends(get_store)) -> RuntimeStatusRespo
     return RuntimeStatusResponse(
         backend_status="ok",
         database_status=database_status,
+        sidecar_status=os.getenv("SCROOGE_SIDECAR_STATUS", "external"),
+        hotkey_status=os.getenv("SCROOGE_HOTKEY_STATUS", "unknown"),
         database_path=store.path,
     )
 

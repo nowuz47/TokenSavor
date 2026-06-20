@@ -67,7 +67,11 @@ export interface DashboardSummary {
   quality_preservation_rate: number;
   long_context_savings_rate: number;
   short_prompt_over_optimization_count: number;
+  short_prompt_protected_count: number;
+  hotkey_attempts: number;
+  hotkey_failed_requests: number;
   hotkey_success_rate: number;
+  hotkey_validation_status: "needs_validation" | "passed" | "failed";
   backend_health_status: string;
 }
 
