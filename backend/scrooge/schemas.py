@@ -84,6 +84,7 @@ class MeasurementRequest(BaseModel):
     measured_output_tokens: int = Field(ge=0)
     measured_original_tokens: int | None = Field(default=None, ge=0)
     source: str = "provider_usage"
+    upstream_status: int | None = None
 
 
 class MeasurementResponse(BaseModel):
@@ -110,6 +111,9 @@ class DashboardSummary(BaseModel):
     measurement_coverage: float = 0
     avg_token_error_rate: float = 0
     max_token_error_rate: float = 0
+    followup_requests: int = 0
+    reask_rate: float = 0
+    quality_preservation_rate: float = 0
 
 
 class QualityCaseResult(BaseModel):
@@ -175,6 +179,8 @@ class AuditRecordSummary(BaseModel):
     measured_output_tokens: int | None = None
     measured_original_tokens: int | None = None
     rejection_reason: str | None = None
+    provider_usage_source: str | None = None
+    upstream_status: int | None = None
     token_error_rate: float | None = None
 
 

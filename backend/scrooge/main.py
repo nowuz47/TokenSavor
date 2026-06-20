@@ -97,7 +97,10 @@ def record_measurement(
 def dashboard_summary(period: str = "month", store: UsageStore = Depends(get_store)) -> DashboardSummary:
     if period not in {"day", "week", "month", "all"}:
         raise HTTPException(status_code=400, detail="period must be day, week, month, or all")
-    return DashboardSummary(**store.summary(period=period))
+    summary = store.summary(period=period)
+    quality = evaluate_quality_report()
+    summary["quality_preservation_rate"] = quality.quality_preservation_rate
+    return DashboardSummary(**summary)
 
 
 @app.get("/api/quality/summary", response_model=QualitySummary)

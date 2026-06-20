@@ -84,6 +84,8 @@ interface AuditRecord {
   measuredOutputTokens?: number | null;
   measuredOriginalTokens?: number | null;
   rejectionReason?: string | null;
+  providerUsageSource?: string | null;
+  upstreamStatus?: number | null;
   tokenErrorRate?: number | null;
 }
 
@@ -179,6 +181,8 @@ function toAuditRecord(record: AuditRecordSummary): AuditRecord {
     measuredOutputTokens: record.measured_output_tokens,
     measuredOriginalTokens: record.measured_original_tokens,
     rejectionReason: record.rejection_reason,
+    providerUsageSource: record.provider_usage_source,
+    upstreamStatus: record.upstream_status,
     tokenErrorRate: record.token_error_rate
   };
 }
@@ -225,9 +229,13 @@ export default function App() {
       measuredRequests: summary?.measured_requests ?? 0,
       measurementCoverage: summary?.measurement_coverage ?? 0,
       avgTokenErrorRate: summary?.avg_token_error_rate ?? 0,
-      maxTokenErrorRate: summary?.max_token_error_rate ?? 0
+      maxTokenErrorRate: summary?.max_token_error_rate ?? 0,
+      followupRequests: summary?.followup_requests ?? 0,
+      reaskRate: summary?.reask_rate ?? 0,
+      qualityPreservationRate:
+        summary?.quality_preservation_rate ?? qualitySummary?.quality_preservation_rate ?? 0
     };
-  }, [auditRecords.length, summary]);
+  }, [auditRecords.length, qualitySummary, summary]);
 
   const filteredAuditRecords = useMemo(() => {
     const needle = auditSearch.toLowerCase();
@@ -969,9 +977,12 @@ function DashboardTab(props: {
   aggregate: {
     approved: number;
     avgTokenErrorRate: number;
+    followupRequests: number;
     maxTokenErrorRate: number;
     measuredRequests: number;
     measurementCoverage: number;
+    qualityPreservationRate: number;
+    reaskRate: number;
     savedCost: number;
     savedTokens: number;
     savingsRate: number;
@@ -993,8 +1004,9 @@ function DashboardTab(props: {
     <section className="tab-content active">
       <div className="db-grid savings-summary-grid">
         <DashboardCard icon={<Flame />} label={props.copy.dashboard.estimatedSavings} value={`${(props.aggregate.savingsRate * 100).toFixed(1)}%`} highlight />
+        <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.qualityPreservation} value={`${(props.aggregate.qualityPreservationRate * 100).toFixed(0)}%`} />
+        <DashboardCard icon={<RefreshCw />} label={props.copy.dashboard.reaskRate} value={`${(props.aggregate.reaskRate * 100).toFixed(1)}%`} />
         <DashboardCard icon={<Award />} label={props.copy.dashboard.savedTokens} value={formatTokenCount(props.aggregate.savedTokens)} />
-        <DashboardCard icon={<Banknote />} label={props.copy.dashboard.savedUsd} value={`$${props.aggregate.savedCost.toFixed(2)}`} />
       </div>
 
       <div className="chart-card">
@@ -1049,6 +1061,8 @@ function DashboardTab(props: {
         <div className="advanced-body">
           <div className="db-grid dashboard-detail-grid">
             <DashboardCard icon={<Database />} label={props.copy.dashboard.totalAudits} value={props.aggregate.totalAudits} />
+            <DashboardCard icon={<RefreshCw />} label={props.copy.dashboard.followupRequests} value={props.aggregate.followupRequests} />
+            <DashboardCard icon={<Banknote />} label={props.copy.dashboard.savedUsd} value={`$${props.aggregate.savedCost.toFixed(2)}`} />
             <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.measuredCoverage} value={`${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`} />
             <DashboardCard icon={<Activity />} label={props.copy.dashboard.avgTokenError} value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
             <DashboardCard
@@ -1394,6 +1408,18 @@ function AuditRows(props: { copy: Copy; expanded: boolean; record: AuditRecord; 
               ) : (
                 <p>{props.copy.audit.usageEstimated}</p>
               )}
+              {props.record.providerUsageSource ? (
+                <div>
+                  <strong>{props.copy.audit.providerUsageSource}</strong>
+                  <span className="hash-line">{props.record.providerUsageSource}</span>
+                </div>
+              ) : null}
+              {props.record.upstreamStatus ? (
+                <div>
+                  <strong>{props.copy.audit.upstreamStatus}</strong>
+                  <span className="hash-line">{props.record.upstreamStatus}</span>
+                </div>
+              ) : null}
               {props.record.state === "rejected" ? (
                 <div>
                   <strong>{props.copy.audit.rejectionReason}</strong>

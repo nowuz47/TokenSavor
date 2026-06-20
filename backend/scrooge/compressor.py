@@ -7,7 +7,16 @@ ERROR_RE = re.compile(r"(error|exception|failed|fatal|traceback|panic)", re.IGNO
 STACK_FRAME_RE = re.compile(r"^\s*(at\s+|File\s+\"|#\d+\s+|Caused by:)")
 DIFF_HEADER_RE = re.compile(r"^(diff --git|@@|\+\+\+|---)")
 COMMAND_RE = re.compile(
-    r"^\s*(?:\$|>)?\s*(git|pytest|python -m pytest|npm|pnpm|yarn|cargo|go test|rg|grep|docker)\b",
+    r"^\s*(?:\$|>)?\s*(git|pytest|python -m pytest|npm|pnpm|yarn|cargo|go test|rg|grep|docker|kubectl|tsc|vite|eslint)\b",
+    re.IGNORECASE,
+)
+JS_BUILD_SIGNAL_RE = re.compile(
+    r"(TS\d{4}|ESLint|error\s+During build|vite v|npm ERR!|pnpm ERR!|yarn error|"
+    r"Module not found|Cannot find module|Failed to compile|Parsing error)",
+    re.IGNORECASE,
+)
+CONTAINER_LOG_SIGNAL_RE = re.compile(
+    r"(kubectl|docker compose|CrashLoopBackOff|Back-off|OOMKilled|ImagePullBackOff|pod/|container=|namespace=)",
     re.IGNORECASE,
 )
 TEST_SIGNAL_RE = re.compile(
@@ -67,12 +76,16 @@ def compress_context(text: str, max_lines: int = 80) -> CompressionResult:
 
 
 def _compress_routed_context(lines: list[str], max_lines: int) -> CompressionResult | None:
+    if _looks_like_js_build_output(lines):
+        return _compress_js_build_output(lines, max_lines)
+    if _looks_like_search_output(lines):
+        return _compress_search_output(lines, max_lines)
+    if _looks_like_container_output(lines):
+        return _compress_container_output(lines, max_lines)
     if _looks_like_test_output(lines):
         return _compress_test_output(lines, max_lines)
     if _looks_like_git_status(lines):
         return _compress_git_status(lines, max_lines)
-    if _looks_like_search_output(lines):
-        return _compress_search_output(lines, max_lines)
     if _looks_like_diff(lines):
         return _compress_diff(lines, max_lines)
     if _looks_like_stacktrace(lines):
@@ -134,6 +147,27 @@ def _looks_like_test_output(lines: list[str]) -> bool:
     return strong_signal_matches >= 2 or (command_matches >= 1 and strong_signal_matches >= 1)
 
 
+def _looks_like_js_build_output(lines: list[str]) -> bool:
+    command_hint = any(
+        COMMAND_RE.search(line)
+        and re.search(r"\b(npm|pnpm|yarn|tsc|vite|eslint)\b", line, re.IGNORECASE)
+        for line in lines[:12]
+    )
+    js_signals = sum(1 for line in lines if JS_BUILD_SIGNAL_RE.search(line))
+    js_file_refs = sum(1 for line in lines if re.search(r"\.(ts|tsx|js|jsx):\d+", line))
+    return js_signals >= 2 or (command_hint and (js_signals >= 1 or js_file_refs >= 1))
+
+
+def _looks_like_container_output(lines: list[str]) -> bool:
+    command_hint = any(
+        COMMAND_RE.search(line) and re.search(r"\b(docker|kubectl)\b", line, re.IGNORECASE)
+        for line in lines[:12]
+    )
+    container_signals = sum(1 for line in lines if CONTAINER_LOG_SIGNAL_RE.search(line))
+    error_signals = sum(1 for line in lines if ERROR_RE.search(line))
+    return container_signals >= 2 or (command_hint and error_signals >= 2)
+
+
 def _looks_like_git_status(lines: list[str]) -> bool:
     return any("git status" in line.lower() for line in lines[:8]) or sum(
         1 for line in lines if GIT_STATUS_RE.search(line.strip())
@@ -185,6 +219,54 @@ def _compress_test_output(lines: list[str], max_lines: int) -> CompressionResult
     return CompressionResult(
         text="\n".join(summary + [""] + samples),
         rules=["command_output_test_summary", "command_output_failure_preservation"],
+    )
+
+
+def _compress_js_build_output(lines: list[str], max_lines: int) -> CompressionResult:
+    command_lines = [line for line in lines[:12] if COMMAND_RE.search(line)]
+    signal_lines = [
+        line
+        for line in lines
+        if JS_BUILD_SIGNAL_RE.search(line) or FILE_REF_RE.search(line) or re.search(r"\.(ts|tsx|js|jsx):\d+", line)
+    ]
+    normalized = [re.sub(r"\d+", "<n>", line.strip()) for line in signal_lines if line.strip()]
+    counts = Counter(normalized)
+    summary = [
+        "Command output summary:",
+        "- Type: js-build-or-lint",
+        f"- Total lines: {len(lines)}",
+        f"- Build/lint signal lines: {len(signal_lines)}",
+    ]
+    if command_lines:
+        summary.append(f"- Command: {command_lines[0].strip()}")
+    summary.extend(f"- {count}x {sample}" for sample, count in counts.most_common(8))
+    budget = max(6, max_lines - len(summary) - 3)
+    samples = ["Representative build/lint signals:"] + signal_lines[:budget]
+    return CompressionResult(
+        text="\n".join(summary + [""] + samples),
+        rules=["command_output_js_build_summary", "command_output_lint_failure_preservation"],
+    )
+
+
+def _compress_container_output(lines: list[str], max_lines: int) -> CompressionResult:
+    command_lines = [line for line in lines[:12] if COMMAND_RE.search(line)]
+    signal_lines = [line for line in lines if CONTAINER_LOG_SIGNAL_RE.search(line) or ERROR_RE.search(line)]
+    normalized = [re.sub(r"\d+", "<n>", line.strip()) for line in signal_lines if line.strip()]
+    counts = Counter(normalized)
+    summary = [
+        "Command output summary:",
+        "- Type: container-or-kubernetes",
+        f"- Total lines: {len(lines)}",
+        f"- Container/log signal lines: {len(signal_lines)}",
+    ]
+    if command_lines:
+        summary.append(f"- Command: {command_lines[0].strip()}")
+    summary.extend(f"- {count}x {sample}" for sample, count in counts.most_common(10))
+    budget = max(6, max_lines - len(summary) - 3)
+    samples = ["Representative container signals:"] + signal_lines[:budget]
+    return CompressionResult(
+        text="\n".join(summary + [""] + samples),
+        rules=["command_output_container_log_summary", "command_output_container_signal_preservation"],
     )
 
 

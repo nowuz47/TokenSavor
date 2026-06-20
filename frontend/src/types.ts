@@ -61,6 +61,9 @@ export interface DashboardSummary {
   measurement_coverage: number;
   avg_token_error_rate: number;
   max_token_error_rate: number;
+  followup_requests: number;
+  reask_rate: number;
+  quality_preservation_rate: number;
 }
 
 export interface QualityCategorySummary {
@@ -126,6 +129,8 @@ export interface AuditRecordSummary {
   measured_output_tokens?: number | null;
   measured_original_tokens?: number | null;
   rejection_reason?: string | null;
+  provider_usage_source?: string | null;
+  upstream_status?: number | null;
   token_error_rate?: number | null;
 }
 

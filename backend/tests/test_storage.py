@@ -18,6 +18,8 @@ def test_storage_records_preview_without_prompt_body_by_default(tmp_path) -> Non
             measured_original_tokens=response.original_tokens.input_tokens + 2,
             measured_input_tokens=max(0, response.optimized_tokens.input_tokens - 1),
             measured_output_tokens=123,
+            source="openai_usage",
+            upstream_status=200,
         ),
     )
     summary = store.summary("all")
@@ -33,6 +35,8 @@ def test_storage_records_preview_without_prompt_body_by_default(tmp_path) -> Non
     assert len(records) == 1
     assert records[0]["request_id"] == response.request_id
     assert records[0]["state"] == UsageState.MEASURED.value
+    assert records[0]["provider_usage_source"] == "openai_usage"
+    assert records[0]["upstream_status"] == 200
     assert records[0]["token_error_rate"] is not None
 
     store.clear_records()
@@ -91,3 +95,26 @@ def test_rejected_records_include_reason_or_inferred_reason(tmp_path) -> None:
 
     assert records[no_savings.request_id]["rejection_reason"] == "no_savings"
     assert records[user_choice.request_id]["rejection_reason"] == "user_kept_original"
+
+
+def test_summary_counts_repeated_prompt_family_as_followup_request(tmp_path) -> None:
+    db_path = tmp_path / "scrooge.db"
+    settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)
+    store = UsageStore(settings)
+    prompt = (
+        "파이썬 계산기 앱을 만들어주세요. eval()은 금지하고 0으로 나누기 처리를 포함하세요.\n"
+        "pytest 테스트도 함께 작성해주세요."
+    )
+    first = optimize_prompt(OptimizeRequest(prompt=prompt, provider="openai"))
+    second = optimize_prompt(OptimizeRequest(prompt=prompt, provider="openai"))
+
+    store.save_preview(first, provider="openai", model="gpt-5.4-mini")
+    store.save_preview(second, provider="openai", model="gpt-5.4-mini")
+    store.mark_state(first.request_id, UsageState.SENT, upstream_status=200)
+    store.mark_state(second.request_id, UsageState.SENT, upstream_status=200)
+
+    summary = store.summary("all")
+
+    assert summary["total_requests"] == 2
+    assert summary["followup_requests"] == 1
+    assert summary["reask_rate"] == 0.5

@@ -1,4 +1,4 @@
-from scrooge.proxy import apply_optimized_prompt, extract_prompt
+from scrooge.proxy import apply_optimized_prompt, extract_prompt, extract_provider_usage
 
 
 def test_proxy_rewrites_prompt_payload_for_forwarding() -> None:
@@ -41,3 +41,25 @@ def test_extract_prompt_reads_content_blocks() -> None:
     }
 
     assert extract_prompt(payload) == "Build a calculator\nNo eval allowed"
+
+
+def test_extract_provider_usage_reads_openai_current_and_legacy_shapes() -> None:
+    current = {"usage": {"input_tokens": 120, "output_tokens": 40}}
+    legacy = {"usage": {"prompt_tokens": 121, "completion_tokens": 41}}
+
+    assert extract_provider_usage("openai", current) == (120, 40, "openai_usage")
+    assert extract_provider_usage("openai", legacy) == (121, 41, "openai_usage")
+
+
+def test_extract_provider_usage_reads_anthropic_shape() -> None:
+    body = {"usage": {"input_tokens": 220, "output_tokens": 80}}
+
+    assert extract_provider_usage("anthropic", body) == (220, 80, "anthropic_usage")
+
+
+def test_extract_provider_usage_reads_gemini_usage_metadata() -> None:
+    explicit = {"usageMetadata": {"promptTokenCount": 90, "candidatesTokenCount": 20}}
+    total_only = {"usageMetadata": {"promptTokenCount": 90, "totalTokenCount": 115}}
+
+    assert extract_provider_usage("gemini", explicit) == (90, 20, "gemini_usage_metadata")
+    assert extract_provider_usage("gemini", total_only) == (90, 25, "gemini_usage_metadata")

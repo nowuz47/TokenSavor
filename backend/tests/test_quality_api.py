@@ -22,6 +22,18 @@ def test_quality_summary_endpoint_reports_category_floors() -> None:
         assert item["savings_floor_failures"] == 0
 
 
+def test_dashboard_summary_exposes_trust_metrics() -> None:
+    response = TestClient(app).get("/api/dashboard/summary?period=all")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "quality_preservation_rate" in payload
+    assert "followup_requests" in payload
+    assert "reask_rate" in payload
+    assert 0 <= payload["quality_preservation_rate"] <= 1
+    assert 0 <= payload["reask_rate"] <= 1
+
+
 def test_unknown_approval_returns_404() -> None:
     response = TestClient(app).post(
         "/api/approvals/missing-request/approve",

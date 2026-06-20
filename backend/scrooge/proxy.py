@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Header, Request
 
 from scrooge.config import Settings, get_settings
 from scrooge.optimizer import optimize_prompt
-from scrooge.schemas import OptimizeRequest, ProxyCaptureResponse, UsageState
+from scrooge.schemas import MeasurementRequest, OptimizeRequest, ProxyCaptureResponse, UsageState
 from scrooge.storage import UsageStore
 
 router = APIRouter(prefix="/proxy", tags=["proxy"])
@@ -79,10 +79,23 @@ async def capture_and_forward(
         if upstream_base:
             upstream_status, upstream_body = await _forward_request(upstream_base, path, request, optimized_payload)
             if preview:
-                store.mark_state(
-                    preview.request_id,
-                    UsageState.SENT if 200 <= (upstream_status or 500) < 300 else UsageState.FAILED,
-                )
+                if 200 <= (upstream_status or 500) < 300:
+                    usage = extract_provider_usage(provider, upstream_body)
+                    if usage is not None:
+                        store.record_measurement(
+                            preview.request_id,
+                            MeasurementRequest(
+                                measured_original_tokens=preview.original_tokens.input_tokens,
+                                measured_input_tokens=usage[0],
+                                measured_output_tokens=usage[1],
+                                source=usage[2],
+                                upstream_status=upstream_status,
+                            ),
+                        )
+                    else:
+                        store.mark_state(preview.request_id, UsageState.SENT, upstream_status=upstream_status)
+                else:
+                    store.mark_state(preview.request_id, UsageState.FAILED, upstream_status=upstream_status)
 
     return ProxyCaptureResponse(
         request_id=preview.request_id if preview else "uncaptured",
@@ -132,6 +145,51 @@ def apply_optimized_prompt(payload: Any, optimized_prompt: str) -> tuple[Any, bo
         return updated, True
 
     return payload, False
+
+
+def extract_provider_usage(provider: str, body: Any) -> tuple[int, int, str] | None:
+    if not isinstance(body, dict):
+        return None
+    provider_name = provider.lower()
+    if provider_name == "openai":
+        usage = body.get("usage")
+        if isinstance(usage, dict):
+            input_tokens = _int_or_none(usage.get("input_tokens") or usage.get("prompt_tokens"))
+            output_tokens = _int_or_none(usage.get("output_tokens") or usage.get("completion_tokens"))
+            if input_tokens is not None and output_tokens is not None:
+                return input_tokens, output_tokens, "openai_usage"
+    if provider_name == "anthropic":
+        usage = body.get("usage")
+        if isinstance(usage, dict):
+            input_tokens = _int_or_none(usage.get("input_tokens"))
+            output_tokens = _int_or_none(usage.get("output_tokens"))
+            if input_tokens is not None and output_tokens is not None:
+                return input_tokens, output_tokens, "anthropic_usage"
+    if provider_name == "gemini":
+        usage = body.get("usageMetadata")
+        if isinstance(usage, dict):
+            input_tokens = _int_or_none(usage.get("promptTokenCount"))
+            output_tokens = _int_or_none(usage.get("candidatesTokenCount"))
+            if output_tokens is None:
+                total_tokens = _int_or_none(usage.get("totalTokenCount"))
+                output_tokens = (
+                    max(0, total_tokens - input_tokens)
+                    if total_tokens is not None and input_tokens is not None
+                    else None
+                )
+            if input_tokens is not None and output_tokens is not None:
+                return input_tokens, output_tokens, "gemini_usage_metadata"
+    return None
+
+
+def _int_or_none(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    return None
 
 
 async def _forward_request(

@@ -1,9 +1,10 @@
 from collections.abc import Iterable
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import sqlite3
 from pathlib import Path
+import re
 
 from scrooge.config import Settings
 from scrooge.pricing import calculate_cost
@@ -76,7 +77,10 @@ class UsageStore:
                 measured_input_tokens INTEGER,
                 measured_output_tokens INTEGER,
                 measurement_source TEXT,
-                decision_notes TEXT
+                decision_notes TEXT,
+                request_family_hash TEXT,
+                provider_usage_source TEXT,
+                upstream_status INTEGER
             )
             """
         )
@@ -85,12 +89,16 @@ class UsageStore:
         self._ensure_column(db, "usage_records", "measured_original_tokens", "INTEGER")
         self._ensure_column(db, "usage_records", "measurement_source", "TEXT")
         self._ensure_column(db, "usage_records", "decision_notes", "TEXT")
+        self._ensure_column(db, "usage_records", "request_family_hash", "TEXT")
+        self._ensure_column(db, "usage_records", "provider_usage_source", "TEXT")
+        self._ensure_column(db, "usage_records", "upstream_status", "INTEGER")
         db.execute(
             """
             UPDATE usage_records
             SET
                 estimated_original_tokens = COALESCE(estimated_original_tokens, original_tokens),
-                estimated_optimized_tokens = COALESCE(estimated_optimized_tokens, optimized_tokens)
+                estimated_optimized_tokens = COALESCE(estimated_optimized_tokens, optimized_tokens),
+                request_family_hash = COALESCE(request_family_hash, original_hash)
             """
         )
 
@@ -117,8 +125,9 @@ class UsageStore:
                     estimated_original_tokens, estimated_optimized_tokens,
                     original_tokens, optimized_tokens, saved_tokens,
                     original_cost_usd, optimized_cost_usd, saved_cost_usd,
-                    tokenizer_version, pricing_version, pricing_source_url, applied_rules
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tokenizer_version, pricing_version, pricing_source_url, applied_rules,
+                    request_family_hash
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     response.request_id,
@@ -143,14 +152,28 @@ class UsageStore:
                     response.optimized_cost.pricing_version,
                     response.optimized_cost.source_url,
                     ",".join(reason.rule_id for reason in response.reasons),
+                    _family_hash(provider, model, response.task_type.value, response.original_prompt),
                 ),
             )
 
-    def mark_state(self, request_id: str, state: UsageState, notes: str | None = None) -> None:
+    def mark_state(
+        self,
+        request_id: str,
+        state: UsageState,
+        notes: str | None = None,
+        upstream_status: int | None = None,
+    ) -> None:
         with self.connect() as db:
             cursor = db.execute(
-                "UPDATE usage_records SET state = ?, decision_notes = COALESCE(?, decision_notes) WHERE request_id = ?",
-                (state.value, notes, request_id),
+                """
+                UPDATE usage_records
+                SET
+                    state = ?,
+                    decision_notes = COALESCE(?, decision_notes),
+                    upstream_status = COALESCE(?, upstream_status)
+                WHERE request_id = ?
+                """,
+                (state.value, notes, upstream_status, request_id),
             )
             if cursor.rowcount == 0:
                 raise KeyError(request_id)
@@ -210,6 +233,8 @@ class UsageStore:
                     measured_input_tokens = ?,
                     measured_output_tokens = ?,
                     measurement_source = ?,
+                    provider_usage_source = ?,
+                    upstream_status = COALESCE(?, upstream_status),
                     pricing_version = ?,
                     pricing_source_url = ?
                 WHERE request_id = ?
@@ -226,6 +251,8 @@ class UsageStore:
                     measured_optimized,
                     measured_output,
                     measurement.source,
+                    measurement.source,
+                    measurement.upstream_status,
                     optimized_cost.pricing_version,
                     optimized_cost.source_url,
                     request_id,
@@ -249,7 +276,8 @@ class UsageStore:
                     original_hash, optimized_hash, original_tokens, optimized_tokens,
                     saved_tokens, saved_cost_usd, pricing_version, applied_rules,
                     tokenizer_version, estimated_optimized_tokens, measured_original_tokens,
-                    measured_input_tokens, measured_output_tokens, decision_notes
+                    measured_input_tokens, measured_output_tokens, decision_notes,
+                    provider_usage_source, upstream_status
                 FROM usage_records
                 ORDER BY created_at DESC
                 LIMIT ?
@@ -291,6 +319,8 @@ class UsageStore:
                         row["decision_notes"],
                         saved_tokens,
                     ),
+                    "provider_usage_source": row["provider_usage_source"],
+                    "upstream_status": row["upstream_status"],
                     "token_error_rate": (
                         _token_error_rate(estimated_optimized, int(measured_input))
                         if measured_input is not None
@@ -342,6 +372,7 @@ class UsageStore:
                 {where}
                 """
             ).fetchone()
+            followup_requests = self._count_followups(db, where)
 
         total_original = int(row["original_tokens"] or 0)
         saved = int(row["saved_tokens"] or 0)
@@ -365,11 +396,57 @@ class UsageStore:
             else 0,
             "avg_token_error_rate": round(float(row["avg_token_error_rate"] or 0), 4),
             "max_token_error_rate": round(float(row["max_token_error_rate"] or 0), 4),
+            "followup_requests": followup_requests,
+            "reask_rate": round(followup_requests / total_requests, 4) if total_requests else 0,
         }
+
+    def _count_followups(self, db: sqlite3.Connection, where: str) -> int:
+        rows = db.execute(
+            f"""
+            SELECT created_at, provider, model, task_type, request_family_hash
+            FROM usage_records
+            {where}
+            ORDER BY created_at ASC
+            """
+        ).fetchall()
+        seen: dict[tuple[str, str, str, str], datetime] = {}
+        followups = 0
+        window = timedelta(minutes=30)
+        for row in rows:
+            family = row["request_family_hash"] or ""
+            if not family:
+                continue
+            key = (row["provider"], row["model"], row["task_type"], family)
+            created_at = _parse_datetime(str(row["created_at"]))
+            previous = seen.get(key)
+            if previous is not None and created_at - previous <= window:
+                followups += 1
+            seen[key] = created_at
+        return followups
 
 
 def _hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _family_hash(provider: str, model: str, task_type: str, text: str) -> str:
+    normalized = text.lower()
+    normalized = re.sub(r"```.*?```", " code_block ", normalized, flags=re.DOTALL)
+    normalized = re.sub(r"\b[0-9a-f]{8,}\b", "<hash>", normalized)
+    normalized = re.sub(r"\d+", "<n>", normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    fingerprint = " ".join(normalized.split()[:80])
+    return _hash_text(f"{provider}|{model}|{task_type}|{fingerprint}")
+
+
+def _parse_datetime(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        parsed = datetime.now(timezone.utc)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _rejection_reason(state: str, notes: str | None, saved_tokens: int) -> str | None:

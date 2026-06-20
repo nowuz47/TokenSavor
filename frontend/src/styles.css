@@ -1025,7 +1025,7 @@ select.form-control {
 }
 
 .savings-summary-grid {
-  grid-template-columns: 1.1fr 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .dashboard-details .advanced-body {

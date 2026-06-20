@@ -107,6 +107,7 @@ export const copy = {
       cases: "Cases",
       detailTitle: "Trust and admin details",
       estimatedSavings: "Savings rate",
+      followupRequests: "Likely Re-asks",
       goldenCases: "Golden Cases",
       harmfulOmissions: "Harmful Omissions",
       issues: "Issues",
@@ -119,6 +120,7 @@ export const copy = {
       qualityPreservation: "Quality Preservation",
       qualityTitle: "Quality by work type",
       recentActivity: "Recent savings",
+      reaskRate: "Re-ask Rate",
       saved: "saved",
       savedTokens: "Saved Tokens",
       savedUsd: "Saved USD",
@@ -133,6 +135,7 @@ export const copy = {
       measuredUsage: "Measured usage",
       optimizedHash: "Optimized SHA-256 Hash",
       originalHash: "Original SHA-256 Hash",
+      providerUsageSource: "Provider usage source",
       privacy: "Prompt text was not written to local SQLite storage. Hashed-only mode is active.",
       rejectionReason: "Reject reason",
       rejectionReasons: {
@@ -152,6 +155,7 @@ export const copy = {
       },
       task: "Task",
       tokenSource: "Token source",
+      upstreamStatus: "Upstream status",
       usageEstimated: "Usage is estimated until provider usage metadata is recorded."
     },
     pricing: {
@@ -312,6 +316,7 @@ export const copy = {
       cases: "케이스",
       detailTitle: "신뢰도 및 관리자 상세",
       estimatedSavings: "절감률",
+      followupRequests: "재질문 추정",
       goldenCases: "골든 케이스",
       harmfulOmissions: "심각 누락",
       issues: "이슈",
@@ -324,6 +329,7 @@ export const copy = {
       qualityPreservation: "품질 보존율",
       qualityTitle: "작업 유형별 품질",
       recentActivity: "최근 절약 기록",
+      reaskRate: "재질문률",
       saved: "절감",
       savedTokens: "절감 토큰",
       savedUsd: "절감 비용",
@@ -338,6 +344,7 @@ export const copy = {
       measuredUsage: "실측 사용량",
       optimizedHash: "최적화 SHA-256 해시",
       originalHash: "원본 SHA-256 해시",
+      providerUsageSource: "provider 사용량 출처",
       privacy: "프롬프트 전문은 로컬 SQLite에 저장하지 않습니다. 해시 전용 모드가 활성화되어 있습니다.",
       rejectionReason: "거절 사유",
       rejectionReasons: {
@@ -357,6 +364,7 @@ export const copy = {
       },
       task: "작업",
       tokenSource: "토큰 기준",
+      upstreamStatus: "업스트림 상태",
       usageEstimated: "provider 사용량 메타데이터가 기록될 때까지 추정값으로 표시됩니다."
     },
     pricing: {

@@ -53,6 +53,42 @@ def test_test_runner_output_is_summarized_like_cli_proxy() -> None:
     assert "command_output_test_summary" in result.rules
 
 
+def test_js_build_output_preserves_typescript_error_signal() -> None:
+    output = "\n".join(
+        ["$ npm run build", "> tsc -b && vite build"]
+        + [
+            "src/App.tsx:42:13 - error TS2322: Type 'string' is not assignable to type 'number'.",
+            "src/components/Chart.tsx:8:1 - warning ESLint: unused import BarChart3.",
+        ]
+        * 25
+    )
+
+    result = compress_context(output, max_lines=22)
+
+    assert "Type: js-build-or-lint" in result.text
+    assert "src/App.tsx:42" in result.text
+    assert "TS2322" in result.text
+    assert "command_output_js_build_summary" in result.rules
+
+
+def test_kubernetes_log_output_preserves_repeated_container_signal() -> None:
+    output = "\n".join(
+        ["$ kubectl logs deploy/api -n prod"]
+        + [
+            "ERROR namespace=prod pod/api-7fd container=api CrashLoopBackOff database timeout",
+            "WARN namespace=prod pod/api-7fd container=api Back-off restarting failed container",
+        ]
+        * 30
+    )
+
+    result = compress_context(output, max_lines=22)
+
+    assert "Type: container-or-kubernetes" in result.text
+    assert "CrashLoopBackOff" in result.text
+    assert "database timeout" in result.text
+    assert "command_output_container_log_summary" in result.rules
+
+
 def test_git_status_output_counts_changed_files() -> None:
     output = "\n".join(
         [
