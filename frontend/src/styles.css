@@ -822,6 +822,29 @@ select.form-control {
   min-width: 10px;
 }
 
+.chart-empty,
+.activity-empty {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px dashed var(--border-color);
+  border-radius: 5px;
+  color: var(--text-muted);
+  display: flex;
+  font-size: 11px;
+  justify-content: center;
+  min-height: 80px;
+  padding: 12px;
+  text-align: center;
+}
+
+.chart-empty {
+  gap: 7px;
+}
+
+.chart-empty svg {
+  color: var(--gold);
+}
+
 .activity-list {
   display: flex;
   flex-direction: column;

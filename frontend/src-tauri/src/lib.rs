@@ -1,7 +1,7 @@
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, WindowEvent};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_shell::process::CommandChild;
@@ -95,12 +95,14 @@ fn optimize_active_field_via_backend(app: AppHandle) {
         thread::sleep(Duration::from_millis(220));
 
         let Ok(text) = app.clipboard().read_text() else {
+            emit_hotkey_result(&app, "failed", 0, "");
             return;
         };
         if text.trim().is_empty() {
             if let Some(previous) = previous_clipboard {
                 let _ = app.clipboard().write_text(previous);
             }
+            emit_hotkey_result(&app, "empty", 0, "");
             return;
         }
 
@@ -114,6 +116,7 @@ fn optimize_active_field_via_backend(app: AppHandle) {
         let Some(response) = post_json("/api/optimize", &body) else {
             let _ = app.clipboard().write_text(text);
             send_ctrl_key('V');
+            emit_hotkey_result(&app, "failed", 0, "");
             return;
         };
         let request_id = response
@@ -135,12 +138,14 @@ fn optimize_active_field_via_backend(app: AppHandle) {
             }
             let _ = app.clipboard().write_text(text);
             send_ctrl_key('V');
+            emit_hotkey_result(&app, "no_savings", 0, &request_id);
             return;
         }
 
         let Some(optimized_prompt) = response.get("optimized_prompt").and_then(|value| value.as_str()) else {
             let _ = app.clipboard().write_text(text);
             send_ctrl_key('V');
+            emit_hotkey_result(&app, "failed", 0, &request_id);
             return;
         };
 
@@ -153,8 +158,22 @@ fn optimize_active_field_via_backend(app: AppHandle) {
                     &serde_json::json!({ "approved": true }),
                 );
             }
+            emit_hotkey_result(&app, "optimized", saved_tokens, &request_id);
+        } else {
+            emit_hotkey_result(&app, "failed", 0, &request_id);
         }
     });
+}
+
+fn emit_hotkey_result(app: &AppHandle, status: &str, saved_tokens: i64, request_id: &str) {
+    let _ = app.emit(
+        "scrooge-hotkey-result",
+        serde_json::json!({
+            "status": status,
+            "saved_tokens": saved_tokens,
+            "request_id": request_id
+        }),
+    );
 }
 
 #[cfg(windows)]

@@ -27,6 +27,7 @@ import {
   X
 } from "lucide-react";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useMemo, useState } from "react";
 
@@ -187,6 +188,7 @@ const copy = {
       clipboardOptimized: "Review and approve to copy the optimized prompt.",
       hotkeyCopied: "Clipboard optimized and replaced. Paste it into Codex.",
       hotkeyNoSavings: "No token savings found. Clipboard was left unchanged.",
+      hotkeyFailed: "Shortcut optimization failed. Keep the original prompt.",
       hotkeyRegistered: "Global shortcut ready: Ctrl+Alt+S",
       hotkeyRegisterFailed: "Global shortcut registration failed. Use the Optimize Clipboard button.",
       dbCleared: "Local SQLite audit records cleared.",
@@ -243,6 +245,8 @@ const copy = {
       issues: "Issues",
       measuredCoverage: "Measured Coverage",
       noQuality: "Quality gate summary unavailable",
+      noActivity: "No activity yet",
+      noSavingsData: "No savings trend yet",
       overOptimization: "Over-Optimization",
       preserve: "Preserve",
       qualityPreservation: "Quality Preservation",
@@ -354,6 +358,7 @@ const copy = {
       clipboardOptimized: "검토 후 승인하면 최적화 프롬프트를 복사합니다.",
       hotkeyCopied: "클립보드를 최적화 프롬프트로 교체했습니다. Codex에 붙여넣으세요.",
       hotkeyNoSavings: "절감 가능한 토큰이 없어 클립보드를 원문 그대로 유지했습니다.",
+      hotkeyFailed: "단축키 최적화에 실패했습니다. 원문을 유지하세요.",
       hotkeyRegistered: "전역 단축키 준비됨: Ctrl+Alt+S",
       hotkeyRegisterFailed: "전역 단축키 등록 실패. 클립보드 최적화 버튼을 사용하세요.",
       dbCleared: "로컬 SQLite 감사 기록을 삭제했습니다.",
@@ -410,6 +415,8 @@ const copy = {
       issues: "이슈",
       measuredCoverage: "실측 커버리지",
       noQuality: "품질 게이트 요약을 불러올 수 없습니다",
+      noActivity: "아직 활동 기록이 없습니다",
+      noSavingsData: "아직 절감 추이 데이터가 없습니다",
       overOptimization: "과최적화",
       preserve: "보존율",
       qualityPreservation: "품질 보존율",
@@ -655,6 +662,31 @@ export default function App() {
     const timer = window.setTimeout(() => setToast(""), 2800);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    let disposed = false;
+    const unlistenPromise = listen<{
+      request_id?: string;
+      saved_tokens?: number;
+      status?: "empty" | "failed" | "no_savings" | "optimized";
+    }>("scrooge-hotkey-result", async (event) => {
+      if (disposed) return;
+      await refreshTelemetry();
+      const status = event.payload.status;
+      if (status === "optimized") {
+        showToast(`${labels.toast.hotkeyCopied} (${(event.payload.saved_tokens ?? 0).toLocaleString()} tokens)`);
+      } else if (status === "no_savings") {
+        showToast(labels.toast.hotkeyNoSavings);
+      } else if (status === "failed") {
+        showToast(labels.toast.hotkeyFailed);
+      }
+    });
+
+    return () => {
+      disposed = true;
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [labels]);
 
   async function refreshTelemetry() {
     try {
@@ -1283,12 +1315,17 @@ function DashboardTab(props: {
   records: AuditRecord[];
 }) {
   const quality = props.qualitySummary;
+  const trendRecords = props.records
+    .filter((record) => record.savedTokens > 0)
+    .slice(0, 7)
+    .reverse();
+  const maxTrendSavedTokens = Math.max(0, ...trendRecords.map((record) => record.savedTokens));
 
   return (
     <section className="tab-content active">
       <div className="db-grid">
         <DashboardCard icon={<Flame />} label={props.copy.dashboard.estimatedSavings} value={`${(props.aggregate.savingsRate * 100).toFixed(1)}%`} highlight />
-        <DashboardCard icon={<Award />} label={props.copy.dashboard.savedTokens} value={`${Math.round(props.aggregate.savedTokens / 1000)}K`} />
+        <DashboardCard icon={<Award />} label={props.copy.dashboard.savedTokens} value={formatTokenCount(props.aggregate.savedTokens)} />
         <DashboardCard icon={<Banknote />} label={props.copy.dashboard.savedUsd} value={`$${props.aggregate.savedCost.toFixed(2)}`} />
         <DashboardCard icon={<Database />} label={props.copy.dashboard.totalAudits} value={props.aggregate.totalAudits} />
         <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.measuredCoverage} value={`${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`} />
@@ -1377,15 +1414,22 @@ function DashboardTab(props: {
 
       <div className="chart-card">
         <div className="chart-title">{props.copy.dashboard.trend}</div>
-        <div className="chart-holder" aria-label="Token savings trend">
-          <span style={{ height: "64%" }} />
-          <span style={{ height: "45%" }} />
-          <span style={{ height: "72%" }} />
-          <span style={{ height: "38%" }} />
-          <span style={{ height: "58%" }} />
-          <span style={{ height: "48%" }} />
-          <span style={{ height: "70%" }} />
-        </div>
+        {trendRecords.length === 0 ? (
+          <div className="chart-empty">
+            <BarChart3 size={16} />
+            <span>{props.copy.dashboard.noSavingsData}</span>
+          </div>
+        ) : (
+          <div className="chart-holder" aria-label="Token savings trend">
+            {trendRecords.map((record) => (
+              <span
+                key={record.id}
+                title={`${record.id}: ${record.savedTokens.toLocaleString()} tokens`}
+                style={{ height: `${Math.max(8, (record.savedTokens / maxTrendSavedTokens) * 100)}%` }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="compact-card">
@@ -1396,14 +1440,18 @@ function DashboardTab(props: {
           </h3>
         </div>
         <div className="activity-list">
-          {props.records.slice(0, 4).map((record) => (
-            <div className="activity-row" key={record.id}>
-              <span className={`activity-dot ${record.state}`} />
-              <strong>{record.id}</strong>
-              <span>{record.type}</span>
-              <em>{(record.rate * 100).toFixed(0)}% {props.copy.dashboard.saved}</em>
-            </div>
-          ))}
+          {props.records.length === 0 ? (
+            <div className="activity-empty">{props.copy.dashboard.noActivity}</div>
+          ) : (
+            props.records.slice(0, 4).map((record) => (
+              <div className="activity-row" key={record.id}>
+                <span className={`activity-dot ${record.state}`} />
+                <strong>{record.id}</strong>
+                <span>{record.type}</span>
+                <em>{(record.rate * 100).toFixed(0)}% {props.copy.dashboard.saved}</em>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </section>
@@ -1703,6 +1751,12 @@ function NavItem(props: { active: boolean; icon: JSX.Element; label: string; onC
 
 function formatQualityCategory(category: string, labels: Copy) {
   return labels.qualityCategories[category as keyof Copy["qualityCategories"]] ?? category;
+}
+
+function formatTokenCount(tokens: number) {
+  if (tokens < 1000) return tokens.toLocaleString();
+  if (tokens < 1_000_000) return `${(tokens / 1000).toFixed(tokens < 10_000 ? 1 : 0)}K`;
+  return `${(tokens / 1_000_000).toFixed(1)}M`;
 }
 
 function renderDiffLines(text: string, reasons: OptimizationReason[], mode: "added" | "removed") {
