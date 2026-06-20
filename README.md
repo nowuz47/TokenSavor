@@ -1,28 +1,129 @@
 # Scrooge
 
-"한정된 AI 크레딧으로 더 많은 일을."
+Scrooge는 AI에 보내는 프롬프트를 더 짧고 명확하게 다듬어, 같은 AI 크레딧으로 더 많은 일을 할 수 있게 돕는 데스크톱 앱입니다.
 
-Scrooge is a local-first AI efficiency layer for internal developer workflows. It optimizes prompts, compresses noisy context, estimates token and cost impact, and records auditable usage metadata without changing the user's core AI workflow.
+개발자뿐 아니라 사내에서 Codex, Claude Code, Gemini CLI 같은 AI 도구를 쓰는 사람이라면 사용할 수 있도록 만들고 있습니다. 핵심 목표는 단순한 "문장 줄이기"가 아니라, 필요한 의미는 유지하면서 낭비되는 토큰과 비용을 줄이는 것입니다.
 
-## MVP Capabilities
+## 한 줄 요약
 
-- FastAPI backend with local proxy, prompt optimization, token metering, pricing registry, SQLite usage collection, and dashboard summaries.
-- Tauri + React frontend skeleton for a Windows tray-style desktop app, optimizer preview, token meter, and efficiency dashboard.
-- Trust-first preview flow: original prompt, optimized prompt, reduction estimate, applied rules, and pricing version are visible before approval.
-- Local-first audit storage: prompt bodies are not stored by default; hashes, token counts, task type, rule IDs, pricing version, and approval state are stored.
-- Low-setup desktop flow: focus an AI input and press `Ctrl+Alt+S` to select, optimize, paste back, and record hotkey telemetry.
-- Reliability metrics: Scrooge separates short prompt preservation, long-context savings, measured token coverage, hotkey success, and re-ask rate.
-- Enterprise readiness checks: Codex real-input compatibility status, prompt-body-free diagnostics, admin policy, and sensitive-data scan APIs.
+프롬프트를 AI에 보내기 전에 Scrooge가 한 번 점검해 줍니다.
 
-## Repository Layout
+- 중복되거나 불필요한 내용을 줄입니다.
+- 로그, 오류 메시지, 긴 diff처럼 반복이 많은 내용을 압축합니다.
+- 줄어든 토큰과 예상 비용 절감액을 보여줍니다.
+- 최적화 결과를 자동으로 보내지 않고, 사용자가 확인할 수 있게 합니다.
+- 원문 전체를 기본 저장하지 않고, 감사에 필요한 해시와 수치 중심으로 기록합니다.
 
-```text
-backend/        FastAPI service, optimizer, compressor, pricing, storage, tests
-frontend/       Tauri + React + TypeScript desktop UI
-docs/           Architecture and trust model notes
-```
+## 왜 필요한가요?
 
-## Backend Development
+사내 AI 사용은 보통 월별 크레딧, 사용자별 사용량, 비용 관리 기준이 있습니다. 그런데 같은 일을 요청하더라도 프롬프트 작성 방식에 따라 토큰 사용량이 크게 달라집니다.
+
+Scrooge는 사용자가 AI를 쓰는 방식을 크게 바꾸지 않고, 다음 문제를 줄이는 것을 목표로 합니다.
+
+- 너무 긴 요청 때문에 AI 크레딧이 빠르게 소모되는 문제
+- 같은 오류 로그가 반복되어 불필요하게 토큰을 쓰는 문제
+- 비용 절감 수치가 추정인지 실측인지 알기 어려운 문제
+- 개인 감시처럼 느껴지는 사용량 관리 방식
+- 최적화 과정에서 중요한 요구사항이 사라질 수 있다는 불안
+
+## 어떻게 사용하나요?
+
+현재 기본 사용 흐름은 두 가지입니다.
+
+### 1. 앱에서 직접 최적화
+
+1. Scrooge 앱을 실행합니다.
+2. `절약하기` 화면에 프롬프트를 붙여넣습니다.
+3. `최적화` 버튼을 누릅니다.
+4. 바뀐 프롬프트와 개선 내용을 확인합니다.
+5. 필요한 경우 AI 도구에 복사해서 사용합니다.
+
+### 2. 단축키로 빠르게 최적화
+
+1. Codex 같은 AI 입력창에 프롬프트를 작성합니다.
+2. 입력창에 커서를 둔 상태에서 `Ctrl + Alt + S`를 누릅니다.
+3. Scrooge가 입력 내용을 읽고 최적화한 뒤, 가능한 경우 입력창에 다시 붙여넣습니다.
+4. 처리 결과와 절감량은 Scrooge 앱의 사용 기록과 대시보드에 반영됩니다.
+
+짧고 이미 잘 정리된 프롬프트는 절감량이 `0`으로 나올 수 있습니다. 이것은 오류가 아니라, 의미를 해치지 않는 쪽을 우선하는 정상 동작입니다.
+
+## 화면에서 볼 수 있는 것
+
+- 현재 요청의 원래 토큰 수
+- 최적화 후 토큰 수
+- 절감 토큰 수와 절감률
+- 예상 비용 절감액
+- 작업 유형별 절감 통계
+- 사용 기록
+- 실측 데이터가 있는 경우 추정값과 실측값의 차이
+- 단축키 처리 성공/실패 상태
+
+## 수치를 어떻게 믿을 수 있나요?
+
+Scrooge는 절감 수치를 세 단계로 구분합니다.
+
+| 상태 | 뜻 |
+| --- | --- |
+| 추정 | 로컬 토큰 계산기로 미리 계산한 값입니다. 실제 청구량과 차이가 날 수 있습니다. |
+| 전송됨 | 사용자가 승인하거나 단축키로 실제 AI 입력에 사용한 요청입니다. |
+| 실측 | AI 제공자가 usage metadata를 제공한 경우, 실제 input/output token 기준으로 확정한 값입니다. |
+
+비용 절감액도 실제 사용량 정보가 없으면 `예상 절감액`으로 취급합니다. 이 구분은 사내 감사와 신뢰 확보를 위해 중요합니다.
+
+## 개인정보와 보안 정책
+
+Scrooge는 개인 감시 도구가 아니라 팀 단위 효율 개선 도구를 지향합니다.
+
+기본 정책은 다음과 같습니다.
+
+- 원문 프롬프트 전문은 기본 저장하지 않습니다.
+- 감사에 필요한 해시, 토큰 수, 작업 유형, 적용 규칙, 승인/거절 여부를 저장합니다.
+- 민감정보 후보는 보안 스캔에서 감지하고 마스킹합니다.
+- 대시보드는 개인별 감시보다 팀 단위 추세 확인에 맞춰 설계합니다.
+- 진단 번들에는 원문 프롬프트 본문을 포함하지 않습니다.
+
+## 어떤 작업에 효과가 큰가요?
+
+효과가 큰 작업:
+
+- 긴 로그 분석
+- 반복되는 오류 메시지 분석
+- 긴 stack trace 정리
+- 큰 git diff 리뷰
+- 테스트 실패 출력 요약
+- 여러 파일의 변경 내용을 AI에게 설명해야 하는 경우
+
+효과가 작을 수 있는 작업:
+
+- 이미 짧고 명확한 질문
+- 한두 문장짜리 코딩 요청
+- 압축하면 요구사항이 사라질 위험이 큰 요청
+
+Scrooge는 모든 프롬프트를 무조건 줄이려고 하지 않습니다. 중요한 요구사항 보존이 더 중요하면 절감을 포기합니다.
+
+## 현재 검증 상태
+
+최근 설치 앱 기준으로 다음 검증을 통과했습니다.
+
+- 백엔드 테스트: 42개 통과
+- 품질 검증 세트: 165개 통과
+- 설치 앱 실행 확인
+- 백그라운드 sidecar 실행 확인
+- 단축키 등록 확인
+- cmd 창 미노출 확인
+- 보안 마스킹 확인
+- 진단 데이터에서 프롬프트 본문 제외 확인
+- Codex 단축키 quick validation: 30회 중 30회 성공
+
+현재 Codex Desktop 호환성은 30회 기준 `limited` 검증 상태입니다. 전사 배포 수준의 full 검증은 100회 이상 실사용 검증, 파일럿 운영, 실측 커버리지 확대가 필요합니다.
+
+## 설치 및 실행
+
+일반 사용자는 설치 파일을 실행한 뒤 Scrooge 앱을 열면 됩니다. 앱이 실행되면 백엔드도 함께 백그라운드에서 실행됩니다.
+
+개발 또는 검증용으로 직접 실행하려면 아래 명령을 사용할 수 있습니다.
+
+### 백엔드 실행
 
 ```powershell
 cd backend
@@ -32,7 +133,7 @@ pip install -e ".[dev]"
 uvicorn scrooge.main:app --reload --port 8750
 ```
 
-## Frontend Development
+### 프론트엔드 실행
 
 ```powershell
 cd frontend
@@ -40,77 +141,50 @@ npm install
 npm run dev
 ```
 
-For desktop packaging:
+### 설치 앱 빌드 및 재설치
 
 ```powershell
-cd frontend
-npm run tauri:dev
+powershell -ExecutionPolicy Bypass -File scripts\build_reinstall_verify.ps1 -ApiBase http://127.0.0.1:8750
 ```
 
-## Windows Install Smoke
-
-Scrooge packages the FastAPI backend as a Tauri sidecar. Build the backend
-sidecar before running a Tauri installer build:
+### A-Ready 검증
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build_backend_sidecar.ps1 -TargetTriple aarch64-pc-windows-msvc
-cd frontend
-npm run tauri:build
+powershell -ExecutionPolicy Bypass -File scripts\verify_a_ready.ps1 -ApiBase http://127.0.0.1:8750 -RecordCompatibilityQuickRun
 ```
 
-On Windows ARM64, native Tauri packaging also requires Rust and the Visual
-Studio C++ ARM64 build tools. The backend sidecar can be smoke-tested without a
-Python runtime by running the generated `frontend/src-tauri/binaries` executable
-and checking `GET http://127.0.0.1:8750/health`.
+## 프로젝트 구조
 
-Run the reliability gate against a running backend:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\verify_install_smoke.ps1 -ApiBase http://127.0.0.1:8750
+```text
+backend/    프롬프트 최적화, 토큰 계산, 비용 계산, 기록 저장, API 서버
+frontend/   데스크톱 앱 화면, 트레이 동작, 단축키 연동
+docs/       아키텍처와 신뢰 모델 문서
+scripts/    빌드, 설치, 검증 자동화 스크립트
+reports/    검증 결과 리포트
+samples/    테스트용 샘플 데이터
 ```
 
-Run the broader API smoke or soak matrix:
+## 주요 기능
 
-```powershell
-cd backend
-.\.venv\Scripts\python.exe tools\run_smoke_matrix.py --api http://127.0.0.1:8750 --mode smoke
-.\.venv\Scripts\python.exe tools\run_smoke_matrix.py --api http://127.0.0.1:8750 --mode soak --duration-sec 14400 --interval-sec 30
-```
+- Prompt Optimizer: 프롬프트를 더 짧고 명확하게 정리합니다.
+- Context Compressor: 긴 로그, stack trace, diff를 핵심 중심으로 압축합니다.
+- Token Meter: 원문과 최적화문 토큰 수를 비교합니다.
+- Pricing Registry: 모델별 가격표 버전을 기준으로 비용을 계산합니다.
+- Usage Collector: 사용 기록과 절감 통계를 SQLite에 저장합니다.
+- Efficiency Dashboard: 절감량, 실측 커버리지, 품질 지표를 보여줍니다.
+- Security Scan: 민감정보 후보를 감지하고 마스킹합니다.
 
-## API Sketch
+## 앞으로 더 필요한 것
 
-- `POST /api/optimize`: analyze and optimize a prompt for preview.
-- `POST /api/approvals/{request_id}/approve`: mark an optimized request as approved.
-- `POST /proxy/{provider}/{path:path}`: capture proxy metadata and optionally forward to an upstream provider.
-- `GET /api/dashboard/summary`: return usage and savings summary.
-- `GET /api/dashboard/category-summary`: return task-type savings and token error summary.
-- `GET /api/runtime/status`: return backend/database runtime status for installed-app checks.
-- `GET /api/pricing`: return active pricing registry.
-- `GET /api/compatibility/status`: return real-input validation status for Codex Desktop and planned target apps.
-- `POST /api/compatibility/runs`: record a user-assisted real-input compatibility run.
-- `POST /api/security/scan`: detect and redact high-risk secrets or PII candidates before optimization.
-- `GET /api/admin/policy`: return local-first storage, telemetry, diagnostics, and measurement policy.
-- `GET /api/diagnostics/bundle`: export support diagnostics without prompt bodies.
+전사 배포 수준으로 끌어올리기 위해 남은 과제는 다음과 같습니다.
 
-## Trust Model
+- Codex Desktop 실제 입력 100회 이상 검증
+- 5명 이상 파일럿 2주 운영
+- 20명 이상 팀 파일럿 4주 운영
+- provider usage metadata 기반 실측 커버리지 확대
+- Claude Code, Gemini CLI, Cursor, Windsurf 호환성 검증
+- 관리자 정책 화면과 배포 정책 정리
 
-Scrooge separates estimated, sent, and measured usage. Cost savings are shown as estimates unless upstream usage data is available. Pricing data is versioned and references official provider pricing pages so internal users can audit how cost projections were calculated. Short prompts are allowed to produce zero savings when preserving meaning is safer; long logs, diffs, traces, and command output are evaluated against stricter savings targets.
+## 라이선스
 
-## A-Grade Readiness Gates
-
-- Codex Desktop must pass a real-input validation run: 100 attempts, at least 98% success, and zero prompt-loss events.
-- Measured coverage should reach 70% or higher for paths where provider usage metadata is available.
-- Golden quality suite must keep 150+ cases passing, with at least 30 cases per work type and zero harmful omissions.
-- Diagnostics bundles must exclude prompt bodies, and the admin policy must keep raw prompt body storage disabled by default.
-- Installed smoke checks must confirm no Scrooge-related `cmd.exe` window, healthy sidecar/runtime, and working security/compatibility APIs.
-
-## Git Milestones
-
-The intended implementation milestones are:
-
-1. `chore: initialize scrooge repository`
-2. `feat: add local proxy and request capture baseline`
-3. `feat: add prompt optimizer preview flow`
-4. `feat: add token meter and pricing registry`
-5. `feat: add sqlite usage storage and dashboard`
-6. `test: add optimizer quality and cost reliability checks`
+이 저장소의 라이선스는 [LICENSE](LICENSE)를 확인하세요.
