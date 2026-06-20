@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Header, Request
 
 from scrooge.config import Settings, get_settings
 from scrooge.optimizer import optimize_prompt
-from scrooge.schemas import MeasurementRequest, OptimizeRequest, ProxyCaptureResponse, UsageState
+from scrooge.schemas import CaptureSource, MeasurementRequest, OptimizeRequest, ProxyCaptureResponse, UsageState
 from scrooge.storage import UsageStore
 
 router = APIRouter(prefix="/proxy", tags=["proxy"])
@@ -68,7 +68,7 @@ async def capture_and_forward(
     if prompt:
         model = _extract_model(payload) or settings.default_model
         preview = optimize_prompt(OptimizeRequest(prompt=prompt, provider=provider, model=model))
-        store.save_preview(preview, provider=provider, model=model)
+        store.save_preview(preview, provider=provider, model=model, capture_source=CaptureSource.PROXY)
         optimized_payload, optimized_forwarded = apply_optimized_prompt(payload, preview.optimized_prompt)
 
     should_forward = x_scrooge_forward == "true"
@@ -95,7 +95,12 @@ async def capture_and_forward(
                     else:
                         store.mark_state(preview.request_id, UsageState.SENT, upstream_status=upstream_status)
                 else:
-                    store.mark_state(preview.request_id, UsageState.FAILED, upstream_status=upstream_status)
+                    store.mark_state(
+                        preview.request_id,
+                        UsageState.FAILED,
+                        upstream_status=upstream_status,
+                        failure_reason="upstream_non_2xx",
+                    )
 
     return ProxyCaptureResponse(
         request_id=preview.request_id if preview else "uncaptured",

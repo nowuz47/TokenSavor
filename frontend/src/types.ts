@@ -13,6 +13,7 @@ export interface TokenBreakdown {
   output_tokens: number;
   tokenizer: string;
   is_estimate: boolean;
+  tokenizer_confidence: "estimated_local" | "estimated_provider_count" | "heuristic_fallback" | "provider_measured";
 }
 
 export interface CostBreakdown {
@@ -64,6 +65,10 @@ export interface DashboardSummary {
   followup_requests: number;
   reask_rate: number;
   quality_preservation_rate: number;
+  long_context_savings_rate: number;
+  short_prompt_over_optimization_count: number;
+  hotkey_success_rate: number;
+  backend_health_status: string;
 }
 
 export interface QualityCategorySummary {
@@ -131,7 +136,27 @@ export interface AuditRecordSummary {
   rejection_reason?: string | null;
   provider_usage_source?: string | null;
   upstream_status?: number | null;
+  capture_source: "manual" | "clipboard" | "hotkey" | "proxy";
+  failure_reason?: string | null;
+  tokenizer_confidence: "estimated_local" | "estimated_provider_count" | "heuristic_fallback" | "provider_measured";
   token_error_rate?: number | null;
+}
+
+export interface CategoryDashboardSummary {
+  category: string;
+  total_requests: number;
+  saved_tokens: number;
+  savings_rate: number;
+  measured_requests: number;
+  avg_token_error_rate: number;
+}
+
+export interface RuntimeStatus {
+  backend_status: string;
+  database_status: string;
+  hotkey_status: string;
+  sidecar_status: string;
+  database_path: string;
 }
 
 export interface MeasurementResponse {

@@ -28,9 +28,15 @@ try {
     Invoke-Checked { & $pythonExe -m pytest } "Backend tests"
     Invoke-Checked { & $pythonExe .\tools\evaluate_optimization_quality.py } "Optimization quality gate"
     Invoke-Checked { & $pythonExe .\tools\validate_calculator_savings.py --api $ApiBase } "Calculator savings validation"
+    Invoke-Checked { & $pythonExe .\tools\run_smoke_matrix.py --api $ApiBase --mode smoke } "Installed API smoke matrix"
 }
 finally {
     Pop-Location
+}
+
+$runtime = Invoke-RestMethod -Uri "$ApiBase/api/runtime/status" -Method Get
+if ($runtime.backend_status -ne "ok" -or $runtime.database_status -ne "ok") {
+    throw "Runtime status check failed: $($runtime | ConvertTo-Json -Compress)"
 }
 
 Push-Location $frontendDir

@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -116,6 +117,9 @@ SMOKE_CASES: tuple[SmokeCase, ...] = (
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--api", default="http://127.0.0.1:8750")
+    parser.add_argument("--mode", choices=("smoke", "soak"), default="smoke")
+    parser.add_argument("--duration-sec", type=int, default=120)
+    parser.add_argument("--interval-sec", type=int, default=10)
     parser.add_argument(
         "--reset-records",
         action="store_true",
@@ -154,9 +158,14 @@ def main() -> int:
     summary = get_json(args.api, "/api/dashboard/summary?period=all")
     quality = get_json(args.api, "/api/quality/summary")
     pricing = get_json(args.api, "/api/pricing")
+    runtime = get_json(args.api, "/api/runtime/status")
+    category_summary = get_json(args.api, "/api/dashboard/category-summary?period=all")
 
     assert quality["passed_cases"] == quality["total_cases"]
     assert any(item["model"] == "gpt-5.4-mini" for item in pricing["models"])
+    assert runtime["backend_status"] == "ok"
+    assert runtime["database_status"] == "ok"
+    assert isinstance(category_summary, list)
     assert_summary_matches_records(summary, records)
 
     by_id = {record["request_id"]: record for record in records}
@@ -170,9 +179,15 @@ def main() -> int:
 
     assert by_id[proxy_result["request_id"]]["state"] == "estimated"
 
+    soak = run_soak(args.api, args.duration_sec, args.interval_sec) if args.mode == "soak" else None
+
     output = {
+        "mode": args.mode,
         "cases": results,
         "proxy": proxy_result,
+        "runtime": runtime,
+        "category_summary": category_summary,
+        "soak": soak,
         "summary": summary,
         "quality": {
             "passed_cases": quality["passed_cases"],
@@ -182,6 +197,43 @@ def main() -> int:
     }
     print(json.dumps(output, ensure_ascii=False, indent=2))
     return 0
+
+
+def run_soak(api: str, duration_sec: int, interval_sec: int) -> dict[str, Any]:
+    started_at = time.time()
+    deadline = started_at + max(1, duration_sec)
+    checks = 0
+    health_successes = 0
+    optimize_successes = 0
+    failed_events: list[str] = []
+    while time.time() < deadline:
+        checks += 1
+        try:
+            health = get_json(api, "/health")
+            if health["status"] == "ok":
+                health_successes += 1
+            response = post_json(
+                api,
+                "/api/optimize",
+                {
+                    "prompt": "Soak test: summarize repeated timeout logs.\nERROR worker timeout\nERROR worker timeout\nERROR worker timeout",
+                    "provider": "openai",
+                    "model": "gpt-5.4-mini",
+                    "capture_source": "manual",
+                },
+            )
+            if response["request_id"]:
+                optimize_successes += 1
+        except Exception as exc:  # pragma: no cover - defensive for installed app smoke.
+            failed_events.append(str(exc))
+        time.sleep(max(1, interval_sec))
+    return {
+        "duration_sec": round(time.time() - started_at, 2),
+        "checks": checks,
+        "health_success_rate": round(health_successes / checks, 4) if checks else 0,
+        "optimize_success_rate": round(optimize_successes / checks, 4) if checks else 0,
+        "failed_events": failed_events,
+    }
 
 
 def exercise_case(api: str, case: SmokeCase) -> dict[str, Any]:

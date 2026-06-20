@@ -8,7 +8,14 @@ import re
 
 from scrooge.config import Settings
 from scrooge.pricing import calculate_cost
-from scrooge.schemas import MeasurementRequest, OptimizeResponse, TokenBreakdown, UsageState
+from scrooge.schemas import (
+    CaptureSource,
+    MeasurementRequest,
+    OptimizeResponse,
+    TokenBreakdown,
+    TokenizerConfidence,
+    UsageState,
+)
 
 
 def _sqlite_path(database_url: str) -> str:
@@ -80,7 +87,10 @@ class UsageStore:
                 decision_notes TEXT,
                 request_family_hash TEXT,
                 provider_usage_source TEXT,
-                upstream_status INTEGER
+                upstream_status INTEGER,
+                capture_source TEXT,
+                failure_reason TEXT,
+                tokenizer_confidence TEXT
             )
             """
         )
@@ -92,13 +102,18 @@ class UsageStore:
         self._ensure_column(db, "usage_records", "request_family_hash", "TEXT")
         self._ensure_column(db, "usage_records", "provider_usage_source", "TEXT")
         self._ensure_column(db, "usage_records", "upstream_status", "INTEGER")
+        self._ensure_column(db, "usage_records", "capture_source", "TEXT")
+        self._ensure_column(db, "usage_records", "failure_reason", "TEXT")
+        self._ensure_column(db, "usage_records", "tokenizer_confidence", "TEXT")
         db.execute(
             """
             UPDATE usage_records
             SET
                 estimated_original_tokens = COALESCE(estimated_original_tokens, original_tokens),
                 estimated_optimized_tokens = COALESCE(estimated_optimized_tokens, optimized_tokens),
-                request_family_hash = COALESCE(request_family_hash, original_hash)
+                request_family_hash = COALESCE(request_family_hash, original_hash),
+                capture_source = COALESCE(capture_source, 'manual'),
+                tokenizer_confidence = COALESCE(tokenizer_confidence, 'heuristic_fallback')
             """
         )
 
@@ -113,7 +128,13 @@ class UsageStore:
         if column not in columns:
             db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
-    def save_preview(self, response: OptimizeResponse, provider: str, model: str) -> None:
+    def save_preview(
+        self,
+        response: OptimizeResponse,
+        provider: str,
+        model: str,
+        capture_source: CaptureSource = CaptureSource.MANUAL,
+    ) -> None:
         original_prompt = response.original_prompt if self.settings.store_prompt_bodies else None
         optimized_prompt = response.optimized_prompt if self.settings.store_prompt_bodies else None
         with self.connect() as db:
@@ -126,8 +147,8 @@ class UsageStore:
                     original_tokens, optimized_tokens, saved_tokens,
                     original_cost_usd, optimized_cost_usd, saved_cost_usd,
                     tokenizer_version, pricing_version, pricing_source_url, applied_rules,
-                    request_family_hash
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    request_family_hash, capture_source, tokenizer_confidence
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     response.request_id,
@@ -153,6 +174,8 @@ class UsageStore:
                     response.optimized_cost.source_url,
                     ",".join(reason.rule_id for reason in response.reasons),
                     _family_hash(provider, model, response.task_type.value, response.original_prompt),
+                    capture_source.value,
+                    response.optimized_tokens.tokenizer_confidence.value,
                 ),
             )
 
@@ -162,6 +185,7 @@ class UsageStore:
         state: UsageState,
         notes: str | None = None,
         upstream_status: int | None = None,
+        failure_reason: str | None = None,
     ) -> None:
         with self.connect() as db:
             cursor = db.execute(
@@ -170,10 +194,11 @@ class UsageStore:
                 SET
                     state = ?,
                     decision_notes = COALESCE(?, decision_notes),
-                    upstream_status = COALESCE(?, upstream_status)
+                    upstream_status = COALESCE(?, upstream_status),
+                    failure_reason = COALESCE(?, failure_reason)
                 WHERE request_id = ?
                 """,
-                (state.value, notes, upstream_status, request_id),
+                (state.value, notes, upstream_status, failure_reason, request_id),
             )
             if cursor.rowcount == 0:
                 raise KeyError(request_id)
@@ -206,13 +231,23 @@ class UsageStore:
             measured_output = measurement.measured_output_tokens
             saved_tokens = max(0, measured_original - measured_optimized)
             original_cost = calculate_cost(
-                TokenBreakdown(input_tokens=measured_original, tokenizer="provider-measured", is_estimate=False),
+                TokenBreakdown(
+                    input_tokens=measured_original,
+                    tokenizer="provider-measured",
+                    is_estimate=False,
+                    tokenizer_confidence=TokenizerConfidence.PROVIDER_MEASURED,
+                ),
                 row["provider"],
                 row["model"],
                 measured_output,
             )
             optimized_cost = calculate_cost(
-                TokenBreakdown(input_tokens=measured_optimized, tokenizer="provider-measured", is_estimate=False),
+                TokenBreakdown(
+                    input_tokens=measured_optimized,
+                    tokenizer="provider-measured",
+                    is_estimate=False,
+                    tokenizer_confidence=TokenizerConfidence.PROVIDER_MEASURED,
+                ),
                 row["provider"],
                 row["model"],
                 measured_output,
@@ -235,6 +270,7 @@ class UsageStore:
                     measurement_source = ?,
                     provider_usage_source = ?,
                     upstream_status = COALESCE(?, upstream_status),
+                    tokenizer_confidence = ?,
                     pricing_version = ?,
                     pricing_source_url = ?
                 WHERE request_id = ?
@@ -253,6 +289,7 @@ class UsageStore:
                     measurement.source,
                     measurement.source,
                     measurement.upstream_status,
+                    "provider_measured",
                     optimized_cost.pricing_version,
                     optimized_cost.source_url,
                     request_id,
@@ -277,7 +314,8 @@ class UsageStore:
                     saved_tokens, saved_cost_usd, pricing_version, applied_rules,
                     tokenizer_version, estimated_optimized_tokens, measured_original_tokens,
                     measured_input_tokens, measured_output_tokens, decision_notes,
-                    provider_usage_source, upstream_status
+                    provider_usage_source, upstream_status, capture_source, failure_reason,
+                    tokenizer_confidence
                 FROM usage_records
                 ORDER BY created_at DESC
                 LIMIT ?
@@ -321,6 +359,9 @@ class UsageStore:
                     ),
                     "provider_usage_source": row["provider_usage_source"],
                     "upstream_status": row["upstream_status"],
+                    "capture_source": row["capture_source"] or CaptureSource.MANUAL.value,
+                    "failure_reason": row["failure_reason"],
+                    "tokenizer_confidence": row["tokenizer_confidence"] or "heuristic_fallback",
                     "token_error_rate": (
                         _token_error_rate(estimated_optimized, int(measured_input))
                         if measured_input is not None
@@ -373,6 +414,8 @@ class UsageStore:
                 """
             ).fetchone()
             followup_requests = self._count_followups(db, where)
+            long_context_savings_rate = self._long_context_savings_rate(db, where)
+            hotkey_success_rate = self._hotkey_success_rate(db, where)
 
         total_original = int(row["original_tokens"] or 0)
         saved = int(row["saved_tokens"] or 0)
@@ -398,7 +441,52 @@ class UsageStore:
             "max_token_error_rate": round(float(row["max_token_error_rate"] or 0), 4),
             "followup_requests": followup_requests,
             "reask_rate": round(followup_requests / total_requests, 4) if total_requests else 0,
+            "long_context_savings_rate": long_context_savings_rate,
+            "hotkey_success_rate": hotkey_success_rate,
+            "backend_health_status": "ok",
         }
+
+    def category_summary(self, period: str = "month") -> list[dict[str, object]]:
+        where = _period_clause(period)
+        with self.connect() as db:
+            rows = db.execute(
+                f"""
+                SELECT
+                    task_type,
+                    COUNT(*) as total_requests,
+                    SUM(saved_tokens) as saved_tokens,
+                    SUM(original_tokens) as original_tokens,
+                    SUM(CASE WHEN state = 'measured' THEN 1 ELSE 0 END) as measured_requests,
+                    AVG(
+                        CASE
+                            WHEN measured_input_tokens IS NOT NULL
+                            AND COALESCE(estimated_optimized_tokens, optimized_tokens) > 0
+                            THEN ABS(measured_input_tokens - COALESCE(estimated_optimized_tokens, optimized_tokens)) * 1.0
+                                / COALESCE(estimated_optimized_tokens, optimized_tokens)
+                            ELSE NULL
+                        END
+                    ) as avg_token_error_rate
+                FROM usage_records
+                {where}
+                GROUP BY task_type
+                ORDER BY total_requests DESC, task_type ASC
+                """
+            ).fetchall()
+        summaries: list[dict[str, object]] = []
+        for row in rows:
+            original_tokens = int(row["original_tokens"] or 0)
+            saved_tokens = int(row["saved_tokens"] or 0)
+            summaries.append(
+                {
+                    "category": row["task_type"],
+                    "total_requests": int(row["total_requests"] or 0),
+                    "saved_tokens": saved_tokens,
+                    "savings_rate": round(saved_tokens / original_tokens, 4) if original_tokens else 0,
+                    "measured_requests": int(row["measured_requests"] or 0),
+                    "avg_token_error_rate": round(float(row["avg_token_error_rate"] or 0), 4),
+                }
+            )
+        return summaries
 
     def _count_followups(self, db: sqlite3.Connection, where: str) -> int:
         rows = db.execute(
@@ -423,6 +511,41 @@ class UsageStore:
                 followups += 1
             seen[key] = created_at
         return followups
+
+    def _long_context_savings_rate(self, db: sqlite3.Connection, where: str) -> float:
+        row = db.execute(
+            f"""
+            SELECT SUM(saved_tokens) as saved_tokens, SUM(original_tokens) as original_tokens
+            FROM usage_records
+            {where}
+            {'AND' if where else 'WHERE'} (
+                applied_rules LIKE '%compression%'
+                OR applied_rules LIKE '%compaction%'
+                OR applied_rules LIKE '%command_output%'
+                OR applied_rules LIKE '%diff%'
+                OR applied_rules LIKE '%log_%'
+                OR original_tokens >= 500
+            )
+            """
+        ).fetchone()
+        original_tokens = int(row["original_tokens"] or 0)
+        saved_tokens = int(row["saved_tokens"] or 0)
+        return round(saved_tokens / original_tokens, 4) if original_tokens else 0
+
+    def _hotkey_success_rate(self, db: sqlite3.Connection, where: str) -> float:
+        row = db.execute(
+            f"""
+            SELECT
+                COUNT(*) as total_requests,
+                SUM(CASE WHEN state IN ('sent', 'measured') THEN 1 ELSE 0 END) as successful_requests
+            FROM usage_records
+            {where}
+            {'AND' if where else 'WHERE'} capture_source = 'hotkey'
+            """
+        ).fetchone()
+        total_requests = int(row["total_requests"] or 0)
+        successful_requests = int(row["successful_requests"] or 0)
+        return round(successful_requests / total_requests, 4) if total_requests else 0
 
 
 def _hash_text(text: str) -> str:

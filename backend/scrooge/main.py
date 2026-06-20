@@ -12,12 +12,14 @@ from scrooge.schemas import (
     AuditRecordSummary,
     ApprovalRequest,
     ApprovalResponse,
+    CategoryDashboardSummary,
     DashboardSummary,
     MeasurementRequest,
     MeasurementResponse,
     OptimizeRequest,
     OptimizeResponse,
     QualitySummary,
+    RuntimeStatusResponse,
     UsageState,
 )
 from scrooge.storage import UsageStore
@@ -60,7 +62,7 @@ def optimize(
     model = request.model or settings.default_model
     normalized = request.model_copy(update={"provider": provider, "model": model})
     response = optimize_prompt(normalized)
-    store.save_preview(response, provider=provider, model=model)
+    store.save_preview(response, provider=provider, model=model, capture_source=request.capture_source)
     return response
 
 
@@ -100,7 +102,33 @@ def dashboard_summary(period: str = "month", store: UsageStore = Depends(get_sto
     summary = store.summary(period=period)
     quality = evaluate_quality_report()
     summary["quality_preservation_rate"] = quality.quality_preservation_rate
+    summary["short_prompt_over_optimization_count"] = quality.over_optimization_count
     return DashboardSummary(**summary)
+
+
+@app.get("/api/dashboard/category-summary", response_model=list[CategoryDashboardSummary])
+def dashboard_category_summary(
+    period: str = "month",
+    store: UsageStore = Depends(get_store),
+) -> list[CategoryDashboardSummary]:
+    if period not in {"day", "week", "month", "all"}:
+        raise HTTPException(status_code=400, detail="period must be day, week, month, or all")
+    return [CategoryDashboardSummary(**item) for item in store.category_summary(period=period)]
+
+
+@app.get("/api/runtime/status", response_model=RuntimeStatusResponse)
+def runtime_status(store: UsageStore = Depends(get_store)) -> RuntimeStatusResponse:
+    database_status = "ok"
+    try:
+        with store.connect() as db:
+            db.execute("SELECT 1").fetchone()
+    except Exception:
+        database_status = "error"
+    return RuntimeStatusResponse(
+        backend_status="ok",
+        database_status=database_status,
+        database_path=store.path,
+    )
 
 
 @app.get("/api/quality/summary", response_model=QualitySummary)

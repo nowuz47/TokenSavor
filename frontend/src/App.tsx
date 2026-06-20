@@ -36,6 +36,7 @@ import {
   clearAuditRecords,
   getAuditRecords,
   getDashboardSummary,
+  getRuntimeStatus,
   getQualitySummary,
   optimizePrompt
 } from "./api";
@@ -45,6 +46,7 @@ import type {
   OptimizationReason,
   OptimizeResponse,
   QualitySummary,
+  RuntimeStatus,
   TaskType
 } from "./types";
 import { copy, type Copy, type Locale } from "./i18n/copy";
@@ -86,6 +88,9 @@ interface AuditRecord {
   rejectionReason?: string | null;
   providerUsageSource?: string | null;
   upstreamStatus?: number | null;
+  captureSource: "manual" | "clipboard" | "hotkey" | "proxy";
+  failureReason?: string | null;
+  tokenizerConfidence: "estimated_local" | "estimated_provider_count" | "heuristic_fallback" | "provider_measured";
   tokenErrorRate?: number | null;
 }
 
@@ -183,6 +188,9 @@ function toAuditRecord(record: AuditRecordSummary): AuditRecord {
     rejectionReason: record.rejection_reason,
     providerUsageSource: record.provider_usage_source,
     upstreamStatus: record.upstream_status,
+    captureSource: record.capture_source,
+    failureReason: record.failure_reason,
+    tokenizerConfidence: record.tokenizer_confidence,
     tokenErrorRate: record.token_error_rate
   };
 }
@@ -197,6 +205,7 @@ export default function App() {
   const [result, setResult] = useState<OptimizeResponse | null>(null);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [qualitySummary, setQualitySummary] = useState<QualitySummary | null>(null);
+  const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus | null>(null);
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
   const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
   const [auditSearch, setAuditSearch] = useState("");
@@ -232,10 +241,15 @@ export default function App() {
       maxTokenErrorRate: summary?.max_token_error_rate ?? 0,
       followupRequests: summary?.followup_requests ?? 0,
       reaskRate: summary?.reask_rate ?? 0,
+      longContextSavingsRate: summary?.long_context_savings_rate ?? 0,
+      shortPromptOverOptimizationCount: summary?.short_prompt_over_optimization_count ?? 0,
+      hotkeySuccessRate: summary?.hotkey_success_rate ?? 0,
+      backendHealthStatus: runtimeStatus?.backend_status ?? summary?.backend_health_status ?? "unknown",
+      databaseStatus: runtimeStatus?.database_status ?? "unknown",
       qualityPreservationRate:
         summary?.quality_preservation_rate ?? qualitySummary?.quality_preservation_rate ?? 0
     };
-  }, [auditRecords.length, qualitySummary, summary]);
+  }, [auditRecords.length, qualitySummary, runtimeStatus, summary]);
 
   const filteredAuditRecords = useMemo(() => {
     const needle = auditSearch.toLowerCase();
@@ -348,19 +362,22 @@ export default function App() {
 
   async function refreshTelemetry() {
     try {
-      const [nextSummary, nextRecords, nextQuality] = await Promise.all([
+      const [nextSummary, nextRecords, nextQuality, nextRuntime] = await Promise.all([
         getDashboardSummary("month"),
         getAuditRecords(100),
-        getQualitySummary()
+        getQualitySummary(),
+        getRuntimeStatus()
       ]);
       setSummary(nextSummary);
       setAuditRecords(nextRecords.map(toAuditRecord));
       setQualitySummary(nextQuality);
+      setRuntimeStatus(nextRuntime);
       setLastTelemetryRefresh(new Date().toLocaleTimeString());
     } catch {
       setSummary(null);
       setAuditRecords([]);
       setQualitySummary(null);
+      setRuntimeStatus(null);
     }
   }
 
@@ -381,7 +398,8 @@ export default function App() {
         provider,
         model,
         task_type: taskType,
-        expected_output_tokens: expectedOutputTokens
+        expected_output_tokens: expectedOutputTokens,
+        capture_source: "manual"
       });
       setResult(response);
       setPrompt(response.optimized_prompt);
@@ -459,7 +477,8 @@ export default function App() {
         provider,
         model,
         task_type: taskType,
-        expected_output_tokens: expectedOutputTokens
+        expected_output_tokens: expectedOutputTokens,
+        capture_source: "clipboard"
       });
       if (response.saved_tokens <= 0) {
         await approvePrompt(response.request_id, false, "no_savings");
@@ -497,7 +516,8 @@ export default function App() {
         provider,
         model,
         task_type: taskType,
-        expected_output_tokens: expectedOutputTokens
+        expected_output_tokens: expectedOutputTokens,
+        capture_source: "clipboard"
       });
       setResult(response);
       setPrompt(response.optimized_prompt);
@@ -977,7 +997,11 @@ function DashboardTab(props: {
   aggregate: {
     approved: number;
     avgTokenErrorRate: number;
+    backendHealthStatus: string;
+    databaseStatus: string;
     followupRequests: number;
+    hotkeySuccessRate: number;
+    longContextSavingsRate: number;
     maxTokenErrorRate: number;
     measuredRequests: number;
     measurementCoverage: number;
@@ -986,6 +1010,7 @@ function DashboardTab(props: {
     savedCost: number;
     savedTokens: number;
     savingsRate: number;
+    shortPromptOverOptimizationCount: number;
     totalAudits: number;
   };
   copy: Copy;
@@ -1063,6 +1088,11 @@ function DashboardTab(props: {
             <DashboardCard icon={<Database />} label={props.copy.dashboard.totalAudits} value={props.aggregate.totalAudits} />
             <DashboardCard icon={<RefreshCw />} label={props.copy.dashboard.followupRequests} value={props.aggregate.followupRequests} />
             <DashboardCard icon={<Banknote />} label={props.copy.dashboard.savedUsd} value={`$${props.aggregate.savedCost.toFixed(2)}`} />
+            <DashboardCard icon={<Terminal />} label={props.copy.dashboard.longContextSavings} value={`${(props.aggregate.longContextSavingsRate * 100).toFixed(1)}%`} />
+            <DashboardCard icon={<ClipboardCheck />} label={props.copy.dashboard.hotkeySuccess} value={`${(props.aggregate.hotkeySuccessRate * 100).toFixed(0)}%`} />
+            <DashboardCard icon={<X />} label={props.copy.dashboard.shortOverOptimization} value={props.aggregate.shortPromptOverOptimizationCount} />
+            <DashboardCard icon={<Server />} label={props.copy.dashboard.backendHealth} value={props.aggregate.backendHealthStatus} />
+            <DashboardCard icon={<Database />} label={props.copy.dashboard.databaseHealth} value={props.aggregate.databaseStatus} />
             <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.measuredCoverage} value={`${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`} />
             <DashboardCard icon={<Activity />} label={props.copy.dashboard.avgTokenError} value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
             <DashboardCard
@@ -1396,6 +1426,20 @@ function AuditRows(props: { copy: Copy; expanded: boolean; record: AuditRecord; 
                 <strong>{props.copy.audit.tokenSource}</strong>
                 <span className="hash-line">{props.record.tokenizer}</span>
               </div>
+              <div>
+                <strong>{props.copy.audit.tokenizerConfidence}</strong>
+                <span className="hash-line">{props.record.tokenizerConfidence}</span>
+              </div>
+              <div>
+                <strong>{props.copy.audit.captureSource}</strong>
+                <span className="hash-line">{props.record.captureSource}</span>
+              </div>
+              {props.record.failureReason ? (
+                <div>
+                  <strong>{props.copy.audit.failureReason}</strong>
+                  <span className="hash-line">{props.record.failureReason}</span>
+                </div>
+              ) : null}
               {props.record.state === "measured" ? (
                 <div>
                   <strong>{props.copy.audit.measuredUsage}</strong>

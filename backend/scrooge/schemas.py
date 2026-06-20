@@ -24,11 +24,26 @@ class UsageState(StrEnum):
     FAILED = "failed"
 
 
+class CaptureSource(StrEnum):
+    MANUAL = "manual"
+    CLIPBOARD = "clipboard"
+    HOTKEY = "hotkey"
+    PROXY = "proxy"
+
+
+class TokenizerConfidence(StrEnum):
+    ESTIMATED_LOCAL = "estimated_local"
+    ESTIMATED_PROVIDER_COUNT = "estimated_provider_count"
+    HEURISTIC_FALLBACK = "heuristic_fallback"
+    PROVIDER_MEASURED = "provider_measured"
+
+
 class TokenBreakdown(BaseModel):
     input_tokens: int
     output_tokens: int = 0
     tokenizer: str
     is_estimate: bool = True
+    tokenizer_confidence: TokenizerConfidence = TokenizerConfidence.HEURISTIC_FALLBACK
 
 
 class CostBreakdown(BaseModel):
@@ -46,6 +61,7 @@ class OptimizeRequest(BaseModel):
     model: str = "gpt-5.4-mini"
     task_type: TaskType | None = None
     expected_output_tokens: int = Field(default=1000, ge=0, le=200000)
+    capture_source: CaptureSource = CaptureSource.MANUAL
 
 
 class OptimizationReason(BaseModel):
@@ -114,6 +130,10 @@ class DashboardSummary(BaseModel):
     followup_requests: int = 0
     reask_rate: float = 0
     quality_preservation_rate: float = 0
+    long_context_savings_rate: float = 0
+    short_prompt_over_optimization_count: int = 0
+    hotkey_success_rate: float = 0
+    backend_health_status: str = "ok"
 
 
 class QualityCaseResult(BaseModel):
@@ -181,7 +201,27 @@ class AuditRecordSummary(BaseModel):
     rejection_reason: str | None = None
     provider_usage_source: str | None = None
     upstream_status: int | None = None
+    capture_source: CaptureSource = CaptureSource.MANUAL
+    failure_reason: str | None = None
+    tokenizer_confidence: TokenizerConfidence = TokenizerConfidence.HEURISTIC_FALLBACK
     token_error_rate: float | None = None
+
+
+class RuntimeStatusResponse(BaseModel):
+    backend_status: str
+    database_status: str
+    hotkey_status: str = "unknown"
+    sidecar_status: str = "unknown"
+    database_path: str
+
+
+class CategoryDashboardSummary(BaseModel):
+    category: str
+    total_requests: int
+    saved_tokens: int
+    savings_rate: float
+    measured_requests: int
+    avg_token_error_rate: float
 
 
 class ProxyCaptureResponse(BaseModel):

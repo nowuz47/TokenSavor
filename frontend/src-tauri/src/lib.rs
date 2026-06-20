@@ -111,7 +111,8 @@ fn optimize_active_field_via_backend(app: AppHandle) {
             "provider": "openai",
             "model": "gpt-5.4-mini",
             "task_type": null,
-            "expected_output_tokens": 1000
+            "expected_output_tokens": 1000,
+            "capture_source": "hotkey"
         });
         let Some(response) = post_json("/api/optimize", &body) else {
             let _ = app.clipboard().write_text(text);

@@ -1,6 +1,6 @@
 from scrooge.config import Settings
 from scrooge.optimizer import optimize_prompt
-from scrooge.schemas import MeasurementRequest, OptimizeRequest, UsageState
+from scrooge.schemas import CaptureSource, MeasurementRequest, OptimizeRequest, UsageState
 from scrooge.storage import UsageStore
 
 
@@ -10,7 +10,7 @@ def test_storage_records_preview_without_prompt_body_by_default(tmp_path) -> Non
     store = UsageStore(settings)
     response = optimize_prompt(OptimizeRequest(prompt="Please review this code", provider="openai"))
 
-    store.save_preview(response, provider="openai", model="gpt-5.4-mini")
+    store.save_preview(response, provider="openai", model="gpt-5.4-mini", capture_source=CaptureSource.HOTKEY)
     store.mark_state(response.request_id, UsageState.SENT)
     measurement = store.record_measurement(
         response.request_id,
@@ -37,6 +37,8 @@ def test_storage_records_preview_without_prompt_body_by_default(tmp_path) -> Non
     assert records[0]["state"] == UsageState.MEASURED.value
     assert records[0]["provider_usage_source"] == "openai_usage"
     assert records[0]["upstream_status"] == 200
+    assert records[0]["capture_source"] == "hotkey"
+    assert records[0]["tokenizer_confidence"] == "provider_measured"
     assert records[0]["token_error_rate"] is not None
 
     store.clear_records()

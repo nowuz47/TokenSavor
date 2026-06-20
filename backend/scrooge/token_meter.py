@@ -1,7 +1,7 @@
 import math
 import re
 
-from scrooge.schemas import TokenBreakdown
+from scrooge.schemas import TokenBreakdown, TokenizerConfidence
 
 TOKENIZER_VERSION = "heuristic-v1"
 WORD_RE = re.compile(r"[A-Za-z0-9_]+|[^\sA-Za-z0-9_]", re.UNICODE)
@@ -16,6 +16,7 @@ def estimate_tokens(text: str, provider: str = "", model: str = "") -> TokenBrea
                 input_tokens=counted,
                 tokenizer=f"tiktoken:{model or 'default'}",
                 is_estimate=True,
+                tokenizer_confidence=TokenizerConfidence.ESTIMATED_LOCAL,
             )
 
     if not text:
@@ -29,6 +30,7 @@ def estimate_tokens(text: str, provider: str = "", model: str = "") -> TokenBrea
         input_tokens=tokens,
         tokenizer=_fallback_tokenizer_version(provider, model),
         is_estimate=True,
+        tokenizer_confidence=TokenizerConfidence.HEURISTIC_FALLBACK,
     )
 
 

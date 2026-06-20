@@ -1,9 +1,11 @@
 import type {
   AuditRecordSummary,
+  CategoryDashboardSummary,
   DashboardSummary,
   MeasurementResponse,
   OptimizeResponse,
   QualitySummary,
+  RuntimeStatus,
   TaskType
 } from "./types";
 
@@ -15,6 +17,7 @@ export async function optimizePrompt(input: {
   model: string;
   task_type?: TaskType | "";
   expected_output_tokens?: number;
+  capture_source?: "manual" | "clipboard" | "hotkey" | "proxy";
 }): Promise<OptimizeResponse> {
   const response = await fetch(`${API_BASE}/api/optimize`, {
     method: "POST",
@@ -24,11 +27,28 @@ export async function optimizePrompt(input: {
       provider: input.provider,
       model: input.model,
       task_type: input.task_type || null,
-      expected_output_tokens: input.expected_output_tokens ?? 1000
+      expected_output_tokens: input.expected_output_tokens ?? 1000,
+      capture_source: input.capture_source ?? "manual"
     })
   });
   if (!response.ok) {
     throw new Error(`Optimize failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getDashboardCategorySummary(period = "month"): Promise<CategoryDashboardSummary[]> {
+  const response = await fetch(`${API_BASE}/api/dashboard/category-summary?period=${period}`);
+  if (!response.ok) {
+    throw new Error(`Category dashboard failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getRuntimeStatus(): Promise<RuntimeStatus> {
+  const response = await fetch(`${API_BASE}/api/runtime/status`);
+  if (!response.ok) {
+    throw new Error(`Runtime status failed: ${response.status}`);
   }
   return response.json();
 }
