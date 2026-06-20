@@ -38,3 +38,33 @@ def test_storage_records_preview_without_prompt_body_by_default(tmp_path) -> Non
     store.clear_records()
     assert store.summary("all")["total_requests"] == 0
     assert store.list_records() == []
+
+
+def test_storage_recreates_schema_after_sqlite_file_is_deleted(tmp_path) -> None:
+    db_path = tmp_path / "scrooge.db"
+    settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)
+    store = UsageStore(settings)
+    first = optimize_prompt(OptimizeRequest(prompt="Please review this code", provider="openai"))
+    store.save_preview(first, provider="openai", model="gpt-5.4-mini")
+
+    db_path.unlink()
+
+    second = optimize_prompt(OptimizeRequest(prompt="ERROR payment-api timeout\nERROR payment-api timeout", provider="openai"))
+    store.save_preview(second, provider="openai", model="gpt-5.4-mini")
+
+    records = store.list_records()
+    assert len(records) == 1
+    assert records[0]["request_id"] == second.request_id
+
+
+def test_mark_state_unknown_request_raises_key_error(tmp_path) -> None:
+    db_path = tmp_path / "scrooge.db"
+    settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)
+    store = UsageStore(settings)
+
+    try:
+        store.mark_state("missing-request", UsageState.SENT)
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("unknown request_id should fail")

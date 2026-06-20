@@ -65,7 +65,10 @@ def approve_request(
     store: UsageStore = Depends(get_store),
 ) -> ApprovalResponse:
     state = UsageState.SENT if approval.approved else UsageState.REJECTED
-    store.mark_state(request_id, state)
+    try:
+        store.mark_state(request_id, state)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="request_id not found") from exc
     return ApprovalResponse(request_id=request_id, state=state)
 
 

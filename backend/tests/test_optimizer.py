@@ -35,10 +35,14 @@ def test_task_detection_supports_korean_enterprise_prompts() -> None:
     bug_prompt = (
         "단축키 Ctrl+Alt+S를 눌러도 대시보드 절감 토큰이 반영되지 않는 버그를 찾아주세요."
     )
+    trust_policy_prompt = (
+        "한국 대기업 사내 도입을 위한 신뢰 정책을 정리해 주세요. 팀 단위 통계와 원문 프롬프트 저장 금지가 필요합니다."
+    )
 
     assert detect_task_type(data_prompt) == TaskType.DATA_ANALYSIS
     assert detect_task_type(calculator_prompt) == TaskType.GENERAL
     assert detect_task_type(bug_prompt) == TaskType.BUG_ANALYSIS
+    assert detect_task_type(trust_policy_prompt) == TaskType.ARCHITECTURE_REVIEW
 
 
 def test_korean_repeated_logs_are_compressed_and_preserved() -> None:

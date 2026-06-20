@@ -31,57 +31,66 @@ class UsageStore:
         connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
         try:
+            self._init_db_schema(connection)
             yield connection
             connection.commit()
         finally:
             connection.close()
 
     def init_db(self) -> None:
-        with self.connect() as db:
-            db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS usage_records (
-                    request_id TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL,
-                    provider TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    task_type TEXT NOT NULL,
-                    state TEXT NOT NULL,
-                    original_hash TEXT NOT NULL,
-                    optimized_hash TEXT NOT NULL,
-                    original_prompt TEXT,
-                    optimized_prompt TEXT,
-                    estimated_original_tokens INTEGER,
-                    estimated_optimized_tokens INTEGER,
-                    original_tokens INTEGER NOT NULL,
-                    optimized_tokens INTEGER NOT NULL,
-                    saved_tokens INTEGER NOT NULL,
-                    original_cost_usd REAL NOT NULL,
-                    optimized_cost_usd REAL NOT NULL,
-                    saved_cost_usd REAL NOT NULL,
-                    tokenizer_version TEXT NOT NULL,
-                    pricing_version TEXT NOT NULL,
-                    pricing_source_url TEXT NOT NULL,
-                    applied_rules TEXT NOT NULL,
-                    measured_original_tokens INTEGER,
-                    measured_input_tokens INTEGER,
-                    measured_output_tokens INTEGER,
-                    measurement_source TEXT
-                )
-                """
+        connection = sqlite3.connect(self.path)
+        connection.row_factory = sqlite3.Row
+        try:
+            self._init_db_schema(connection)
+            connection.commit()
+        finally:
+            connection.close()
+
+    def _init_db_schema(self, db: sqlite3.Connection) -> None:
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS usage_records (
+                request_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                task_type TEXT NOT NULL,
+                state TEXT NOT NULL,
+                original_hash TEXT NOT NULL,
+                optimized_hash TEXT NOT NULL,
+                original_prompt TEXT,
+                optimized_prompt TEXT,
+                estimated_original_tokens INTEGER,
+                estimated_optimized_tokens INTEGER,
+                original_tokens INTEGER NOT NULL,
+                optimized_tokens INTEGER NOT NULL,
+                saved_tokens INTEGER NOT NULL,
+                original_cost_usd REAL NOT NULL,
+                optimized_cost_usd REAL NOT NULL,
+                saved_cost_usd REAL NOT NULL,
+                tokenizer_version TEXT NOT NULL,
+                pricing_version TEXT NOT NULL,
+                pricing_source_url TEXT NOT NULL,
+                applied_rules TEXT NOT NULL,
+                measured_original_tokens INTEGER,
+                measured_input_tokens INTEGER,
+                measured_output_tokens INTEGER,
+                measurement_source TEXT
             )
-            self._ensure_column(db, "usage_records", "estimated_original_tokens", "INTEGER")
-            self._ensure_column(db, "usage_records", "estimated_optimized_tokens", "INTEGER")
-            self._ensure_column(db, "usage_records", "measured_original_tokens", "INTEGER")
-            self._ensure_column(db, "usage_records", "measurement_source", "TEXT")
-            db.execute(
-                """
-                UPDATE usage_records
-                SET
-                    estimated_original_tokens = COALESCE(estimated_original_tokens, original_tokens),
-                    estimated_optimized_tokens = COALESCE(estimated_optimized_tokens, optimized_tokens)
-                """
-            )
+            """
+        )
+        self._ensure_column(db, "usage_records", "estimated_original_tokens", "INTEGER")
+        self._ensure_column(db, "usage_records", "estimated_optimized_tokens", "INTEGER")
+        self._ensure_column(db, "usage_records", "measured_original_tokens", "INTEGER")
+        self._ensure_column(db, "usage_records", "measurement_source", "TEXT")
+        db.execute(
+            """
+            UPDATE usage_records
+            SET
+                estimated_original_tokens = COALESCE(estimated_original_tokens, original_tokens),
+                estimated_optimized_tokens = COALESCE(estimated_optimized_tokens, optimized_tokens)
+            """
+        )
 
     def _ensure_column(
         self,
@@ -137,7 +146,12 @@ class UsageStore:
 
     def mark_state(self, request_id: str, state: UsageState) -> None:
         with self.connect() as db:
-            db.execute("UPDATE usage_records SET state = ? WHERE request_id = ?", (state.value, request_id))
+            cursor = db.execute(
+                "UPDATE usage_records SET state = ? WHERE request_id = ?",
+                (state.value, request_id),
+            )
+            if cursor.rowcount == 0:
+                raise KeyError(request_id)
 
     def record_measurement(
         self,

@@ -20,3 +20,13 @@ def test_quality_summary_endpoint_reports_category_floors() -> None:
         assert item["total_cases"] >= 10
         assert item["preservation_pass_rate"] >= 0.95
         assert item["savings_floor_failures"] == 0
+
+
+def test_unknown_approval_returns_404() -> None:
+    response = TestClient(app).post(
+        "/api/approvals/missing-request/approve",
+        json={"approved": True},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "request_id not found"

@@ -138,6 +138,8 @@ def detect_task_type(prompt: str) -> TaskType:
         return TaskType.GENERAL
     if _has_explicit_bug_intent(lowered) and not _has_log_analysis_context(prompt):
         return TaskType.BUG_ANALYSIS
+    if _has_trust_policy_context(lowered):
+        return TaskType.ARCHITECTURE_REVIEW
     for task_type, keywords in TASK_KEYWORDS:
         if any(keyword in lowered for keyword in keywords):
             return task_type
@@ -184,6 +186,27 @@ def _has_log_analysis_context(prompt: str) -> bool:
         if re.search(r"\b(error|exception|traceback|fatal|warn)\b", line, re.IGNORECASE)
     )
     return error_like_lines >= 2
+
+
+def _has_trust_policy_context(lowered_prompt: str) -> bool:
+    policy_terms = (
+        "trust policy",
+        "governance",
+        "compliance",
+        "privacy",
+        "raw prompt",
+        "prompt hash",
+        "local storage",
+        "team-level metrics",
+        "신뢰 정책",
+        "거버넌스",
+        "컴플라이언스",
+        "개인정보",
+        "원문 프롬프트",
+        "팀 단위",
+        "로컬 저장",
+    )
+    return any(term in lowered_prompt for term in policy_terms)
 
 
 def optimize_prompt(request: OptimizeRequest) -> OptimizeResponse:
