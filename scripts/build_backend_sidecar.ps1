@@ -4,7 +4,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+$scriptRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($PSScriptRoot)
+$repoRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath((Join-Path $scriptRoot ".."))
 $backendDir = Join-Path $repoRoot "backend"
 $sidecarDir = Join-Path $repoRoot "frontend\src-tauri\binaries"
 $pythonExe = Join-Path $backendDir ".venv\Scripts\python.exe"

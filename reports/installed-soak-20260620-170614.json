@@ -1,0 +1,182 @@
+﻿{
+  "mode": "soak",
+  "cases": [
+    {
+      "name": "ko_short_calculator_no_overopt",
+      "request_id": "078e82b9-0b99-432f-8fa5-3891f25662fc",
+      "task_type": "general",
+      "original_tokens": 47,
+      "optimized_tokens": 96,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "measured": false
+    },
+    {
+      "name": "ko_enterprise_data_analysis",
+      "request_id": "4ee38f67-a70e-4dc2-9a77-3ba6cecdc5ae",
+      "task_type": "data_analysis",
+      "original_tokens": 69,
+      "optimized_tokens": 136,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "measured": false
+    },
+    {
+      "name": "ko_dashboard_bug",
+      "request_id": "5b9f67e1-a6a9-4655-a94e-3eade2ce08aa",
+      "task_type": "bug_analysis",
+      "original_tokens": 75,
+      "optimized_tokens": 139,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "measured": false
+    },
+    {
+      "name": "ko_repeated_payment_logs",
+      "request_id": "8f07ace0-4891-4691-9a75-11c417f96ad9",
+      "task_type": "log_analysis",
+      "original_tokens": 1990,
+      "optimized_tokens": 146,
+      "saved_tokens": 1844,
+      "savings_rate": 0.9266,
+      "measured": true
+    },
+    {
+      "name": "en_large_diff_review",
+      "request_id": "eea5fad5-a1ef-4383-9a43-c0fa813b5ebc",
+      "task_type": "code_review",
+      "original_tokens": 579,
+      "optimized_tokens": 115,
+      "saved_tokens": 464,
+      "savings_rate": 0.8014,
+      "measured": false
+    },
+    {
+      "name": "en_stacktrace_bug",
+      "request_id": "09efd046-3d5a-4f01-92b3-84a621d4205c",
+      "task_type": "log_analysis",
+      "original_tokens": 1758,
+      "optimized_tokens": 108,
+      "saved_tokens": 1650,
+      "savings_rate": 0.9386,
+      "measured": false
+    },
+    {
+      "name": "en_docs_trust_policy",
+      "request_id": "55c16f53-8b5f-46f0-8411-f56b489f2045",
+      "task_type": "architecture_review",
+      "original_tokens": 21,
+      "optimized_tokens": 95,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "measured": false
+    }
+  ],
+  "proxy": {
+    "request_id": "d5eead9c-5f95-4bbf-9e9c-0dabc6bfb28a",
+    "captured": true,
+    "forwarded": false,
+    "task_type": "log_analysis"
+  },
+  "runtime": {
+    "backend_status": "ok",
+    "database_status": "ok",
+    "hotkey_status": "unknown",
+    "sidecar_status": "unknown",
+    "database_path": "./scrooge.db"
+  },
+  "category_summary": [
+    {
+      "category": "log_analysis",
+      "total_requests": 21,
+      "saved_tokens": 20964,
+      "savings_rate": 0.9064,
+      "measured_requests": 6,
+      "avg_token_error_rate": 0.0355
+    },
+    {
+      "category": "general",
+      "total_requests": 13,
+      "saved_tokens": 48,
+      "savings_rate": 0.0253,
+      "measured_requests": 4,
+      "avg_token_error_rate": 0.0
+    },
+    {
+      "category": "bug_analysis",
+      "total_requests": 10,
+      "saved_tokens": 96,
+      "savings_rate": 0.0749,
+      "measured_requests": 4,
+      "avg_token_error_rate": 0.0
+    },
+    {
+      "category": "data_analysis",
+      "total_requests": 7,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "measured_requests": 0,
+      "avg_token_error_rate": 0.0
+    },
+    {
+      "category": "architecture_review",
+      "total_requests": 6,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "measured_requests": 0,
+      "avg_token_error_rate": 0.0
+    },
+    {
+      "category": "code_review",
+      "total_requests": 6,
+      "saved_tokens": 2784,
+      "savings_rate": 0.8014,
+      "measured_requests": 0,
+      "avg_token_error_rate": 0.0
+    },
+    {
+      "category": "test_generation",
+      "total_requests": 4,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "measured_requests": 4,
+      "avg_token_error_rate": 0.0
+    }
+  ],
+  "soak": {
+    "duration_sec": 60.16,
+    "checks": 6,
+    "health_success_rate": 1.0,
+    "optimize_success_rate": 1.0,
+    "failed_events": []
+  },
+  "summary": {
+    "period": "all",
+    "total_requests": 67,
+    "approved_requests": 30,
+    "rejected_requests": 28,
+    "original_tokens": 30615,
+    "optimized_tokens": 9276,
+    "saved_tokens": 23892,
+    "original_cost_usd": 0.376817,
+    "optimized_cost_usd": 0.36154375,
+    "saved_cost_usd": 0.017919,
+    "savings_rate": 0.7804,
+    "measured_requests": 18,
+    "measurement_coverage": 0.2687,
+    "avg_token_error_rate": 0.0118,
+    "max_token_error_rate": 0.0355,
+    "followup_requests": 27,
+    "reask_rate": 0.403,
+    "quality_preservation_rate": 1.0,
+    "long_context_savings_rate": 0.8977,
+    "short_prompt_over_optimization_count": 0,
+    "hotkey_success_rate": 0.0,
+    "backend_health_status": "ok"
+  },
+  "quality": {
+    "passed_cases": 55,
+    "total_cases": 55,
+    "quality_preservation_rate": 1.0
+  }
+}

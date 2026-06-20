@@ -3,7 +3,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+$scriptRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($PSScriptRoot)
+$repoRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath((Join-Path $scriptRoot ".."))
 $backendDir = Join-Path $repoRoot "backend"
 $frontendDir = Join-Path $repoRoot "frontend"
 $pythonExe = Join-Path $backendDir ".venv\Scripts\python.exe"
@@ -23,6 +24,30 @@ function Invoke-Checked {
     }
 }
 
+function Invoke-FrontendBuild {
+    $tempRoot = Join-Path $env:TEMP ("scrooge-frontend-build-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+
+    try {
+        foreach ($item in @("package.json", "package-lock.json", "index.html", "tsconfig.json", "vite.config.ts", "src", "public")) {
+            Copy-Item -Path (Join-Path $frontendDir $item) -Destination $tempRoot -Recurse -Force
+        }
+
+        Push-Location $tempRoot
+        try {
+            $env:PATH = "$nodePath;$env:PATH"
+            Invoke-Checked { & "$nodePath\npm.cmd" ci --prefer-offline --no-audit --no-fund } "Frontend npm ci"
+            Invoke-Checked { & "$nodePath\npm.cmd" run build } "Frontend build"
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    finally {
+        Remove-Item -Path $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Push-Location $backendDir
 try {
     Invoke-Checked { & $pythonExe -m pytest } "Backend tests"
@@ -39,12 +64,6 @@ if ($runtime.backend_status -ne "ok" -or $runtime.database_status -ne "ok") {
     throw "Runtime status check failed: $($runtime | ConvertTo-Json -Compress)"
 }
 
-Push-Location $frontendDir
-try {
-    Invoke-Checked { cmd /c "set PATH=$nodePath;%PATH%&& $nodePath\npm.cmd run build" } "Frontend build"
-}
-finally {
-    Pop-Location
-}
+Invoke-FrontendBuild
 
 Write-Host "Scrooge smoke and reliability checks passed."

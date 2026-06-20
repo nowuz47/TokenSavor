@@ -1024,14 +1024,42 @@ function DashboardTab(props: {
     .slice(0, 7)
     .reverse();
   const maxTrendSavedTokens = Math.max(0, ...trendRecords.map((record) => record.savedTokens));
+  const runtimeHealthy =
+    props.aggregate.backendHealthStatus === "ok" && props.aggregate.databaseStatus === "ok";
+  const measuredCoveragePercent = `${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`;
+  const measuredState =
+    props.aggregate.measurementCoverage > 0
+      ? `${measuredCoveragePercent} ${props.copy.dashboard.measuredData}`
+      : props.copy.dashboard.estimatedOnly;
 
   return (
     <section className="tab-content active">
+      <div className="dashboard-status-grid">
+        <StatusSummaryCard
+          icon={runtimeHealthy ? <CheckCircle /> : <X />}
+          label={props.copy.dashboard.operatingStatus}
+          value={runtimeHealthy ? props.copy.dashboard.runningNormally : props.copy.dashboard.attentionNeeded}
+          tone={runtimeHealthy ? "ok" : "warn"}
+        />
+        <StatusSummaryCard
+          icon={<Award />}
+          label={props.copy.dashboard.monthlySavings}
+          value={formatTokenCount(props.aggregate.savedTokens)}
+          tone="gold"
+        />
+        <StatusSummaryCard
+          icon={<Activity />}
+          label={props.copy.dashboard.measurementState}
+          value={measuredState}
+          tone={props.aggregate.measurementCoverage > 0 ? "ok" : "muted"}
+        />
+      </div>
+
       <div className="db-grid savings-summary-grid">
-        <DashboardCard icon={<Flame />} label={props.copy.dashboard.estimatedSavings} value={`${(props.aggregate.savingsRate * 100).toFixed(1)}%`} highlight />
+        <DashboardCard icon={<Award />} label={props.copy.dashboard.savedTokens} value={formatTokenCount(props.aggregate.savedTokens)} highlight />
+        <DashboardCard icon={<Terminal />} label={props.copy.dashboard.longContextSavings} value={`${(props.aggregate.longContextSavingsRate * 100).toFixed(1)}%`} />
         <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.qualityPreservation} value={`${(props.aggregate.qualityPreservationRate * 100).toFixed(0)}%`} />
-        <DashboardCard icon={<RefreshCw />} label={props.copy.dashboard.reaskRate} value={`${(props.aggregate.reaskRate * 100).toFixed(1)}%`} />
-        <DashboardCard icon={<Award />} label={props.copy.dashboard.savedTokens} value={formatTokenCount(props.aggregate.savedTokens)} />
+        <DashboardCard icon={<Activity />} label={props.copy.dashboard.measuredCoverage} value={measuredCoveragePercent} />
       </div>
 
       <div className="chart-card">
@@ -1088,12 +1116,12 @@ function DashboardTab(props: {
             <DashboardCard icon={<Database />} label={props.copy.dashboard.totalAudits} value={props.aggregate.totalAudits} />
             <DashboardCard icon={<RefreshCw />} label={props.copy.dashboard.followupRequests} value={props.aggregate.followupRequests} />
             <DashboardCard icon={<Banknote />} label={props.copy.dashboard.savedUsd} value={`$${props.aggregate.savedCost.toFixed(2)}`} />
-            <DashboardCard icon={<Terminal />} label={props.copy.dashboard.longContextSavings} value={`${(props.aggregate.longContextSavingsRate * 100).toFixed(1)}%`} />
+            <DashboardCard icon={<Flame />} label={props.copy.dashboard.estimatedSavings} value={`${(props.aggregate.savingsRate * 100).toFixed(1)}%`} />
+            <DashboardCard icon={<RefreshCw />} label={props.copy.dashboard.reaskRate} value={`${(props.aggregate.reaskRate * 100).toFixed(1)}%`} />
             <DashboardCard icon={<ClipboardCheck />} label={props.copy.dashboard.hotkeySuccess} value={`${(props.aggregate.hotkeySuccessRate * 100).toFixed(0)}%`} />
             <DashboardCard icon={<X />} label={props.copy.dashboard.shortOverOptimization} value={props.aggregate.shortPromptOverOptimizationCount} />
             <DashboardCard icon={<Server />} label={props.copy.dashboard.backendHealth} value={props.aggregate.backendHealthStatus} />
             <DashboardCard icon={<Database />} label={props.copy.dashboard.databaseHealth} value={props.aggregate.databaseStatus} />
-            <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.measuredCoverage} value={`${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`} />
             <DashboardCard icon={<Activity />} label={props.copy.dashboard.avgTokenError} value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
             <DashboardCard
               highlight
@@ -1487,6 +1515,23 @@ function DashboardCard(props: { highlight?: boolean; icon: JSX.Element; label: s
       <div className="db-data">
         <span>{props.label}</span>
         <strong className={props.highlight ? "highlight" : ""}>{props.value}</strong>
+      </div>
+    </div>
+  );
+}
+
+function StatusSummaryCard(props: {
+  icon: JSX.Element;
+  label: string;
+  tone: "gold" | "muted" | "ok" | "warn";
+  value: string | number;
+}) {
+  return (
+    <div className={`status-summary-card ${props.tone}`}>
+      <div className="status-summary-icon">{props.icon}</div>
+      <div>
+        <span>{props.label}</span>
+        <strong>{props.value}</strong>
       </div>
     </div>
   );

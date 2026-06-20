@@ -1028,6 +1028,78 @@ select.form-control {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.dashboard-status-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.status-summary-card {
+  align-items: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  display: flex;
+  gap: 8px;
+  min-height: 52px;
+  min-width: 0;
+  padding: 8px;
+}
+
+.status-summary-card.gold {
+  border-color: rgba(212, 175, 55, 0.34);
+}
+
+.status-summary-card.ok .status-summary-icon {
+  color: #22c55e;
+}
+
+.status-summary-card.warn .status-summary-icon {
+  color: var(--warning);
+}
+
+.status-summary-card.muted .status-summary-icon {
+  color: var(--text-muted);
+}
+
+.status-summary-card.gold .status-summary-icon {
+  color: var(--gold);
+}
+
+.status-summary-icon {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: 5px;
+  display: flex;
+  flex: 0 0 28px;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.status-summary-icon svg {
+  height: 15px;
+  width: 15px;
+}
+
+.status-summary-card div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.status-summary-card span {
+  color: var(--text-secondary);
+  font-size: 9px;
+}
+
+.status-summary-card strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
 .dashboard-details .advanced-body {
   gap: 10px;
 }
@@ -1656,6 +1728,7 @@ select.form-control {
 @media (max-width: 860px) {
   .easy-hero,
   .easy-action-row,
+  .dashboard-status-grid,
   .savings-summary-grid,
   .dashboard-detail-grid {
     grid-template-columns: 1fr;
@@ -1677,6 +1750,7 @@ select.form-control {
 
   .form-row,
   .bridge-grid,
+  .dashboard-status-grid,
   .db-grid,
   .easy-hero,
   .easy-action-row,
