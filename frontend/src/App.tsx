@@ -157,28 +157,28 @@ const taskOptions: Array<{ label: string; value: TaskType | "" }> = [
 const copy = {
   en: {
     nav: {
-      workspace: "Workspace",
-      dashboard: "Dashboard",
-      audit: "Audit Logs",
-      pricing: "Rates",
+      workspace: "Save",
+      dashboard: "Savings",
+      audit: "History",
+      pricing: "Rate Basis",
       settings: "Settings"
     },
     actions: {
-      approve: "Approve",
-      capture: "Capture",
+      approve: "Use optimized prompt",
+      capture: "Bring clipboard",
       clearDb: "Clear DB",
       hideToTray: "Hide to tray",
       minimize: "Minimize",
-      optimize: "Optimize",
-      optimizeClip: "Optimize Clip",
-      optimizeHotkey: "Optimize Active Input",
+      optimize: "Preview savings",
+      optimizeClip: "Optimize clipboard",
+      optimizeHotkey: "Save clipboard now",
       refresh: "Refresh",
-      reject: "Reject",
+      reject: "Keep original",
       verifyRates: "Verify Official Rates"
     },
     status: {
-      proxyRunning: "Proxy Running (Port 8750)",
-      proxyInactive: "Proxy Inactive (Stopped)",
+      proxyRunning: "Savings helper running",
+      proxyInactive: "Savings helper stopped",
       records: "records",
       lastSync: "Last sync",
       notSynced: "Not synced yet"
@@ -206,19 +206,31 @@ const copy = {
       refreshed: "Dashboard refreshed from local hook telemetry."
     },
     workspace: {
+      advanced: "Advanced settings",
+      advancedNote: "Model, task type, and local hook settings are here when you need them.",
       assist: "Assist",
       bridge: "Codex Bridge",
+      captureHelper: "Load clipboard text into the box",
       context: "Context / Query Body",
+      easyPrimary: "Optimize clipboard",
+      easySecondary: "Preview pasted request",
       endpointChips: ["capture", "rewrite", "forward"],
+      heroSubtitle: "Paste your request or press Ctrl+Alt+S in any AI input. Scrooge keeps the meaning and removes wasted tokens.",
+      heroTitle: "Save AI credits before you send",
       hotkeyHint: "Focus the Codex input and press Ctrl+Alt+S. Scrooge selects, optimizes, and pastes back automatically.",
       hookProxy: "Hook Proxy",
-      inputTab: "Workbench Input",
+      inputTab: "Easy Mode",
       maxOut: "Max Out Tokens",
       originalRequest: "Original Request",
+      pasteLabel: "What do you want to ask AI?",
       placeholder: "Paste noisy logs or code blocks here...",
-      previewTab: "Optimization View",
+      previewTab: "Check Result",
       primary: "Primary",
+      privacyNote: "Prompt bodies stay local by default; history stores hashes, token counts, rules, and approval state.",
       provider: "Provider",
+      stepApply: "Copy or apply",
+      stepCheck: "Check savings",
+      stepPaste: "Paste or focus",
       targetModel: "Target Model",
       taskTemplate: "Task Template"
     },
@@ -240,7 +252,8 @@ const copy = {
       avgSaved: "avg savings",
       avgTokenError: "Avg Token Error",
       cases: "Cases",
-      estimatedSavings: "Estimated/Measured Savings",
+      detailTitle: "Trust and admin details",
+      estimatedSavings: "Savings rate",
       goldenCases: "Golden Cases",
       harmfulOmissions: "Harmful Omissions",
       issues: "Issues",
@@ -251,8 +264,8 @@ const copy = {
       overOptimization: "Over-Optimization",
       preserve: "Preserve",
       qualityPreservation: "Quality Preservation",
-      qualityTitle: "Quality Uniformity By Work Type",
-      recentActivity: "Recent Activity Logs",
+      qualityTitle: "Quality by work type",
+      recentActivity: "Recent savings",
       saved: "saved",
       savedTokens: "Saved Tokens",
       savedUsd: "Saved USD",
@@ -328,28 +341,28 @@ const copy = {
   },
   ko: {
     nav: {
-      workspace: "작업",
-      dashboard: "대시보드",
-      audit: "감사 로그",
-      pricing: "단가",
+      workspace: "절약하기",
+      dashboard: "절약 현황",
+      audit: "사용 기록",
+      pricing: "요금 기준",
       settings: "설정"
     },
     actions: {
-      approve: "승인",
-      capture: "캡처",
+      approve: "최적화 문구 사용",
+      capture: "클립보드 가져오기",
       clearDb: "DB 삭제",
       hideToTray: "트레이로 숨기기",
       minimize: "최소화",
-      optimize: "최적화",
+      optimize: "절약 미리보기",
       optimizeClip: "클립보드 최적화",
-      optimizeHotkey: "입력창 즉시 최적화",
+      optimizeHotkey: "클립보드 바로 절약",
       refresh: "새로고침",
-      reject: "거절",
+      reject: "원문 유지",
       verifyRates: "공식 단가 확인"
     },
     status: {
-      proxyRunning: "프록시 실행 중 (8750)",
-      proxyInactive: "프록시 중지됨",
+      proxyRunning: "절약 도우미 실행 중",
+      proxyInactive: "절약 도우미 중지됨",
       records: "건",
       lastSync: "마지막 동기화",
       notSynced: "아직 동기화 안 됨"
@@ -377,19 +390,31 @@ const copy = {
       refreshed: "로컬 후킹 텔레메트리에서 대시보드를 새로고침했습니다."
     },
     workspace: {
+      advanced: "상세 설정",
+      advancedNote: "모델, 작업 유형, 로컬 후킹 설정이 필요할 때만 열어보세요.",
       assist: "보조",
       bridge: "Codex 브리지",
+      captureHelper: "클립보드 내용을 입력칸으로 가져옵니다",
       context: "컨텍스트 / 요청 본문",
+      easyPrimary: "클립보드 바로 절약",
+      easySecondary: "붙여넣은 내용 미리보기",
       endpointChips: ["수집", "재작성", "전송"],
+      heroSubtitle: "요청을 붙여넣거나 AI 입력창에서 Ctrl+Alt+S를 누르세요. 의미는 지키고 낭비되는 토큰만 줄입니다.",
+      heroTitle: "AI에 보내기 전에 크레딧을 아끼세요",
       hotkeyHint: "Codex 입력창에 커서를 두고 Ctrl+Alt+S만 누르세요. Scrooge가 선택, 복사, 최적화, 붙여넣기를 자동으로 처리합니다.",
       hookProxy: "후킹 프록시",
-      inputTab: "입력 작업대",
+      inputTab: "쉬운 모드",
       maxOut: "최대 출력 토큰",
       originalRequest: "원본 요청",
+      pasteLabel: "AI에게 보낼 내용을 입력하세요",
       placeholder: "긴 로그나 코드 블록을 붙여넣으세요...",
-      previewTab: "최적화 보기",
+      previewTab: "결과 확인",
       primary: "기본",
+      privacyNote: "원문은 기본 저장하지 않고, 사용 기록에는 해시와 토큰 수, 적용 규칙, 승인 여부만 남깁니다.",
       provider: "Provider",
+      stepApply: "복사/적용",
+      stepCheck: "절약 확인",
+      stepPaste: "붙여넣기",
       targetModel: "대상 모델",
       taskTemplate: "작업 템플릿"
     },
@@ -411,7 +436,8 @@ const copy = {
       avgSaved: "평균 절감",
       avgTokenError: "평균 토큰 오차",
       cases: "케이스",
-      estimatedSavings: "예상/실측 절감률",
+      detailTitle: "신뢰도 및 관리자 상세",
+      estimatedSavings: "절감률",
       goldenCases: "골든 케이스",
       harmfulOmissions: "심각 누락",
       issues: "이슈",
@@ -422,8 +448,8 @@ const copy = {
       overOptimization: "과최적화",
       preserve: "보존율",
       qualityPreservation: "품질 보존율",
-      qualityTitle: "작업 유형별 품질 균일성",
-      recentActivity: "최근 활동 로그",
+      qualityTitle: "작업 유형별 품질",
+      recentActivity: "최근 절약 기록",
       saved: "절감",
       savedTokens: "절감 토큰",
       savedUsd: "절감 비용",
@@ -1077,116 +1103,62 @@ function WorkspaceTab(props: {
 
       {props.workspacePanel === "input" ? (
         <>
-          <div className="bridge-grid">
-            <div className="bridge-panel bridge-primary">
-              <div className="bridge-title">
-                <Server size={14} />
-                <span>{props.copy.workspace.hookProxy}</span>
-                <strong>{props.copy.workspace.primary}</strong>
+          <div className="easy-hero">
+            <div className="easy-hero-main">
+              <div className="easy-hero-logo">
+                <img src={APP_LOGO_SRC} alt="" />
               </div>
-              <div className="hook-endpoint mono">http://127.0.0.1:8750/proxy/{props.provider}/v1/responses</div>
-              <div className="bridge-chips">
-                {props.copy.workspace.endpointChips.map((chip) => (
-                  <span key={chip}>{chip}</span>
-                ))}
+              <div className="easy-hero-copy">
+                <span>Easy Mode</span>
+                <h2>{props.copy.workspace.heroTitle}</h2>
+                <p>{props.copy.workspace.heroSubtitle}</p>
               </div>
             </div>
-            <div className="bridge-panel">
-              <div className="bridge-title">
-                <ClipboardCheck size={14} />
-                <span>{props.copy.workspace.bridge}</span>
-                <strong>{props.copy.workspace.assist}</strong>
+            <div className="easy-steps" aria-label="Scrooge workflow">
+              <div className="easy-step">
+                <Clipboard size={14} />
+                <span>{props.copy.workspace.stepPaste}</span>
               </div>
-              <div className="bridge-actions">
-                <button className="btn btn-primary" type="button" onClick={props.onOptimizeClipboardDirect} disabled={props.loading}>
-                  <Sparkles size={12} />
-                  {props.copy.actions.optimizeHotkey}
-                </button>
-                <button className="btn btn-outline" type="button" onClick={props.onCaptureClipboard} disabled={props.loading}>
-                  <Clipboard size={12} />
-                  {props.copy.actions.capture}
-                </button>
-                <button className="btn btn-outline" type="button" onClick={props.onOptimizeClipboard} disabled={props.loading}>
-                  <Sparkles size={12} />
-                  {props.copy.actions.optimizeClip}
-                </button>
+              <div className="easy-step">
+                <Sparkles size={14} />
+                <span>{props.copy.workspace.stepCheck}</span>
               </div>
-              <div className="hook-endpoint mono">{props.copy.workspace.hotkeyHint}</div>
+              <div className="easy-step">
+                <CheckCircle size={14} />
+                <span>{props.copy.workspace.stepApply}</span>
+              </div>
             </div>
           </div>
 
-          <div className="compact-card">
+          <div className="easy-action-row">
+            <button className="btn btn-primary easy-primary-action" type="button" onClick={props.onOptimizeClipboardDirect} disabled={props.loading}>
+              <Sparkles size={14} />
+              {props.copy.workspace.easyPrimary}
+            </button>
+            <button className="btn btn-outline easy-secondary-action" type="button" onClick={props.onOptimize} disabled={props.loading}>
+              <Eye size={14} />
+              {props.copy.workspace.easySecondary}
+            </button>
+            <button className="btn btn-outline easy-secondary-action" type="button" onClick={props.onCaptureClipboard} disabled={props.loading}>
+              <Clipboard size={14} />
+              {props.copy.actions.capture}
+            </button>
+          </div>
+
+          <div className="easy-helper-note">
+            <ShieldCheck size={13} />
+            <span>{props.copy.workspace.privacyNote}</span>
+          </div>
+
+          <div className="compact-card easy-input-card">
             <div className="card-header">
               <h3>
                 <Terminal size={14} />
-                {props.copy.workspace.originalRequest}
+                {props.copy.workspace.pasteLabel}
               </h3>
-              <button className="btn btn-primary" type="button" onClick={props.onOptimize} disabled={props.loading}>
-                <Sparkles size={12} />
-                {props.copy.actions.optimize}
-              </button>
+              <span className="soft-hint">{props.copy.workspace.captureHelper}</span>
             </div>
             <div className="card-body">
-              <div className="form-row">
-                <label className="form-group">
-                  {props.copy.workspace.provider}
-                  <select
-                    className="form-control"
-                    value={props.provider}
-                    onChange={(event) => props.onProviderChange(event.target.value)}
-                  >
-                    <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic</option>
-                    <option value="gemini">Gemini</option>
-                  </select>
-                </label>
-                <label className="form-group">
-                  {props.copy.workspace.targetModel}
-                  <select
-                    className="form-control"
-                    value={props.model}
-                    onChange={(event) => props.onModelChange(event.target.value)}
-                  >
-                    {props.availableModels.map((item) => (
-                      <option key={item.model} value={item.model}>
-                        {item.model}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <label className="form-group">
-                {props.copy.workspace.maxOut}: {props.expectedOutputTokens}
-                <div className="slider-box">
-                  <input
-                    max={4000}
-                    min={100}
-                    step={100}
-                    type="range"
-                    value={props.expectedOutputTokens}
-                    onChange={(event) => props.onExpectedOutputTokensChange(Number(event.target.value))}
-                  />
-                  <span className="slider-val">~{Math.round(props.expectedOutputTokens / 1000)}K</span>
-                </div>
-              </label>
-
-              <div className="form-group">
-                <span className="form-label">{props.copy.workspace.taskTemplate}</span>
-                <div className="task-tags">
-                  {taskOptions.map((option) => (
-                    <button
-                      key={option.label}
-                      className={`tag-btn ${props.taskType === option.value ? "active" : ""}`}
-                      type="button"
-                      onClick={() => props.onTaskTypeChange(option.value)}
-                    >
-                      {props.copy.taskOptions[(option.value || "auto") as keyof Copy["taskOptions"]]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <label className="form-group grow">
                 {props.copy.workspace.context}
                 <div className="editor-box">
@@ -1200,6 +1172,107 @@ function WorkspaceTab(props: {
               </label>
             </div>
           </div>
+
+          <details className="advanced-panel">
+            <summary>
+              <SlidersHorizontal size={14} />
+              <span>{props.copy.workspace.advanced}</span>
+              <em>{props.copy.workspace.advancedNote}</em>
+            </summary>
+            <div className="advanced-body">
+              <div className="bridge-grid">
+                <div className="bridge-panel bridge-primary">
+                  <div className="bridge-title">
+                    <Server size={14} />
+                    <span>{props.copy.workspace.hookProxy}</span>
+                    <strong>{props.copy.workspace.primary}</strong>
+                  </div>
+                  <div className="hook-endpoint mono">http://127.0.0.1:8750/proxy/{props.provider}/v1/responses</div>
+                  <div className="bridge-chips">
+                    {props.copy.workspace.endpointChips.map((chip) => (
+                      <span key={chip}>{chip}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="bridge-panel">
+                  <div className="bridge-title">
+                    <ClipboardCheck size={14} />
+                    <span>{props.copy.workspace.bridge}</span>
+                    <strong>{props.copy.workspace.assist}</strong>
+                  </div>
+                  <div className="bridge-actions">
+                    <button className="btn btn-outline" type="button" onClick={props.onOptimizeClipboard} disabled={props.loading}>
+                      <Sparkles size={12} />
+                      {props.copy.actions.optimizeClip}
+                    </button>
+                  </div>
+                  <div className="hook-endpoint mono">{props.copy.workspace.hotkeyHint}</div>
+                </div>
+              </div>
+
+              <div className="advanced-controls">
+                <div className="form-row">
+                  <label className="form-group">
+                    {props.copy.workspace.provider}
+                    <select
+                      className="form-control"
+                      value={props.provider}
+                      onChange={(event) => props.onProviderChange(event.target.value)}
+                    >
+                      <option value="openai">OpenAI</option>
+                      <option value="anthropic">Anthropic</option>
+                      <option value="gemini">Gemini</option>
+                    </select>
+                  </label>
+                  <label className="form-group">
+                    {props.copy.workspace.targetModel}
+                    <select
+                      className="form-control"
+                      value={props.model}
+                      onChange={(event) => props.onModelChange(event.target.value)}
+                    >
+                      {props.availableModels.map((item) => (
+                        <option key={item.model} value={item.model}>
+                          {item.model}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <label className="form-group">
+                  {props.copy.workspace.maxOut}: {props.expectedOutputTokens}
+                  <div className="slider-box">
+                    <input
+                      max={4000}
+                      min={100}
+                      step={100}
+                      type="range"
+                      value={props.expectedOutputTokens}
+                      onChange={(event) => props.onExpectedOutputTokensChange(Number(event.target.value))}
+                    />
+                    <span className="slider-val">~{Math.round(props.expectedOutputTokens / 1000)}K</span>
+                  </div>
+                </label>
+
+                <div className="form-group">
+                  <span className="form-label">{props.copy.workspace.taskTemplate}</span>
+                  <div className="task-tags">
+                    {taskOptions.map((option) => (
+                      <button
+                        key={option.label}
+                        className={`tag-btn ${props.taskType === option.value ? "active" : ""}`}
+                        type="button"
+                        onClick={() => props.onTaskTypeChange(option.value)}
+                      >
+                        {props.copy.taskOptions[(option.value || "auto") as keyof Copy["taskOptions"]]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </details>
         </>
       ) : (
         <PreviewPanel copy={props.copy} result={props.result} onApprove={props.onApprove} onReject={props.onReject} />
@@ -1326,93 +1399,10 @@ function DashboardTab(props: {
 
   return (
     <section className="tab-content active">
-      <div className="db-grid">
+      <div className="db-grid savings-summary-grid">
         <DashboardCard icon={<Flame />} label={props.copy.dashboard.estimatedSavings} value={`${(props.aggregate.savingsRate * 100).toFixed(1)}%`} highlight />
         <DashboardCard icon={<Award />} label={props.copy.dashboard.savedTokens} value={formatTokenCount(props.aggregate.savedTokens)} />
         <DashboardCard icon={<Banknote />} label={props.copy.dashboard.savedUsd} value={`$${props.aggregate.savedCost.toFixed(2)}`} />
-        <DashboardCard icon={<Database />} label={props.copy.dashboard.totalAudits} value={props.aggregate.totalAudits} />
-        <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.measuredCoverage} value={`${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`} />
-        <DashboardCard icon={<Activity />} label={props.copy.dashboard.avgTokenError} value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
-      </div>
-
-      <div className="telemetry-refresh-note">
-        <RefreshCw size={12} />
-        <span>{props.copy.dashboard.telemetryNote} {props.copy.status.lastSync}: {props.lastTelemetryRefresh}</span>
-      </div>
-
-      <div className="db-grid">
-        <DashboardCard
-          highlight
-          icon={<ShieldCheck />}
-          label={props.copy.dashboard.qualityPreservation}
-          value={quality ? `${(quality.quality_preservation_rate * 100).toFixed(0)}%` : "--"}
-        />
-        <DashboardCard
-          icon={<CheckCircle />}
-          label={props.copy.dashboard.goldenCases}
-          value={quality ? `${quality.passed_cases}/${quality.total_cases}` : "--"}
-        />
-        <DashboardCard
-          icon={<X />}
-          label={props.copy.dashboard.harmfulOmissions}
-          value={quality?.harmful_omission_count ?? "--"}
-        />
-        <DashboardCard
-          icon={<Sparkles />}
-          label={props.copy.dashboard.overOptimization}
-          value={quality?.over_optimization_count ?? "--"}
-        />
-      </div>
-
-      <div className="table-card">
-        <div className="quality-card-header">
-          <h3>
-            <ShieldCheck size={14} />
-            {props.copy.dashboard.qualityTitle}
-          </h3>
-          <span>
-            {quality
-              ? `${(quality.average_savings_rate * 100).toFixed(1)}% ${props.copy.dashboard.avgSaved}`
-              : props.copy.dashboard.noQuality}
-          </span>
-        </div>
-        <div className="table-scroll">
-          <table className="compact-table quality-table">
-            <thead>
-              <tr>
-                <th>{props.copy.dashboard.workType}</th>
-                <th>{props.copy.dashboard.cases}</th>
-                <th>{props.copy.dashboard.preserve}</th>
-                <th>{props.copy.dashboard.avgSaved}</th>
-                <th>{props.copy.dashboard.issues}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {quality ? (
-                quality.category_summaries.map((item) => (
-                  <tr key={item.category}>
-                    <td className="model-cell">{formatQualityCategory(item.category, props.copy)}</td>
-                    <td>{item.passed_cases}/{item.total_cases}</td>
-                    <td>{(item.preservation_pass_rate * 100).toFixed(0)}%</td>
-                    <td className="highlight-text">{(item.average_savings_rate * 100).toFixed(1)}%</td>
-                    <td>
-                      {item.harmful_omission_count +
-                        item.hallucinated_constraint_count +
-                        item.over_optimization_count +
-                        item.savings_floor_failures}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td className="empty-table" colSpan={5}>
-                    {props.copy.dashboard.noQuality}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
 
       <div className="chart-card">
@@ -1457,6 +1447,88 @@ function DashboardTab(props: {
           )}
         </div>
       </div>
+
+      <details className="advanced-panel dashboard-details">
+        <summary>
+          <ShieldCheck size={14} />
+          <span>{props.copy.dashboard.detailTitle}</span>
+          <em>{props.copy.dashboard.telemetryNote} {props.copy.status.lastSync}: {props.lastTelemetryRefresh}</em>
+        </summary>
+        <div className="advanced-body">
+          <div className="db-grid dashboard-detail-grid">
+            <DashboardCard icon={<Database />} label={props.copy.dashboard.totalAudits} value={props.aggregate.totalAudits} />
+            <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.measuredCoverage} value={`${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`} />
+            <DashboardCard icon={<Activity />} label={props.copy.dashboard.avgTokenError} value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
+            <DashboardCard
+              highlight
+              icon={<ShieldCheck />}
+              label={props.copy.dashboard.qualityPreservation}
+              value={quality ? `${(quality.quality_preservation_rate * 100).toFixed(0)}%` : "--"}
+            />
+            <DashboardCard
+              icon={<CheckCircle />}
+              label={props.copy.dashboard.goldenCases}
+              value={quality ? `${quality.passed_cases}/${quality.total_cases}` : "--"}
+            />
+            <DashboardCard
+              icon={<X />}
+              label={props.copy.dashboard.harmfulOmissions}
+              value={quality?.harmful_omission_count ?? "--"}
+            />
+          </div>
+
+          <div className="table-card">
+            <div className="quality-card-header">
+              <h3>
+                <ShieldCheck size={14} />
+                {props.copy.dashboard.qualityTitle}
+              </h3>
+              <span>
+                {quality
+                  ? `${(quality.average_savings_rate * 100).toFixed(1)}% ${props.copy.dashboard.avgSaved}`
+                  : props.copy.dashboard.noQuality}
+              </span>
+            </div>
+            <div className="table-scroll">
+              <table className="compact-table quality-table">
+                <thead>
+                  <tr>
+                    <th>{props.copy.dashboard.workType}</th>
+                    <th>{props.copy.dashboard.cases}</th>
+                    <th>{props.copy.dashboard.preserve}</th>
+                    <th>{props.copy.dashboard.avgSaved}</th>
+                    <th>{props.copy.dashboard.issues}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quality ? (
+                    quality.category_summaries.map((item) => (
+                      <tr key={item.category}>
+                        <td className="model-cell">{formatQualityCategory(item.category, props.copy)}</td>
+                        <td>{item.passed_cases}/{item.total_cases}</td>
+                        <td>{(item.preservation_pass_rate * 100).toFixed(0)}%</td>
+                        <td className="highlight-text">{(item.average_savings_rate * 100).toFixed(1)}%</td>
+                        <td>
+                          {item.harmful_omission_count +
+                            item.hallucinated_constraint_count +
+                            item.over_optimization_count +
+                            item.savings_floor_failures}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="empty-table" colSpan={5}>
+                        {props.copy.dashboard.noQuality}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </details>
     </section>
   );
 }
