@@ -25,8 +25,14 @@ from scrooge.storage import UsageStore
 app = FastAPI(title="Scrooge", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:1420", "http://127.0.0.1:1420"],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_origins=[
+        "http://localhost:1420",
+        "http://127.0.0.1:1420",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+        "tauri://localhost",
+    ],
+    allow_origin_regex=r"^(https?://(localhost|127\.0\.0\.1|tauri\.localhost)(:\d+)?|tauri://localhost)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

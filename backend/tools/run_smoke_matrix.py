@@ -3,7 +3,8 @@
 The matrix intentionally covers realistic desktop flows: optimization preview,
 approval/rejection, measured usage, dashboard aggregation, quality summary, and
 proxy capture. It uses only the public HTTP API so it can validate either a
-dev server or an installed sidecar.
+dev server or an installed sidecar. Existing audit records are preserved by
+default; pass --reset-records only against an isolated test database.
 """
 
 from __future__ import annotations
@@ -115,13 +116,21 @@ SMOKE_CASES: tuple[SmokeCase, ...] = (
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--api", default="http://127.0.0.1:8750")
-    parser.add_argument("--keep-records", action="store_true")
+    parser.add_argument(
+        "--reset-records",
+        action="store_true",
+        help="Delete existing audit records before running. Use only with an isolated test DB.",
+    )
+    parser.add_argument("--keep-records", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     health = get_json(args.api, "/health")
     assert health["status"] == "ok"
 
-    if not args.keep_records:
+    if args.reset_records and args.keep_records:
+        parser.error("--reset-records and --keep-records cannot be used together")
+
+    if args.reset_records:
         delete_json(args.api, "/api/audit/records")
         empty_summary = get_json(args.api, "/api/dashboard/summary?period=all")
         assert empty_summary["total_requests"] == 0
