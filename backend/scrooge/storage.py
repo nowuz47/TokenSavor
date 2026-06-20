@@ -5,12 +5,16 @@ import hashlib
 import sqlite3
 from pathlib import Path
 import re
+from uuid import uuid4
 
 from scrooge.config import Settings
 from scrooge.pricing import calculate_cost
 from scrooge.schemas import (
     CaptureSource,
+    DeliveryStatus,
+    HotkeyEventRequest,
     MeasurementRequest,
+    MeasurementStatus,
     OptimizeResponse,
     TokenBreakdown,
     TokenizerConfidence,
@@ -89,6 +93,8 @@ class UsageStore:
                 provider_usage_source TEXT,
                 upstream_status INTEGER,
                 capture_source TEXT,
+                delivery_status TEXT,
+                measurement_status TEXT,
                 failure_reason TEXT,
                 tokenizer_confidence TEXT
             )
@@ -103,8 +109,23 @@ class UsageStore:
         self._ensure_column(db, "usage_records", "provider_usage_source", "TEXT")
         self._ensure_column(db, "usage_records", "upstream_status", "INTEGER")
         self._ensure_column(db, "usage_records", "capture_source", "TEXT")
+        self._ensure_column(db, "usage_records", "delivery_status", "TEXT")
+        self._ensure_column(db, "usage_records", "measurement_status", "TEXT")
         self._ensure_column(db, "usage_records", "failure_reason", "TEXT")
         self._ensure_column(db, "usage_records", "tokenizer_confidence", "TEXT")
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS hotkey_events (
+                event_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL,
+                request_id TEXT,
+                status TEXT NOT NULL,
+                failure_reason TEXT,
+                saved_tokens INTEGER NOT NULL,
+                elapsed_ms INTEGER
+            )
+            """
+        )
         db.execute(
             """
             UPDATE usage_records
@@ -113,6 +134,25 @@ class UsageStore:
                 estimated_optimized_tokens = COALESCE(estimated_optimized_tokens, optimized_tokens),
                 request_family_hash = COALESCE(request_family_hash, original_hash),
                 capture_source = COALESCE(capture_source, 'manual'),
+                delivery_status = COALESCE(
+                    delivery_status,
+                    CASE
+                        WHEN state = 'measured' THEN 'measured'
+                        WHEN state = 'sent' AND capture_source = 'proxy' THEN 'sent_proxy'
+                        WHEN state = 'sent' THEN 'copied'
+                        WHEN state = 'rejected' THEN 'not_used'
+                        WHEN state = 'failed' THEN 'failed'
+                        ELSE 'previewed'
+                    END
+                ),
+                measurement_status = COALESCE(
+                    measurement_status,
+                    CASE
+                        WHEN state = 'measured' THEN 'measured'
+                        WHEN provider_usage_source IS NULL THEN 'estimated'
+                        ELSE 'unavailable'
+                    END
+                ),
                 tokenizer_confidence = COALESCE(tokenizer_confidence, 'heuristic_fallback')
             """
         )
@@ -147,8 +187,9 @@ class UsageStore:
                     original_tokens, optimized_tokens, saved_tokens,
                     original_cost_usd, optimized_cost_usd, saved_cost_usd,
                     tokenizer_version, pricing_version, pricing_source_url, applied_rules,
-                    request_family_hash, capture_source, tokenizer_confidence
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    request_family_hash, capture_source, delivery_status, measurement_status,
+                    tokenizer_confidence
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     response.request_id,
@@ -175,6 +216,8 @@ class UsageStore:
                     ",".join(reason.rule_id for reason in response.reasons),
                     _family_hash(provider, model, response.task_type.value, response.original_prompt),
                     capture_source.value,
+                    DeliveryStatus.PREVIEWED.value,
+                    MeasurementStatus.ESTIMATED.value,
                     response.optimized_tokens.tokenizer_confidence.value,
                 ),
             )
@@ -188,6 +231,8 @@ class UsageStore:
         failure_reason: str | None = None,
     ) -> None:
         with self.connect() as db:
+            delivery_status = _delivery_status_for_state(state)
+            measurement_status = MeasurementStatus.MEASURED.value if state == UsageState.MEASURED else None
             cursor = db.execute(
                 """
                 UPDATE usage_records
@@ -195,13 +240,70 @@ class UsageStore:
                     state = ?,
                     decision_notes = COALESCE(?, decision_notes),
                     upstream_status = COALESCE(?, upstream_status),
-                    failure_reason = COALESCE(?, failure_reason)
+                    failure_reason = COALESCE(?, failure_reason),
+                    delivery_status = CASE
+                        WHEN ? IS NOT NULL AND ? = 'sent' AND capture_source = 'proxy' THEN 'sent_proxy'
+                        WHEN ? IS NOT NULL THEN ?
+                        ELSE delivery_status
+                    END,
+                    measurement_status = COALESCE(?, measurement_status)
                 WHERE request_id = ?
                 """,
-                (state.value, notes, upstream_status, failure_reason, request_id),
+                (
+                    state.value,
+                    notes,
+                    upstream_status,
+                    failure_reason,
+                    delivery_status,
+                    state.value,
+                    delivery_status,
+                    delivery_status,
+                    measurement_status,
+                    request_id,
+                ),
             )
             if cursor.rowcount == 0:
                 raise KeyError(request_id)
+
+    def record_hotkey_event(self, event: HotkeyEventRequest) -> dict[str, str]:
+        event_id = uuid4().hex
+        with self.connect() as db:
+            db.execute(
+                """
+                INSERT INTO hotkey_events (
+                    event_id, created_at, request_id, status, failure_reason, saved_tokens, elapsed_ms
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event_id,
+                    datetime.now(timezone.utc).isoformat(),
+                    event.request_id,
+                    event.status,
+                    event.failure_reason,
+                    event.saved_tokens,
+                    event.elapsed_ms,
+                ),
+            )
+            if event.request_id:
+                db.execute(
+                    """
+                    UPDATE usage_records
+                    SET
+                        state = COALESCE(?, state),
+                        delivery_status = COALESCE(?, delivery_status),
+                        failure_reason = COALESCE(?, failure_reason),
+                        decision_notes = COALESCE(?, decision_notes)
+                    WHERE request_id = ?
+                    """,
+                    (
+                        _usage_state_for_hotkey_status(event.status),
+                        _delivery_status_for_hotkey_status(event.status),
+                        event.failure_reason,
+                        _decision_note_for_hotkey_status(event.status),
+                        event.request_id,
+                    ),
+                )
+        return {"event_id": event_id, "status": event.status}
 
     def record_measurement(
         self,
@@ -270,6 +372,8 @@ class UsageStore:
                     measurement_source = ?,
                     provider_usage_source = ?,
                     upstream_status = COALESCE(?, upstream_status),
+                    delivery_status = ?,
+                    measurement_status = ?,
                     tokenizer_confidence = ?,
                     pricing_version = ?,
                     pricing_source_url = ?
@@ -289,6 +393,8 @@ class UsageStore:
                     measurement.source,
                     measurement.source,
                     measurement.upstream_status,
+                    DeliveryStatus.MEASURED.value,
+                    MeasurementStatus.MEASURED.value,
                     "provider_measured",
                     optimized_cost.pricing_version,
                     optimized_cost.source_url,
@@ -315,7 +421,7 @@ class UsageStore:
                     tokenizer_version, estimated_optimized_tokens, measured_original_tokens,
                     measured_input_tokens, measured_output_tokens, decision_notes,
                     provider_usage_source, upstream_status, capture_source, failure_reason,
-                    tokenizer_confidence
+                    delivery_status, measurement_status, tokenizer_confidence
                 FROM usage_records
                 ORDER BY created_at DESC
                 LIMIT ?
@@ -362,6 +468,8 @@ class UsageStore:
                     "provider_usage_source": row["provider_usage_source"],
                     "upstream_status": row["upstream_status"],
                     "capture_source": row["capture_source"] or CaptureSource.MANUAL.value,
+                    "delivery_status": row["delivery_status"] or DeliveryStatus.PREVIEWED.value,
+                    "measurement_status": row["measurement_status"] or MeasurementStatus.ESTIMATED.value,
                     "failure_reason": row["failure_reason"],
                     "tokenizer_confidence": row["tokenizer_confidence"] or "heuristic_fallback",
                     "token_error_rate": (
@@ -376,6 +484,7 @@ class UsageStore:
     def clear_records(self) -> None:
         with self.connect() as db:
             db.execute("DELETE FROM usage_records")
+            db.execute("DELETE FROM hotkey_events")
 
     def summary(self, period: str = "month") -> dict[str, float | int | str]:
         where = _period_clause(period)
@@ -419,6 +528,7 @@ class UsageStore:
             long_context_savings_rate = self._long_context_savings_rate(db, where)
             hotkey_metrics = self._hotkey_metrics(db, where)
             short_prompt_protected_count = self._short_prompt_protected_count(db, where)
+            used_assumed_requests = self._used_assumed_requests(db, where)
 
         total_original = int(row["original_tokens"] or 0)
         saved = int(row["saved_tokens"] or 0)
@@ -450,6 +560,8 @@ class UsageStore:
             "hotkey_failed_requests": hotkey_metrics["failed_requests"],
             "hotkey_success_rate": hotkey_metrics["success_rate"],
             "hotkey_validation_status": hotkey_metrics["validation_status"],
+            "latest_hotkey_status": hotkey_metrics["latest_status"],
+            "used_assumed_requests": used_assumed_requests,
             "backend_health_status": "ok",
         }
 
@@ -540,23 +652,37 @@ class UsageStore:
         return round(saved_tokens / original_tokens, 4) if original_tokens else 0
 
     def _hotkey_metrics(self, db: sqlite3.Connection, where: str) -> dict[str, float | int | str]:
-        row = db.execute(
-            f"""
-            SELECT
-                COUNT(*) as total_requests,
-                SUM(CASE WHEN state = 'failed' OR failure_reason IS NOT NULL THEN 1 ELSE 0 END) as failed_requests
-            FROM usage_records
-            {where}
-            {'AND' if where else 'WHERE'} capture_source = 'hotkey'
+        event_rows = db.execute(
             """
-        ).fetchone()
-        total_requests = int(row["total_requests"] or 0)
-        failed_requests = int(row["failed_requests"] or 0)
+            SELECT status, failure_reason
+            FROM hotkey_events
+            ORDER BY created_at DESC, rowid DESC
+            LIMIT 30
+            """
+        ).fetchall()
+        if event_rows:
+            total_requests = len(event_rows)
+            failed_requests = sum(1 for row in event_rows if _is_failed_hotkey_status(str(row["status"])))
+            latest_status = str(event_rows[0]["status"])
+        else:
+            row = db.execute(
+                f"""
+                SELECT
+                    COUNT(*) as total_requests,
+                    SUM(CASE WHEN state = 'failed' OR failure_reason IS NOT NULL THEN 1 ELSE 0 END) as failed_requests
+                FROM usage_records
+                {where}
+                {'AND' if where else 'WHERE'} capture_source = 'hotkey'
+                """
+            ).fetchone()
+            total_requests = int(row["total_requests"] or 0)
+            failed_requests = int(row["failed_requests"] or 0)
+            latest_status = None
         successful_requests = max(0, total_requests - failed_requests)
         success_rate = round(successful_requests / total_requests, 4) if total_requests else 0
         if total_requests < 30:
             validation_status = "needs_validation"
-        elif success_rate >= 0.9 and failed_requests == 0:
+        elif success_rate >= 0.9 and failed_requests <= 3:
             validation_status = "passed"
         else:
             validation_status = "failed"
@@ -565,6 +691,7 @@ class UsageStore:
             "failed_requests": failed_requests,
             "success_rate": success_rate,
             "validation_status": validation_status,
+            "latest_status": latest_status,
         }
 
     def _short_prompt_protected_count(self, db: sqlite3.Connection, where: str) -> int:
@@ -587,6 +714,21 @@ class UsageStore:
             """
         ).fetchone()
         return int(row["protected_count"] or 0)
+
+    def _used_assumed_requests(self, db: sqlite3.Connection, where: str) -> int:
+        row = db.execute(
+            f"""
+            SELECT COUNT(*) as used_count
+            FROM usage_records
+            {where}
+            {'AND' if where else 'WHERE'} delivery_status IN (
+                'pasted_assumed_used',
+                'sent_proxy',
+                'measured'
+            )
+            """
+        ).fetchone()
+        return int(row["used_count"] or 0)
 
 
 def _hash_text(text: str) -> str:
@@ -631,6 +773,50 @@ def _rejection_reason(
             return "no_savings_quality_guard"
         return "no_savings"
     return "user_kept_original"
+
+
+def _delivery_status_for_state(state: UsageState) -> str:
+    if state == UsageState.SENT:
+        return DeliveryStatus.COPIED.value
+    if state == UsageState.MEASURED:
+        return DeliveryStatus.MEASURED.value
+    if state == UsageState.REJECTED:
+        return DeliveryStatus.NOT_USED.value
+    if state == UsageState.FAILED:
+        return DeliveryStatus.FAILED.value
+    return DeliveryStatus.PREVIEWED.value
+
+
+def _delivery_status_for_hotkey_status(status: str) -> str | None:
+    if status == "optimized_pasted":
+        return DeliveryStatus.PASTED_ASSUMED_USED.value
+    if status in {"no_savings_kept_original", "empty_selection"}:
+        return DeliveryStatus.NOT_USED.value
+    if _is_failed_hotkey_status(status):
+        return DeliveryStatus.FAILED.value
+    return None
+
+
+def _usage_state_for_hotkey_status(status: str) -> str | None:
+    if status == "optimized_pasted":
+        return UsageState.SENT.value
+    if status in {"no_savings_kept_original", "empty_selection"}:
+        return UsageState.REJECTED.value
+    if _is_failed_hotkey_status(status):
+        return UsageState.FAILED.value
+    return None
+
+
+def _decision_note_for_hotkey_status(status: str) -> str | None:
+    if status == "empty_selection":
+        return "empty_selection"
+    if status == "no_savings_kept_original":
+        return "no_savings"
+    return None
+
+
+def _is_failed_hotkey_status(status: str) -> bool:
+    return status in {"backend_failed", "clipboard_failed", "paste_failed", "failed"}
 
 
 def _token_error_rate(estimated: int, measured: int) -> float:

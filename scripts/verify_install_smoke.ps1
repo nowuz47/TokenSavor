@@ -24,6 +24,35 @@ function Invoke-Checked {
     }
 }
 
+function Start-AsyncDirectoryCleanup {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path $Path)) {
+        return
+    }
+
+    $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    $resolvedTemp = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($env:TEMP)
+    if (-not $resolvedPath.StartsWith($resolvedTemp, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to clean a directory outside TEMP: $resolvedPath"
+    }
+
+    $cleanupScript = "Remove-Item -LiteralPath '$($resolvedPath.Replace("'", "''"))' -Recurse -Force -ErrorAction SilentlyContinue"
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cleanupScript))
+    try {
+        Start-Process `
+            -FilePath "powershell.exe" `
+            -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encoded `
+            -WindowStyle Hidden | Out-Null
+    }
+    catch {
+        Write-Warning "Deferred cleanup could not be started for $resolvedPath"
+    }
+}
+
 function Invoke-FrontendBuild {
     $tempRoot = Join-Path $env:TEMP ("scrooge-frontend-build-" + [guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
@@ -44,7 +73,7 @@ function Invoke-FrontendBuild {
         }
     }
     finally {
-        Remove-Item -Path $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Start-AsyncDirectoryCleanup -Path $tempRoot
     }
 }
 

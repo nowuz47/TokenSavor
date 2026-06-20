@@ -89,6 +89,15 @@ interface AuditRecord {
   providerUsageSource?: string | null;
   upstreamStatus?: number | null;
   captureSource: "manual" | "clipboard" | "hotkey" | "proxy";
+  deliveryStatus:
+    | "previewed"
+    | "copied"
+    | "pasted_assumed_used"
+    | "sent_proxy"
+    | "measured"
+    | "not_used"
+    | "failed";
+  measurementStatus: "estimated" | "measured" | "unavailable";
   failureReason?: string | null;
   tokenizerConfidence: "estimated_local" | "estimated_provider_count" | "heuristic_fallback" | "provider_measured";
   tokenErrorRate?: number | null;
@@ -189,6 +198,8 @@ function toAuditRecord(record: AuditRecordSummary): AuditRecord {
     providerUsageSource: record.provider_usage_source,
     upstreamStatus: record.upstream_status,
     captureSource: record.capture_source,
+    deliveryStatus: record.delivery_status,
+    measurementStatus: record.measurement_status,
     failureReason: record.failure_reason,
     tokenizerConfidence: record.tokenizer_confidence,
     tokenErrorRate: record.token_error_rate
@@ -248,6 +259,8 @@ export default function App() {
       hotkeyFailedRequests: summary?.hotkey_failed_requests ?? 0,
       hotkeySuccessRate: summary?.hotkey_success_rate ?? 0,
       hotkeyValidationStatus: summary?.hotkey_validation_status ?? "needs_validation",
+      latestHotkeyStatus: summary?.latest_hotkey_status ?? null,
+      usedAssumedRequests: summary?.used_assumed_requests ?? 0,
       backendHealthStatus: runtimeStatus?.backend_status ?? summary?.backend_health_status ?? "unknown",
       databaseStatus: runtimeStatus?.database_status ?? "unknown",
       sidecarStatus: runtimeStatus?.sidecar_status ?? "unknown",
@@ -344,11 +357,15 @@ export default function App() {
     let disposed = false;
     const unlistenPromise = listen<{
       request_id?: string;
+      event_status?: string;
       saved_tokens?: number;
       status?: "empty" | "failed" | "no_savings" | "optimized";
     }>("scrooge-hotkey-result", async (event) => {
       if (disposed) return;
       await refreshTelemetry();
+      window.setTimeout(() => {
+        void refreshTelemetry();
+      }, 1500);
       const status = event.payload.status;
       if (status === "optimized") {
         showToast(`${labels.toast.hotkeyCopied} (${(event.payload.saved_tokens ?? 0).toLocaleString()} tokens)`);
@@ -379,10 +396,7 @@ export default function App() {
       setRuntimeStatus(nextRuntime);
       setLastTelemetryRefresh(new Date().toLocaleTimeString());
     } catch {
-      setSummary(null);
-      setAuditRecords([]);
-      setQualitySummary(null);
-      setRuntimeStatus(null);
+      setLastTelemetryRefresh(locale === "ko" ? "새로고침 실패" : "Refresh failed");
     }
   }
 
@@ -1010,6 +1024,8 @@ function DashboardTab(props: {
     hotkeyAttempts: number;
     hotkeyFailedRequests: number;
     hotkeyValidationStatus: "needs_validation" | "passed" | "failed";
+    latestHotkeyStatus: string | null;
+    usedAssumedRequests: number;
     longContextSavingsRate: number;
     maxTokenErrorRate: number;
     measuredRequests: number;
@@ -1136,6 +1152,8 @@ function DashboardTab(props: {
             />
             <DashboardCard icon={<ClipboardCheck />} label={props.copy.dashboard.hotkeySuccess} value={`${props.aggregate.hotkeyAttempts} / ${(props.aggregate.hotkeySuccessRate * 100).toFixed(0)}%`} />
             <DashboardCard icon={<X />} label={props.copy.dashboard.hotkeyFailures} value={props.aggregate.hotkeyFailedRequests} />
+            <DashboardCard icon={<Terminal />} label={props.copy.dashboard.latestHotkey} value={props.aggregate.latestHotkeyStatus ?? "-"} />
+            <DashboardCard icon={<CheckCircle />} label={props.copy.dashboard.usedAssumed} value={props.aggregate.usedAssumedRequests} />
             <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.shortPromptProtected} value={props.aggregate.shortPromptProtectedCount} />
             <DashboardCard icon={<X />} label={props.copy.dashboard.shortOverOptimization} value={props.aggregate.shortPromptOverOptimizationCount} />
             <DashboardCard icon={<Server />} label={props.copy.dashboard.backendHealth} value={props.aggregate.backendHealthStatus} />
@@ -1481,6 +1499,18 @@ function AuditRows(props: { copy: Copy; expanded: boolean; record: AuditRecord; 
                 <strong>{props.copy.audit.captureSource}</strong>
                 <span className="hash-line">{props.record.captureSource}</span>
               </div>
+              <div>
+                <strong>{props.copy.audit.deliveryStatus}</strong>
+                <span className="hash-line">
+                  {formatDeliveryStatus(props.record.deliveryStatus, props.copy)}
+                </span>
+              </div>
+              <div>
+                <strong>{props.copy.audit.measurementStatus}</strong>
+                <span className="hash-line">
+                  {formatMeasurementStatus(props.record.measurementStatus, props.copy)}
+                </span>
+              </div>
               {props.record.failureReason ? (
                 <div>
                   <strong>{props.copy.audit.failureReason}</strong>
@@ -1582,6 +1612,14 @@ function formatRejectionReason(reason: string | null | undefined, labels: Copy) 
 
 function formatHotkeyValidation(status: "needs_validation" | "passed" | "failed", labels: Copy) {
   return labels.dashboard.hotkeyValidationStates[status] ?? status;
+}
+
+function formatDeliveryStatus(status: AuditRecord["deliveryStatus"], labels: Copy) {
+  return labels.audit.deliveryStatusLabels[status] ?? status;
+}
+
+function formatMeasurementStatus(status: AuditRecord["measurementStatus"], labels: Copy) {
+  return labels.audit.measurementStatusLabels[status] ?? status;
 }
 
 function getNoSavingsReason(response: OptimizeResponse): keyof Copy["audit"]["rejectionReasons"] {

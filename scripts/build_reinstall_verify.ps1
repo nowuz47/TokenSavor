@@ -6,6 +6,7 @@ param(
     [ValidateSet("onefile", "onedir")]
     [string]$BackendPackagingMode = "onefile",
     [int]$InstallTimeoutSeconds = 120,
+    [switch]$SkipOps,
     [switch]$SkipInstall,
     [switch]$SkipSmoke
 )
@@ -41,6 +42,35 @@ function Invoke-CmdChecked {
     }
 }
 
+function Start-AsyncDirectoryCleanup {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path $Path)) {
+        return
+    }
+
+    $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    $resolvedTemp = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($env:TEMP)
+    if (-not $resolvedPath.StartsWith($resolvedTemp, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to clean a directory outside TEMP: $resolvedPath"
+    }
+
+    $cleanupScript = "Remove-Item -LiteralPath '$($resolvedPath.Replace("'", "''"))' -Recurse -Force -ErrorAction SilentlyContinue"
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cleanupScript))
+    try {
+        Start-Process `
+            -FilePath "powershell.exe" `
+            -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encoded `
+            -WindowStyle Hidden | Out-Null
+    }
+    catch {
+        Write-Warning "Deferred cleanup could not be started for $resolvedPath"
+    }
+}
+
 Stop-Process -Name "Scrooge" -ErrorAction SilentlyContinue
 Stop-Process -Name "scrooge-backend" -ErrorAction SilentlyContinue
 
@@ -71,7 +101,7 @@ try {
     Invoke-CmdChecked -Command $buildCommand -Label "Tauri installer build"
 }
 finally {
-    Remove-Item -Path $frontendBuildDir -Recurse -Force -ErrorAction SilentlyContinue
+    Start-AsyncDirectoryCleanup -Path $frontendBuildDir
 }
 
 $installerSearchDirs = @(
@@ -130,6 +160,13 @@ if (-not $SkipInstall) {
 
     if ($runtime.backend_status -ne "ok" -or $runtime.database_status -ne "ok") {
         throw "Installed runtime check failed: $($runtime | ConvertTo-Json -Compress)"
+    }
+
+    if (-not $SkipOps) {
+        & (Join-Path $scriptRoot "verify_installed_ops.ps1") -ApiBase $ApiBase
+        if ($LASTEXITCODE -ne 0) {
+            throw "Installed ops verification failed with exit code $LASTEXITCODE"
+        }
     }
 }
 

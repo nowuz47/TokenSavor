@@ -72,6 +72,8 @@ export interface DashboardSummary {
   hotkey_failed_requests: number;
   hotkey_success_rate: number;
   hotkey_validation_status: "needs_validation" | "passed" | "failed";
+  latest_hotkey_status?: string | null;
+  used_assumed_requests: number;
   backend_health_status: string;
 }
 
@@ -141,6 +143,15 @@ export interface AuditRecordSummary {
   provider_usage_source?: string | null;
   upstream_status?: number | null;
   capture_source: "manual" | "clipboard" | "hotkey" | "proxy";
+  delivery_status:
+    | "previewed"
+    | "copied"
+    | "pasted_assumed_used"
+    | "sent_proxy"
+    | "measured"
+    | "not_used"
+    | "failed";
+  measurement_status: "estimated" | "measured" | "unavailable";
   failure_reason?: string | null;
   tokenizer_confidence: "estimated_local" | "estimated_provider_count" | "heuristic_fallback" | "provider_measured";
   token_error_rate?: number | null;

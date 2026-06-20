@@ -15,6 +15,8 @@ from scrooge.schemas import (
     ApprovalResponse,
     CategoryDashboardSummary,
     DashboardSummary,
+    HotkeyEventRequest,
+    HotkeyEventResponse,
     MeasurementRequest,
     MeasurementResponse,
     OptimizeRequest,
@@ -82,6 +84,14 @@ def approve_request(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="request_id not found") from exc
     return ApprovalResponse(request_id=request_id, state=state)
+
+
+@app.post("/api/hotkey/events", response_model=HotkeyEventResponse)
+def record_hotkey_event(
+    event: HotkeyEventRequest,
+    store: UsageStore = Depends(get_store),
+) -> HotkeyEventResponse:
+    return HotkeyEventResponse(**store.record_hotkey_event(event))
 
 
 @app.post("/api/audit/records/{request_id}/measurement", response_model=MeasurementResponse)

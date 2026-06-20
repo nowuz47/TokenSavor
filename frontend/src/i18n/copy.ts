@@ -122,6 +122,7 @@ export const copy = {
         needs_validation: "Needs 30 uses",
         passed: "Passed"
       },
+      latestHotkey: "Latest Hotkey",
       issues: "Issues",
       longContextSavings: "Long Context Savings",
       measuredData: "measured",
@@ -148,6 +149,7 @@ export const copy = {
       telemetryNote: "Local hook telemetry refreshes every 5 seconds.",
       totalAudits: "Total Audits",
       trend: "Token Savings Trend",
+      usedAssumed: "Used Assumed",
       workType: "Work Type"
     },
     audit: {
@@ -159,6 +161,22 @@ export const copy = {
       captureSource: "Capture source",
       failureReason: "Failure reason",
       providerUsageSource: "Provider usage source",
+      deliveryStatus: "Delivery",
+      deliveryStatusLabels: {
+        copied: "Copied",
+        failed: "Failed",
+        measured: "Measured",
+        not_used: "Not used",
+        pasted_assumed_used: "Used assumed",
+        previewed: "Previewed",
+        sent_proxy: "Proxy sent"
+      },
+      measurementStatus: "Measurement",
+      measurementStatusLabels: {
+        estimated: "Estimated",
+        measured: "Measured",
+        unavailable: "Unavailable"
+      },
       privacy: "Prompt text was not written to local SQLite storage. Hashed-only mode is active.",
       rejectionReason: "Reject reason",
       rejectionReasons: {
@@ -358,6 +376,7 @@ export const copy = {
         needs_validation: "30회 검증 필요",
         passed: "통과"
       },
+      latestHotkey: "최근 단축키",
       issues: "이슈",
       longContextSavings: "긴 컨텍스트 절감률",
       measuredData: "실측",
@@ -384,6 +403,7 @@ export const copy = {
       telemetryNote: "로컬 후킹 텔레메트리는 5초마다 새로고침됩니다.",
       totalAudits: "전체 감사",
       trend: "토큰 절감 추이",
+      usedAssumed: "사용됨 추정",
       workType: "작업 유형"
     },
     audit: {
@@ -395,6 +415,22 @@ export const copy = {
       captureSource: "캡처 경로",
       failureReason: "실패 사유",
       providerUsageSource: "provider 사용량 출처",
+      deliveryStatus: "전달 상태",
+      deliveryStatusLabels: {
+        copied: "복사됨",
+        failed: "실패",
+        measured: "실측",
+        not_used: "미사용",
+        pasted_assumed_used: "사용됨 추정",
+        previewed: "미리보기",
+        sent_proxy: "프록시 전송"
+      },
+      measurementStatus: "실측 구분",
+      measurementStatusLabels: {
+        estimated: "추정",
+        measured: "실측",
+        unavailable: "불가"
+      },
       privacy: "프롬프트 전문은 로컬 SQLite에 저장하지 않습니다. 해시 전용 모드가 활성화되어 있습니다.",
       rejectionReason: "거절 사유",
       rejectionReasons: {

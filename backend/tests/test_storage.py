@@ -1,6 +1,6 @@
 from scrooge.config import Settings
 from scrooge.optimizer import optimize_prompt
-from scrooge.schemas import CaptureSource, MeasurementRequest, OptimizeRequest, UsageState
+from scrooge.schemas import CaptureSource, HotkeyEventRequest, MeasurementRequest, OptimizeRequest, UsageState
 from scrooge.storage import UsageStore
 
 
@@ -38,6 +38,8 @@ def test_storage_records_preview_without_prompt_body_by_default(tmp_path) -> Non
     assert records[0]["provider_usage_source"] == "openai_usage"
     assert records[0]["upstream_status"] == 200
     assert records[0]["capture_source"] == "hotkey"
+    assert records[0]["delivery_status"] == "measured"
+    assert records[0]["measurement_status"] == "measured"
     assert records[0]["tokenizer_confidence"] == "provider_measured"
     assert records[0]["token_error_rate"] is not None
 
@@ -122,6 +124,46 @@ def test_summary_reports_hotkey_validation_and_short_prompt_protection(tmp_path)
     assert summary["hotkey_success_rate"] == 1
     assert summary["hotkey_validation_status"] == "passed"
     assert summary["short_prompt_protected_count"] == 30
+
+
+def test_hotkey_events_drive_recent_validation_and_delivery_status(tmp_path) -> None:
+    db_path = tmp_path / "scrooge.db"
+    settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)
+    store = UsageStore(settings)
+    response = optimize_prompt(
+        OptimizeRequest(
+            prompt="ERROR payment failed\nERROR payment failed\nERROR payment failed",
+            provider="openai",
+            capture_source=CaptureSource.HOTKEY,
+        )
+    )
+    store.save_preview(response, provider="openai", model="gpt-5.4-mini", capture_source=CaptureSource.HOTKEY)
+
+    store.record_hotkey_event(
+        HotkeyEventRequest(
+            request_id=response.request_id,
+            status="optimized_pasted",
+            saved_tokens=response.saved_tokens,
+            elapsed_ms=420,
+        )
+    )
+    for index in range(26):
+        store.record_hotkey_event(HotkeyEventRequest(status="no_savings_kept_original", elapsed_ms=120 + index))
+    for status in ("backend_failed", "clipboard_failed", "paste_failed"):
+        store.record_hotkey_event(HotkeyEventRequest(status=status, failure_reason=status, elapsed_ms=500))
+
+    summary = store.summary("all")
+    record = store.list_records()[0]
+
+    assert summary["hotkey_attempts"] == 30
+    assert summary["hotkey_failed_requests"] == 3
+    assert summary["hotkey_success_rate"] == 0.9
+    assert summary["hotkey_validation_status"] == "passed"
+    assert summary["latest_hotkey_status"] == "paste_failed"
+    assert summary["used_assumed_requests"] == 1
+    assert record["state"] == "sent"
+    assert record["delivery_status"] == "pasted_assumed_used"
+    assert record["measurement_status"] == "estimated"
 
 
 def test_summary_counts_repeated_prompt_family_as_followup_request(tmp_path) -> None:

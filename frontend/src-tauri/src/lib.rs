@@ -11,7 +11,7 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::Mutex;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[cfg(windows)]
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -103,6 +103,7 @@ fn start_backend_sidecar(app: &tauri::App) {
 
 fn optimize_active_field_via_backend(app: AppHandle) {
     thread::spawn(move || {
+        let started = Instant::now();
         thread::sleep(Duration::from_millis(350));
         let previous_clipboard = app.clipboard().read_text().ok();
         send_ctrl_key('A');
@@ -111,14 +112,30 @@ fn optimize_active_field_via_backend(app: AppHandle) {
         thread::sleep(Duration::from_millis(220));
 
         let Ok(text) = app.clipboard().read_text() else {
-            emit_hotkey_result(&app, "failed", 0, "");
+            emit_hotkey_result(
+                &app,
+                "failed",
+                "clipboard_failed",
+                0,
+                "",
+                Some("clipboard_read_failed"),
+                started.elapsed().as_millis(),
+            );
             return;
         };
         if text.trim().is_empty() {
             if let Some(previous) = previous_clipboard {
                 let _ = app.clipboard().write_text(previous);
             }
-            emit_hotkey_result(&app, "empty", 0, "");
+            emit_hotkey_result(
+                &app,
+                "empty",
+                "empty_selection",
+                0,
+                "",
+                None,
+                started.elapsed().as_millis(),
+            );
             return;
         }
 
@@ -133,7 +150,15 @@ fn optimize_active_field_via_backend(app: AppHandle) {
         let Some(response) = post_json("/api/optimize", &body) else {
             let _ = app.clipboard().write_text(text);
             send_ctrl_key('V');
-            emit_hotkey_result(&app, "failed", 0, "");
+            emit_hotkey_result(
+                &app,
+                "failed",
+                "backend_failed",
+                0,
+                "",
+                Some("optimize_request_failed"),
+                started.elapsed().as_millis(),
+            );
             return;
         };
         let request_id = response
@@ -156,7 +181,15 @@ fn optimize_active_field_via_backend(app: AppHandle) {
             }
             let _ = app.clipboard().write_text(text);
             send_ctrl_key('V');
-            emit_hotkey_result(&app, "no_savings", 0, &request_id);
+            emit_hotkey_result(
+                &app,
+                "no_savings",
+                "no_savings_kept_original",
+                0,
+                &request_id,
+                None,
+                started.elapsed().as_millis(),
+            );
             return;
         }
 
@@ -166,7 +199,15 @@ fn optimize_active_field_via_backend(app: AppHandle) {
         else {
             let _ = app.clipboard().write_text(text);
             send_ctrl_key('V');
-            emit_hotkey_result(&app, "failed", 0, &request_id);
+            emit_hotkey_result(
+                &app,
+                "failed",
+                "backend_failed",
+                0,
+                &request_id,
+                Some("missing_optimized_prompt"),
+                started.elapsed().as_millis(),
+            );
             return;
         };
 
@@ -179,9 +220,25 @@ fn optimize_active_field_via_backend(app: AppHandle) {
                     &serde_json::json!({ "approved": true }),
                 );
             }
-            emit_hotkey_result(&app, "optimized", saved_tokens, &request_id);
+            emit_hotkey_result(
+                &app,
+                "optimized",
+                "optimized_pasted",
+                saved_tokens,
+                &request_id,
+                None,
+                started.elapsed().as_millis(),
+            );
         } else {
-            emit_hotkey_result(&app, "failed", 0, &request_id);
+            emit_hotkey_result(
+                &app,
+                "failed",
+                "clipboard_failed",
+                0,
+                &request_id,
+                Some("optimized_clipboard_write_failed"),
+                started.elapsed().as_millis(),
+            );
         }
     });
 }
@@ -206,11 +263,35 @@ fn no_savings_note(response: &serde_json::Value) -> &'static str {
     }
 }
 
-fn emit_hotkey_result(app: &AppHandle, status: &str, saved_tokens: i64, request_id: &str) {
+fn emit_hotkey_result(
+    app: &AppHandle,
+    status: &str,
+    event_status: &str,
+    saved_tokens: i64,
+    request_id: &str,
+    failure_reason: Option<&str>,
+    elapsed_ms: u128,
+) {
+    let request_id_value = if request_id.is_empty() {
+        serde_json::Value::Null
+    } else {
+        serde_json::json!(request_id)
+    };
+    let _ = post_json(
+        "/api/hotkey/events",
+        &serde_json::json!({
+            "request_id": request_id_value,
+            "status": event_status,
+            "failure_reason": failure_reason,
+            "saved_tokens": saved_tokens.max(0),
+            "elapsed_ms": elapsed_ms
+        }),
+    );
     let _ = app.emit(
         "scrooge-hotkey-result",
         serde_json::json!({
             "status": status,
+            "event_status": event_status,
             "saved_tokens": saved_tokens,
             "request_id": request_id
         }),

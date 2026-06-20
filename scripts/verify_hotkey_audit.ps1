@@ -7,6 +7,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$dashboard = Invoke-RestMethod -Uri "$ApiBase/api/dashboard/summary?period=all" -Method Get
 $records = @(Invoke-RestMethod -Uri "$ApiBase/api/audit/records?limit=10000" -Method Get)
 if ($SinceMinutes -gt 0) {
     $cutoff = (Get-Date).AddMinutes(-1 * $SinceMinutes)
@@ -29,8 +30,9 @@ $noSavingsRecords = @($hotkeyRecords | Where-Object {
     ($_.state -eq "rejected") -and (($_.rejection_reason -like "no_savings*") -or ($_.rejectionReason -like "no_savings*"))
 })
 
-$attempts = $hotkeyRecords.Count
-$successes = [Math]::Max(0, $attempts - $failedRecords.Count)
+$attempts = if ($dashboard.hotkey_attempts -ne $null) { [int]$dashboard.hotkey_attempts } else { $hotkeyRecords.Count }
+$failures = if ($dashboard.hotkey_failed_requests -ne $null) { [int]$dashboard.hotkey_failed_requests } else { $failedRecords.Count }
+$successes = [Math]::Max(0, $attempts - $failures)
 $successRate = if ($attempts -gt 0) { $successes / $attempts } else { 0 }
 $savedTokens = ($hotkeyRecords | Measure-Object -Property saved_tokens -Sum).Sum
 if ($null -eq $savedTokens) {
@@ -47,8 +49,11 @@ $summary = [ordered]@{
     minimumSuccessRate = $MinimumSuccessRate
     attempts = $attempts
     successes = $successes
-    failures = $failedRecords.Count
+    failures = $failures
     successRate = [Math]::Round($successRate, 4)
+    validationStatus = $dashboard.hotkey_validation_status
+    latestHotkeyStatus = $dashboard.latest_hotkey_status
+    usedAssumedRequests = $dashboard.used_assumed_requests
     optimized = $optimizedRecords.Count
     noSavings = $noSavingsRecords.Count
     savedTokens = [int]$savedTokens

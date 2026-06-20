@@ -24,6 +24,22 @@ class UsageState(StrEnum):
     FAILED = "failed"
 
 
+class DeliveryStatus(StrEnum):
+    PREVIEWED = "previewed"
+    COPIED = "copied"
+    PASTED_ASSUMED_USED = "pasted_assumed_used"
+    SENT_PROXY = "sent_proxy"
+    MEASURED = "measured"
+    NOT_USED = "not_used"
+    FAILED = "failed"
+
+
+class MeasurementStatus(StrEnum):
+    ESTIMATED = "estimated"
+    MEASURED = "measured"
+    UNAVAILABLE = "unavailable"
+
+
 class CaptureSource(StrEnum):
     MANUAL = "manual"
     CLIPBOARD = "clipboard"
@@ -95,6 +111,19 @@ class ApprovalResponse(BaseModel):
     state: UsageState
 
 
+class HotkeyEventRequest(BaseModel):
+    request_id: str | None = None
+    status: str
+    failure_reason: str | None = None
+    saved_tokens: int = Field(default=0, ge=0)
+    elapsed_ms: int | None = Field(default=None, ge=0)
+
+
+class HotkeyEventResponse(BaseModel):
+    event_id: str
+    status: str
+
+
 class MeasurementRequest(BaseModel):
     measured_input_tokens: int = Field(ge=0)
     measured_output_tokens: int = Field(ge=0)
@@ -137,6 +166,8 @@ class DashboardSummary(BaseModel):
     hotkey_failed_requests: int = 0
     hotkey_success_rate: float = 0
     hotkey_validation_status: str = "needs_validation"
+    latest_hotkey_status: str | None = None
+    used_assumed_requests: int = 0
     backend_health_status: str = "ok"
 
 
@@ -206,6 +237,8 @@ class AuditRecordSummary(BaseModel):
     provider_usage_source: str | None = None
     upstream_status: int | None = None
     capture_source: CaptureSource = CaptureSource.MANUAL
+    delivery_status: DeliveryStatus = DeliveryStatus.PREVIEWED
+    measurement_status: MeasurementStatus = MeasurementStatus.ESTIMATED
     failure_reason: str | None = None
     tokenizer_confidence: TokenizerConfidence = TokenizerConfidence.HEURISTIC_FALLBACK
     token_error_rate: float | None = None

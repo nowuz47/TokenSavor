@@ -1,7 +1,9 @@
 param(
     [string]$ApiBase = "http://127.0.0.1:8750",
     [int]$DurationSec = 14400,
+    [int]$DurationMinutes = 0,
     [int]$IntervalSec = 30,
+    [switch]$Quick,
     [string]$ReportPath = ""
 )
 
@@ -14,6 +16,14 @@ $pythonExe = Join-Path $backendDir ".venv\Scripts\python.exe"
 
 if (-not (Test-Path $pythonExe)) {
     throw "Backend virtualenv not found at $pythonExe"
+}
+
+if ($Quick) {
+    $DurationSec = 300
+    $IntervalSec = 10
+}
+if ($DurationMinutes -gt 0) {
+    $DurationSec = $DurationMinutes * 60
 }
 
 if (-not $ReportPath) {
