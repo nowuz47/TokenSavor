@@ -1,11 +1,15 @@
 import type {
   AuditRecordSummary,
+  AdminPolicy,
   CategoryDashboardSummary,
+  CompatibilityStatus,
   DashboardSummary,
+  DiagnosticsBundle,
   MeasurementResponse,
   OptimizeResponse,
   QualitySummary,
   RuntimeStatus,
+  SecurityScanResponse,
   TaskType
 } from "./types";
 
@@ -49,6 +53,42 @@ export async function getRuntimeStatus(): Promise<RuntimeStatus> {
   const response = await fetch(`${API_BASE}/api/runtime/status`);
   if (!response.ok) {
     throw new Error(`Runtime status failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getCompatibilityStatus(): Promise<CompatibilityStatus> {
+  const response = await fetch(`${API_BASE}/api/compatibility/status`);
+  if (!response.ok) {
+    throw new Error(`Compatibility status failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getAdminPolicy(): Promise<AdminPolicy> {
+  const response = await fetch(`${API_BASE}/api/admin/policy`);
+  if (!response.ok) {
+    throw new Error(`Admin policy failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getDiagnosticsBundle(): Promise<DiagnosticsBundle> {
+  const response = await fetch(`${API_BASE}/api/diagnostics/bundle`);
+  if (!response.ok) {
+    throw new Error(`Diagnostics bundle failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function scanPromptSecurity(prompt: string): Promise<SecurityScanResponse> {
+  const response = await fetch(`${API_BASE}/api/security/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt })
+  });
+  if (!response.ok) {
+    throw new Error(`Security scan failed: ${response.status}`);
   }
   return response.json();
 }

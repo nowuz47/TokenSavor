@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 import hashlib
+import json
 import sqlite3
 from pathlib import Path
 import re
@@ -11,6 +12,7 @@ from scrooge.config import Settings
 from scrooge.pricing import calculate_cost
 from scrooge.schemas import (
     CaptureSource,
+    CompatibilityRunRequest,
     DeliveryStatus,
     HotkeyEventRequest,
     MeasurementRequest,
@@ -20,6 +22,10 @@ from scrooge.schemas import (
     TokenizerConfidence,
     UsageState,
 )
+
+
+COMPATIBILITY_TARGETS = ("codex_desktop", "claude_code", "gemini_cli", "cursor", "windsurf")
+COMPATIBILITY_REQUIRED_ATTEMPTS = 100
 
 
 def _sqlite_path(database_url: str) -> str:
@@ -123,6 +129,23 @@ class UsageStore:
                 failure_reason TEXT,
                 saved_tokens INTEGER NOT NULL,
                 elapsed_ms INTEGER
+            )
+            """
+        )
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS compatibility_runs (
+                run_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL,
+                target_app TEXT NOT NULL,
+                target_version TEXT,
+                verification_mode TEXT NOT NULL,
+                attempts INTEGER NOT NULL,
+                successes INTEGER NOT NULL,
+                failures INTEGER NOT NULL,
+                prompt_loss_count INTEGER NOT NULL,
+                failure_reasons TEXT NOT NULL,
+                notes TEXT
             )
             """
         )
@@ -304,6 +327,158 @@ class UsageStore:
                     ),
                 )
         return {"event_id": event_id, "status": event.status}
+
+    def record_compatibility_run(self, run: CompatibilityRunRequest) -> dict[str, object]:
+        run_id = uuid4().hex
+        created_at = datetime.now(timezone.utc)
+        attempts = max(run.attempts, run.successes + run.failures)
+        failures = max(run.failures, attempts - run.successes)
+        success_rate = _success_rate(attempts, run.successes)
+        status = _compatibility_status(attempts, success_rate, run.prompt_loss_count)
+        with self.connect() as db:
+            db.execute(
+                """
+                INSERT INTO compatibility_runs (
+                    run_id, created_at, target_app, target_version, verification_mode,
+                    attempts, successes, failures, prompt_loss_count, failure_reasons, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    run_id,
+                    created_at.isoformat(),
+                    run.target_app,
+                    run.target_version,
+                    run.verification_mode,
+                    attempts,
+                    run.successes,
+                    failures,
+                    run.prompt_loss_count,
+                    json.dumps(run.failure_reasons, ensure_ascii=False),
+                    run.notes,
+                ),
+            )
+        return {
+            "run_id": run_id,
+            "target_app": run.target_app,
+            "status": status,
+            "attempts": attempts,
+            "successes": run.successes,
+            "failures": failures,
+            "success_rate": success_rate,
+            "prompt_loss_count": run.prompt_loss_count,
+            "verified_at": created_at,
+        }
+
+    def compatibility_status(self) -> dict[str, object]:
+        with self.connect() as db:
+            rows = db.execute(
+                """
+                SELECT *
+                FROM compatibility_runs
+                ORDER BY datetime(created_at) DESC, rowid DESC
+                """
+            ).fetchall()
+        latest_by_target: dict[str, sqlite3.Row] = {}
+        for row in rows:
+            target = str(row["target_app"])
+            if target not in latest_by_target:
+                latest_by_target[target] = row
+        targets = []
+        for target in COMPATIBILITY_TARGETS:
+            row = latest_by_target.get(target)
+            if row is None:
+                targets.append(
+                    {
+                        "target_app": target,
+                        "status": "pending_real_test",
+                        "attempts": 0,
+                        "successes": 0,
+                        "failures": 0,
+                        "success_rate": 0,
+                        "prompt_loss_count": 0,
+                        "required_attempts": COMPATIBILITY_REQUIRED_ATTEMPTS,
+                        "last_verified_at": None,
+                        "failure_reasons": [],
+                    }
+                )
+                continue
+            attempts = int(row["attempts"] or 0)
+            successes = int(row["successes"] or 0)
+            prompt_loss_count = int(row["prompt_loss_count"] or 0)
+            success_rate = _success_rate(attempts, successes)
+            targets.append(
+                {
+                    "target_app": target,
+                    "status": _compatibility_status(attempts, success_rate, prompt_loss_count),
+                    "attempts": attempts,
+                    "successes": successes,
+                    "failures": int(row["failures"] or 0),
+                    "success_rate": success_rate,
+                    "prompt_loss_count": prompt_loss_count,
+                    "required_attempts": COMPATIBILITY_REQUIRED_ATTEMPTS,
+                    "last_verified_at": row["created_at"],
+                    "failure_reasons": _json_list(row["failure_reasons"]),
+                }
+            )
+        codex = next(item for item in targets if item["target_app"] == "codex_desktop")
+        if codex["status"] == "verified":
+            overall_status = "verified"
+        elif codex["status"] == "failed":
+            overall_status = "failed"
+        elif codex["attempts"]:
+            overall_status = "limited"
+        else:
+            overall_status = "pending_real_test"
+        return {"overall_status": overall_status, "targets": targets}
+
+    def recent_failures(self, limit: int = 20) -> list[dict[str, object]]:
+        with self.connect() as db:
+            usage_rows = db.execute(
+                """
+                SELECT request_id, created_at, capture_source, delivery_status, failure_reason, upstream_status
+                FROM usage_records
+                WHERE state = 'failed' OR failure_reason IS NOT NULL
+                ORDER BY datetime(created_at) DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            hotkey_rows = db.execute(
+                """
+                SELECT event_id, created_at, status, failure_reason
+                FROM hotkey_events
+                WHERE failure_reason IS NOT NULL OR status IN ('backend_failed', 'clipboard_failed', 'paste_failed', 'failed')
+                ORDER BY datetime(created_at) DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        failures: list[dict[str, object]] = []
+        for row in usage_rows:
+            failures.append(
+                {
+                    "kind": "usage_record",
+                    "id": row["request_id"],
+                    "created_at": row["created_at"],
+                    "source": row["capture_source"],
+                    "status": row["delivery_status"],
+                    "reason": row["failure_reason"],
+                    "upstream_status": row["upstream_status"],
+                }
+            )
+        for row in hotkey_rows:
+            failures.append(
+                {
+                    "kind": "hotkey_event",
+                    "id": row["event_id"],
+                    "created_at": row["created_at"],
+                    "source": "hotkey",
+                    "status": row["status"],
+                    "reason": row["failure_reason"],
+                    "upstream_status": None,
+                }
+            )
+        return sorted(failures, key=lambda item: str(item["created_at"]), reverse=True)[:limit]
 
     def record_measurement(
         self,
@@ -821,6 +996,34 @@ def _is_failed_hotkey_status(status: str) -> bool:
 
 def _token_error_rate(estimated: int, measured: int) -> float:
     return round(abs(measured - estimated) / estimated, 4) if estimated else 0
+
+
+def _success_rate(attempts: int, successes: int) -> float:
+    return round(successes / attempts, 4) if attempts else 0
+
+
+def _compatibility_status(attempts: int, success_rate: float, prompt_loss_count: int) -> str:
+    if attempts <= 0:
+        return "pending_real_test"
+    if prompt_loss_count > 0:
+        return "failed"
+    if attempts >= COMPATIBILITY_REQUIRED_ATTEMPTS and success_rate >= 0.98:
+        return "verified"
+    if success_rate >= 0.9:
+        return "limited"
+    return "failed"
+
+
+def _json_list(value: object) -> list[str]:
+    if not value:
+        return []
+    try:
+        loaded = json.loads(str(value))
+    except json.JSONDecodeError:
+        return [str(value)]
+    if isinstance(loaded, list):
+        return [str(item) for item in loaded]
+    return [str(loaded)]
 
 
 def _period_clause(period: str) -> str:

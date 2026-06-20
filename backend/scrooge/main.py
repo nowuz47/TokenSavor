@@ -1,5 +1,6 @@
-from functools import lru_cache
 import os
+from datetime import datetime, timezone
+from functools import lru_cache
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,12 +10,18 @@ from scrooge.optimizer import optimize_prompt
 from scrooge.pricing import get_pricing_registry
 from scrooge.proxy import router as proxy_router
 from scrooge.quality import evaluate_quality_report
+from scrooge.security import scan_prompt_security
 from scrooge.schemas import (
+    AdminPolicyResponse,
     AuditRecordSummary,
     ApprovalRequest,
     ApprovalResponse,
     CategoryDashboardSummary,
+    CompatibilityRunRequest,
+    CompatibilityRunResponse,
+    CompatibilityStatusResponse,
     DashboardSummary,
+    DiagnosticsBundleResponse,
     HotkeyEventRequest,
     HotkeyEventResponse,
     MeasurementRequest,
@@ -23,6 +30,8 @@ from scrooge.schemas import (
     OptimizeResponse,
     QualitySummary,
     RuntimeStatusResponse,
+    SecurityScanRequest,
+    SecurityScanResponse,
     UsageState,
 )
 from scrooge.storage import UsageStore
@@ -141,6 +150,58 @@ def runtime_status(store: UsageStore = Depends(get_store)) -> RuntimeStatusRespo
         sidecar_status=os.getenv("SCROOGE_SIDECAR_STATUS", "external"),
         hotkey_status=os.getenv("SCROOGE_HOTKEY_STATUS", "unknown"),
         database_path=store.path,
+    )
+
+
+@app.get("/api/compatibility/status", response_model=CompatibilityStatusResponse)
+def compatibility_status(store: UsageStore = Depends(get_store)) -> CompatibilityStatusResponse:
+    return CompatibilityStatusResponse(**store.compatibility_status())
+
+
+@app.post("/api/compatibility/runs", response_model=CompatibilityRunResponse)
+def record_compatibility_run(
+    run: CompatibilityRunRequest,
+    store: UsageStore = Depends(get_store),
+) -> CompatibilityRunResponse:
+    return CompatibilityRunResponse(**store.record_compatibility_run(run))
+
+
+@app.post("/api/security/scan", response_model=SecurityScanResponse)
+def security_scan(request: SecurityScanRequest) -> SecurityScanResponse:
+    findings, redacted_prompt = scan_prompt_security(request.prompt)
+    return SecurityScanResponse(
+        findings=[finding.__dict__ for finding in findings],
+        redacted_prompt=redacted_prompt,
+        safe_to_store_body=not any(finding.severity == "high" for finding in findings),
+    )
+
+
+@app.get("/api/admin/policy", response_model=AdminPolicyResponse)
+def admin_policy(settings: Settings = Depends(get_settings)) -> AdminPolicyResponse:
+    return AdminPolicyResponse(
+        prompt_body_storage="opt_in_enabled" if settings.store_prompt_bodies else "disabled_by_default",
+        telemetry_scope="team_level_hashes_tokens_rules_decisions",
+        hotkey_enabled=os.getenv("SCROOGE_HOTKEY_STATUS", "unknown") != "register_failed",
+        allowed_measurement_sources=["openai_usage", "anthropic_usage", "gemini_usage", "provider_usage"],
+        diagnostics_include_prompt_body=False,
+        security_scan_required=True,
+    )
+
+
+@app.get("/api/diagnostics/bundle", response_model=DiagnosticsBundleResponse)
+def diagnostics_bundle(
+    settings: Settings = Depends(get_settings),
+    store: UsageStore = Depends(get_store),
+) -> DiagnosticsBundleResponse:
+    return DiagnosticsBundleResponse(
+        generated_at=datetime.now(timezone.utc),
+        app_version=app.version,
+        prompt_body_included=False,
+        runtime=runtime_status(store),
+        dashboard=dashboard_summary(period="all", store=store),
+        compatibility=compatibility_status(store),
+        policy=admin_policy(settings),
+        recent_failures=store.recent_failures(limit=20),
     )
 
 

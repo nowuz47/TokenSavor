@@ -19,7 +19,8 @@ export const copy = {
       optimizeHotkey: "Save clipboard now",
       refresh: "Refresh",
       reject: "Keep original",
-      verifyRates: "Verify Official Rates"
+      verifyRates: "Verify Official Rates",
+      exportDiagnostics: "Export diagnostics"
     },
     status: {
       proxyRunning: "Savings helper running",
@@ -48,7 +49,9 @@ export const copy = {
       promptRequired: "Paste context or a request first.",
       proxyBypass: "Requests will bypass optimization.",
       proxyStarted: "Scrooge local proxy router started.",
-      refreshed: "Dashboard refreshed from local hook telemetry."
+      refreshed: "Dashboard refreshed from local hook telemetry.",
+      diagnosticsReady: "Diagnostics bundle exported without prompt bodies.",
+      securityWarning: "Sensitive data candidate found. Review before sending."
     },
     workspace: {
       advanced: "Advanced settings",
@@ -107,6 +110,13 @@ export const copy = {
       attentionNeeded: "Needs attention",
       backendHealth: "Backend Health",
       cases: "Cases",
+      codexCompatibility: "Codex Compatibility",
+      compatibilityStates: {
+        failed: "Failed",
+        limited: "Limited",
+        pending_real_test: "Needs real test",
+        verified: "Verified"
+      },
       databaseHealth: "Database Health",
       detailTitle: "Trust and admin details",
       estimatedSavings: "Savings rate",
@@ -220,10 +230,18 @@ export const copy = {
       hashedOnlyNote: "Do not save raw prompt bodies.",
       hotkey: "Global Shortcut",
       hotkeyNote: "Focus a Codex input and press Ctrl+Alt+S to select, copy, optimize, and paste back automatically.",
+      diagnosticsFailures: "recent failures",
+      diagnosticsLastExport: "Last diagnostics export",
+      disabled: "Disabled",
+      enabled: "Enabled",
       language: "Language",
       languageNote: "Switch primary UI labels between Korean and English.",
       localEndpoint: "Local Hook Endpoint",
+      policyPending: "Policy not loaded yet.",
+      policyScope: "Telemetry policy",
       proxyConfig: "Local Proxy Configuration",
+      securityScan: "Sensitive data scan",
+      securityScanNote: "High-risk secrets are detected before optimization.",
       subtitle: "Local-first token efficiency guardrail",
       theme: "Theme",
       themeNote: "Use dark or light mode for the desktop shell.",
@@ -273,7 +291,8 @@ export const copy = {
       optimizeHotkey: "클립보드 바로 절약",
       refresh: "새로고침",
       reject: "원문 유지",
-      verifyRates: "공식 단가 확인"
+      verifyRates: "공식 단가 확인",
+      exportDiagnostics: "진단 번들 내보내기"
     },
     status: {
       proxyRunning: "절약 도우미 실행 중",
@@ -302,7 +321,9 @@ export const copy = {
       promptRequired: "먼저 요청이나 컨텍스트를 입력하세요.",
       proxyBypass: "요청이 최적화를 우회합니다.",
       proxyStarted: "Scrooge 로컬 프록시 라우터를 시작했습니다.",
-      refreshed: "로컬 후킹 텔레메트리에서 대시보드를 새로고침했습니다."
+      refreshed: "로컬 후킹 텔레메트리에서 대시보드를 새로고침했습니다.",
+      diagnosticsReady: "프롬프트 본문 없이 진단 번들을 내보냈습니다.",
+      securityWarning: "민감정보 후보가 감지되었습니다. 전송 전에 확인하세요."
     },
     workspace: {
       advanced: "상세 설정",
@@ -361,6 +382,13 @@ export const copy = {
       attentionNeeded: "확인이 필요함",
       backendHealth: "백엔드 상태",
       cases: "케이스",
+      codexCompatibility: "Codex 호환성",
+      compatibilityStates: {
+        failed: "실패",
+        limited: "제한적",
+        pending_real_test: "실사용 검증 필요",
+        verified: "검증 완료"
+      },
       databaseHealth: "DB 상태",
       detailTitle: "신뢰도 및 관리자 상세",
       estimatedSavings: "절감률",
@@ -474,10 +502,18 @@ export const copy = {
       hashedOnlyNote: "원본 프롬프트 본문을 저장하지 않습니다.",
       hotkey: "전역 단축키",
       hotkeyNote: "Codex 입력창에 커서를 두고 Ctrl+Alt+S를 누르면 선택, 복사, 최적화, 붙여넣기까지 자동 실행합니다.",
+      diagnosticsFailures: "최근 실패",
+      diagnosticsLastExport: "마지막 진단 내보내기",
+      disabled: "비활성",
+      enabled: "활성",
       language: "언어",
       languageNote: "주요 UI 문구를 한국어/영어로 전환합니다.",
       localEndpoint: "로컬 후킹 엔드포인트",
+      policyPending: "정책을 아직 불러오지 못했습니다.",
+      policyScope: "텔레메트리 정책",
       proxyConfig: "로컬 프록시 설정",
+      securityScan: "민감정보 스캔",
+      securityScanNote: "최적화 전에 고위험 secret 후보를 감지합니다.",
       subtitle: "로컬 우선 토큰 효율 가드레일",
       theme: "테마",
       themeNote: "데스크톱 셸을 다크/라이트 모드로 전환합니다.",

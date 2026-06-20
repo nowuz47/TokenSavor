@@ -159,12 +159,28 @@ def main() -> int:
     quality = get_json(args.api, "/api/quality/summary")
     pricing = get_json(args.api, "/api/pricing")
     runtime = get_json(args.api, "/api/runtime/status")
+    compatibility = get_json(args.api, "/api/compatibility/status")
+    policy = get_json(args.api, "/api/admin/policy")
+    diagnostics = get_json(args.api, "/api/diagnostics/bundle")
+    security_scan = post_json(
+        args.api,
+        "/api/security/scan",
+        {"prompt": "Never store password=supersecret or key sk-abcdef0123456789XYZ in audit logs."},
+    )
     category_summary = get_json(args.api, "/api/dashboard/category-summary?period=all")
 
     assert quality["passed_cases"] == quality["total_cases"]
     assert any(item["model"] == "gpt-5.4-mini" for item in pricing["models"])
     assert runtime["backend_status"] == "ok"
     assert runtime["database_status"] == "ok"
+    assert compatibility["overall_status"] in {"pending_real_test", "limited", "verified", "failed"}
+    assert any(item["target_app"] == "codex_desktop" for item in compatibility["targets"])
+    assert policy["diagnostics_include_prompt_body"] is False
+    assert policy["security_scan_required"] is True
+    assert diagnostics["prompt_body_included"] is False
+    assert diagnostics["compatibility"]["overall_status"] == compatibility["overall_status"]
+    assert security_scan["safe_to_store_body"] is False
+    assert "supersecret" not in security_scan["redacted_prompt"]
     assert isinstance(category_summary, list)
     assert_summary_matches_records(summary, records)
 
@@ -186,6 +202,8 @@ def main() -> int:
         "cases": results,
         "proxy": proxy_result,
         "runtime": runtime,
+        "compatibility": compatibility,
+        "policy": policy,
         "category_summary": category_summary,
         "soak": soak,
         "summary": summary,

@@ -4,7 +4,7 @@ from scrooge.quality import QualityCategory, evaluate_quality_report
 def test_golden_prompts_preserve_required_terms() -> None:
     report = evaluate_quality_report()
 
-    assert report.total_cases >= 50
+    assert report.total_cases >= 150
     assert report.passed_cases == report.total_cases
     assert report.harmful_omission_count == 0
     assert report.hallucinated_constraint_count == 0
@@ -25,7 +25,7 @@ def test_each_quality_category_has_mvp_minimum_cases_and_passes_floor() -> None:
 
     assert set(by_category) == set(QualityCategory)
     for summary in by_category.values():
-        assert summary.total_cases >= 10
+        assert summary.total_cases >= 30
         assert summary.passed_cases == summary.total_cases
         assert summary.preservation_pass_rate >= 0.95
         assert summary.savings_floor_failures == 0

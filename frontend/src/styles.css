@@ -1518,6 +1518,13 @@ select.form-control {
   font-size: 9px;
 }
 
+.settings-note {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+  margin: 0;
+}
+
 .switch {
   display: inline-block;
   height: 16px;

@@ -93,6 +93,21 @@ if ($runtime.backend_status -ne "ok" -or $runtime.database_status -ne "ok") {
     throw "Runtime status check failed: $($runtime | ConvertTo-Json -Compress)"
 }
 
+$compatibility = Invoke-RestMethod -Uri "$ApiBase/api/compatibility/status" -Method Get
+if (-not $compatibility.overall_status) {
+    throw "Compatibility status check failed"
+}
+
+$policy = Invoke-RestMethod -Uri "$ApiBase/api/admin/policy" -Method Get
+if ($policy.diagnostics_include_prompt_body -ne $false -or $policy.security_scan_required -ne $true) {
+    throw "Admin policy check failed: $($policy | ConvertTo-Json -Compress)"
+}
+
+$diagnostics = Invoke-RestMethod -Uri "$ApiBase/api/diagnostics/bundle" -Method Get
+if ($diagnostics.prompt_body_included -ne $false -or -not $diagnostics.runtime -or -not $diagnostics.compatibility) {
+    throw "Diagnostics bundle check failed"
+}
+
 Invoke-FrontendBuild
 
 Write-Host "Scrooge smoke and reliability checks passed."

@@ -252,6 +252,87 @@ class RuntimeStatusResponse(BaseModel):
     database_path: str
 
 
+class CompatibilityRunRequest(BaseModel):
+    target_app: str = "codex_desktop"
+    target_version: str | None = None
+    verification_mode: str = "user_assisted_real_input"
+    attempts: int = Field(ge=0)
+    successes: int = Field(ge=0)
+    failures: int = Field(ge=0)
+    prompt_loss_count: int = Field(default=0, ge=0)
+    failure_reasons: list[str] = Field(default_factory=list)
+    notes: str | None = None
+
+
+class CompatibilityRunResponse(BaseModel):
+    run_id: str
+    target_app: str
+    status: str
+    attempts: int
+    successes: int
+    failures: int
+    success_rate: float
+    prompt_loss_count: int
+    verified_at: datetime
+
+
+class CompatibilityTargetStatus(BaseModel):
+    target_app: str
+    status: str
+    attempts: int
+    successes: int
+    failures: int
+    success_rate: float
+    prompt_loss_count: int
+    required_attempts: int = 100
+    last_verified_at: datetime | None = None
+    failure_reasons: list[str] = Field(default_factory=list)
+
+
+class CompatibilityStatusResponse(BaseModel):
+    overall_status: str
+    targets: list[CompatibilityTargetStatus]
+
+
+class SecurityScanRequest(BaseModel):
+    prompt: str
+
+
+class SecurityFinding(BaseModel):
+    kind: str
+    label: str
+    severity: str
+    start: int
+    end: int
+    preview: str
+
+
+class SecurityScanResponse(BaseModel):
+    findings: list[SecurityFinding]
+    redacted_prompt: str
+    safe_to_store_body: bool
+
+
+class AdminPolicyResponse(BaseModel):
+    prompt_body_storage: str
+    telemetry_scope: str
+    hotkey_enabled: bool
+    allowed_measurement_sources: list[str]
+    diagnostics_include_prompt_body: bool
+    security_scan_required: bool
+
+
+class DiagnosticsBundleResponse(BaseModel):
+    generated_at: datetime
+    app_version: str
+    prompt_body_included: bool
+    runtime: RuntimeStatusResponse
+    dashboard: DashboardSummary
+    compatibility: CompatibilityStatusResponse
+    policy: AdminPolicyResponse
+    recent_failures: list[dict[str, Any]]
+
+
 class CategoryDashboardSummary(BaseModel):
     category: str
     total_requests: int

@@ -35,14 +35,21 @@ import {
   approvePrompt,
   clearAuditRecords,
   getAuditRecords,
+  getAdminPolicy,
+  getCompatibilityStatus,
   getDashboardSummary,
+  getDiagnosticsBundle,
   getRuntimeStatus,
   getQualitySummary,
-  optimizePrompt
+  optimizePrompt,
+  scanPromptSecurity
 } from "./api";
 import type {
+  AdminPolicy,
   AuditRecordSummary,
+  CompatibilityStatus,
   DashboardSummary,
+  DiagnosticsBundle,
   OptimizationReason,
   OptimizeResponse,
   QualitySummary,
@@ -217,6 +224,9 @@ export default function App() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [qualitySummary, setQualitySummary] = useState<QualitySummary | null>(null);
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus | null>(null);
+  const [compatibilityStatus, setCompatibilityStatus] = useState<CompatibilityStatus | null>(null);
+  const [adminPolicy, setAdminPolicy] = useState<AdminPolicy | null>(null);
+  const [lastDiagnosticsBundle, setLastDiagnosticsBundle] = useState<DiagnosticsBundle | null>(null);
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
   const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
   const [auditSearch, setAuditSearch] = useState("");
@@ -384,16 +394,20 @@ export default function App() {
 
   async function refreshTelemetry() {
     try {
-      const [nextSummary, nextRecords, nextQuality, nextRuntime] = await Promise.all([
+      const [nextSummary, nextRecords, nextQuality, nextRuntime, nextCompatibility, nextPolicy] = await Promise.all([
         getDashboardSummary("month"),
         getAuditRecords(100),
         getQualitySummary(),
-        getRuntimeStatus()
+        getRuntimeStatus(),
+        getCompatibilityStatus(),
+        getAdminPolicy()
       ]);
       setSummary(nextSummary);
       setAuditRecords(nextRecords.map(toAuditRecord));
       setQualitySummary(nextQuality);
       setRuntimeStatus(nextRuntime);
+      setCompatibilityStatus(nextCompatibility);
+      setAdminPolicy(nextPolicy);
       setLastTelemetryRefresh(new Date().toLocaleTimeString());
     } catch {
       setLastTelemetryRefresh(locale === "ko" ? "새로고침 실패" : "Refresh failed");
@@ -412,6 +426,10 @@ export default function App() {
     setLoading(true);
     setStatus(locale === "ko" ? "요청 최적화 중" : "Optimizing request");
     try {
+      const scan = await scanPromptSecurity(prompt);
+      if (scan.findings.some((finding) => finding.severity === "high")) {
+        showToast(labels.toast.securityWarning);
+      }
       const response = await optimizePrompt({
         prompt,
         provider,
@@ -491,6 +509,10 @@ export default function App() {
       }
       setLoading(true);
       setStatus(locale === "ko" ? "클립보드 즉시 최적화 중" : "Optimizing clipboard");
+      const scan = await scanPromptSecurity(text);
+      if (scan.findings.some((finding) => finding.severity === "high")) {
+        showToast(labels.toast.securityWarning);
+      }
       const response = await optimizePrompt({
         prompt: text,
         provider,
@@ -531,6 +553,10 @@ export default function App() {
     setLoading(true);
     setStatus(locale === "ko" ? "Codex 클립보드 프롬프트 최적화 중" : "Optimizing Codex clipboard prompt");
     try {
+      const scan = await scanPromptSecurity(text);
+      if (scan.findings.some((finding) => finding.severity === "high")) {
+        showToast(labels.toast.securityWarning);
+      }
       const response = await optimizePrompt({
         prompt: text,
         provider,
@@ -603,6 +629,25 @@ export default function App() {
     }
   }
 
+  async function exportDiagnosticsBundle() {
+    try {
+      const bundle = await getDiagnosticsBundle();
+      setLastDiagnosticsBundle(bundle);
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `scrooge-diagnostics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      showToast(labels.toast.diagnosticsReady);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Diagnostics export failed";
+      setStatus(message);
+      showToast(message);
+    }
+  }
+
   const tabContent = {
     workspace: (
       <WorkspaceTab
@@ -626,6 +671,7 @@ export default function App() {
     dashboard: (
       <DashboardTab
         aggregate={aggregate}
+        compatibilityStatus={compatibilityStatus}
         copy={labels}
         lastTelemetryRefresh={lastTelemetryRefresh}
         qualitySummary={qualitySummary}
@@ -648,8 +694,11 @@ export default function App() {
     settings: (
       <SettingsTab
         copy={labels}
+        diagnosticsBundle={lastDiagnosticsBundle}
         locale={locale}
+        policy={adminPolicy}
         theme={theme}
+        onExportDiagnostics={exportDiagnosticsBundle}
         onLocaleChange={setLocale}
         onThemeChange={setTheme}
       />
@@ -1040,6 +1089,7 @@ function DashboardTab(props: {
     sidecarStatus: string;
     totalAudits: number;
   };
+  compatibilityStatus: CompatibilityStatus | null;
   copy: Copy;
   lastTelemetryRefresh: string;
   qualitySummary: QualitySummary | null;
@@ -1058,6 +1108,12 @@ function DashboardTab(props: {
     props.aggregate.measurementCoverage > 0
       ? `${measuredCoveragePercent} ${props.copy.dashboard.measuredData}`
       : props.copy.dashboard.estimatedOnly;
+  const codexCompatibility = props.compatibilityStatus?.targets.find(
+    (target) => target.target_app === "codex_desktop"
+  );
+  const compatibilityLabel = codexCompatibility
+    ? `${formatCompatibilityStatus(codexCompatibility.status, props.copy)} (${codexCompatibility.attempts}/${codexCompatibility.required_attempts})`
+    : formatCompatibilityStatus("pending_real_test", props.copy);
 
   return (
     <section className="tab-content active">
@@ -1079,6 +1135,12 @@ function DashboardTab(props: {
           label={props.copy.dashboard.measurementState}
           value={measuredState}
           tone={props.aggregate.measurementCoverage > 0 ? "ok" : "muted"}
+        />
+        <StatusSummaryCard
+          icon={<ClipboardCheck />}
+          label={props.copy.dashboard.codexCompatibility}
+          value={compatibilityLabel}
+          tone={codexCompatibility?.status === "verified" ? "ok" : codexCompatibility?.status === "failed" ? "warn" : "muted"}
         />
       </div>
 
@@ -1160,6 +1222,11 @@ function DashboardTab(props: {
             <DashboardCard icon={<Database />} label={props.copy.dashboard.databaseHealth} value={props.aggregate.databaseStatus} />
             <DashboardCard icon={<Cpu />} label={props.copy.dashboard.sidecarStatus} value={props.aggregate.sidecarStatus} />
             <DashboardCard icon={<Activity />} label={props.copy.dashboard.avgTokenError} value={`${(props.aggregate.avgTokenErrorRate * 100).toFixed(1)}%`} />
+            <DashboardCard
+              icon={<ClipboardCheck />}
+              label={props.copy.dashboard.codexCompatibility}
+              value={compatibilityLabel}
+            />
             <DashboardCard
               highlight
               icon={<ShieldCheck />}
@@ -1338,8 +1405,11 @@ function PricingTab(props: {
 
 function SettingsTab(props: {
   copy: Copy;
+  diagnosticsBundle: DiagnosticsBundle | null;
   locale: Locale;
+  policy: AdminPolicy | null;
   theme: ThemeMode;
+  onExportDiagnostics: () => void;
   onLocaleChange: (value: Locale) => void;
   onThemeChange: (value: ThemeMode) => void;
 }) {
@@ -1426,6 +1496,33 @@ function SettingsTab(props: {
             {props.copy.settings.databaseUrl}
             <input className="form-control mono" readOnly value="sqlite:///./scrooge.db" />
           </label>
+          <div className="row-switch">
+            <div>
+              <strong>{props.copy.settings.policyScope}</strong>
+              <span>{props.policy?.telemetry_scope ?? props.copy.settings.policyPending}</span>
+            </div>
+            <span className="shortcut-key">
+              {props.policy?.prompt_body_storage ?? "-"}
+            </span>
+          </div>
+          <div className="row-switch">
+            <div>
+              <strong>{props.copy.settings.securityScan}</strong>
+              <span>{props.copy.settings.securityScanNote}</span>
+            </div>
+            <span className="shortcut-key">
+              {props.policy?.security_scan_required ? props.copy.settings.enabled : props.copy.settings.disabled}
+            </span>
+          </div>
+          <button className="btn btn-secondary" type="button" onClick={props.onExportDiagnostics}>
+            <ShieldCheck size={14} />
+            {props.copy.actions.exportDiagnostics}
+          </button>
+          {props.diagnosticsBundle ? (
+            <p className="settings-note">
+              {props.copy.settings.diagnosticsLastExport}: {new Date(props.diagnosticsBundle.generated_at).toLocaleString()} · {props.diagnosticsBundle.recent_failures.length} {props.copy.settings.diagnosticsFailures}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -1620,6 +1717,10 @@ function formatDeliveryStatus(status: AuditRecord["deliveryStatus"], labels: Cop
 
 function formatMeasurementStatus(status: AuditRecord["measurementStatus"], labels: Copy) {
   return labels.audit.measurementStatusLabels[status] ?? status;
+}
+
+function formatCompatibilityStatus(status: CompatibilityStatus["overall_status"], labels: Copy) {
+  return labels.dashboard.compatibilityStates[status] ?? status;
 }
 
 function getNoSavingsReason(response: OptimizeResponse): keyof Copy["audit"]["rejectionReasons"] {

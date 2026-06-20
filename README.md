@@ -12,6 +12,7 @@ Scrooge is a local-first AI efficiency layer for internal developer workflows. I
 - Local-first audit storage: prompt bodies are not stored by default; hashes, token counts, task type, rule IDs, pricing version, and approval state are stored.
 - Low-setup desktop flow: focus an AI input and press `Ctrl+Alt+S` to select, optimize, paste back, and record hotkey telemetry.
 - Reliability metrics: Scrooge separates short prompt preservation, long-context savings, measured token coverage, hotkey success, and re-ask rate.
+- Enterprise readiness checks: Codex real-input compatibility status, prompt-body-free diagnostics, admin policy, and sensitive-data scan APIs.
 
 ## Repository Layout
 
@@ -85,10 +86,23 @@ cd backend
 - `GET /api/dashboard/category-summary`: return task-type savings and token error summary.
 - `GET /api/runtime/status`: return backend/database runtime status for installed-app checks.
 - `GET /api/pricing`: return active pricing registry.
+- `GET /api/compatibility/status`: return real-input validation status for Codex Desktop and planned target apps.
+- `POST /api/compatibility/runs`: record a user-assisted real-input compatibility run.
+- `POST /api/security/scan`: detect and redact high-risk secrets or PII candidates before optimization.
+- `GET /api/admin/policy`: return local-first storage, telemetry, diagnostics, and measurement policy.
+- `GET /api/diagnostics/bundle`: export support diagnostics without prompt bodies.
 
 ## Trust Model
 
 Scrooge separates estimated, sent, and measured usage. Cost savings are shown as estimates unless upstream usage data is available. Pricing data is versioned and references official provider pricing pages so internal users can audit how cost projections were calculated. Short prompts are allowed to produce zero savings when preserving meaning is safer; long logs, diffs, traces, and command output are evaluated against stricter savings targets.
+
+## A-Grade Readiness Gates
+
+- Codex Desktop must pass a real-input validation run: 100 attempts, at least 98% success, and zero prompt-loss events.
+- Measured coverage should reach 70% or higher for paths where provider usage metadata is available.
+- Golden quality suite must keep 150+ cases passing, with at least 30 cases per work type and zero harmful omissions.
+- Diagnostics bundles must exclude prompt bodies, and the admin policy must keep raw prompt body storage disabled by default.
+- Installed smoke checks must confirm no Scrooge-related `cmd.exe` window, healthy sidecar/runtime, and working security/compatibility APIs.
 
 ## Git Milestones
 

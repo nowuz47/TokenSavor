@@ -17,6 +17,9 @@ if (-not $ReportPath) {
 
 $runtime = Invoke-RestMethod -Uri "$ApiBase/api/runtime/status" -Method Get
 $summary = Invoke-RestMethod -Uri "$ApiBase/api/dashboard/summary?period=all" -Method Get
+$compatibility = Invoke-RestMethod -Uri "$ApiBase/api/compatibility/status" -Method Get
+$policy = Invoke-RestMethod -Uri "$ApiBase/api/admin/policy" -Method Get
+$diagnostics = Invoke-RestMethod -Uri "$ApiBase/api/diagnostics/bundle" -Method Get
 $scroogeProcesses = @(Get-Process -Name "Scrooge", "scrooge" -ErrorAction SilentlyContinue)
 $backendProcesses = @(Get-Process -Name "scrooge-backend" -ErrorAction SilentlyContinue)
 $cmdProcesses = @(Get-CimInstance Win32_Process | Where-Object {
@@ -45,6 +48,9 @@ $checks = [ordered]@{
     hotkeyValidationStatus = $summary.hotkey_validation_status
     hotkeyAttempts = $summary.hotkey_attempts
     usedAssumedRequests = $summary.used_assumed_requests
+    compatibilityStatus = $compatibility.overall_status
+    diagnosticsPromptBodyExcluded = $diagnostics.prompt_body_included -eq $false
+    securityScanRequired = $policy.security_scan_required -eq $true
 }
 
 $report = [ordered]@{
@@ -52,6 +58,9 @@ $report = [ordered]@{
     checkedAt = (Get-Date).ToUniversalTime().ToString("o")
     runtime = $runtime
     summary = $summary
+    compatibility = $compatibility
+    policy = $policy
+    diagnostics = $diagnostics
     checks = $checks
     processes = [ordered]@{
         scrooge = @($scroogeProcesses | Select-Object ProcessName, Id, MainWindowTitle)
@@ -71,7 +80,9 @@ $failed = @(
     $checks.hotkeyRegistered,
     $checks.sidecarManaged,
     $checks.databaseExists,
-    $checks.noScroogeCmdWindow
+    $checks.noScroogeCmdWindow,
+    $checks.diagnosticsPromptBodyExcluded,
+    $checks.securityScanRequired
 ) | Where-Object { -not $_ }
 
 if ($failed.Count -gt 0) {

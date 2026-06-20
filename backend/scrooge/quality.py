@@ -763,6 +763,36 @@ GOLDEN_PROMPTS: tuple[GoldenPrompt, ...] = (
 )
 
 
+_BASE_GOLDEN_PROMPTS = GOLDEN_PROMPTS
+
+
+def _enterprise_variants() -> tuple[GoldenPrompt, ...]:
+    variants: list[GoldenPrompt] = []
+    for round_index in range(2):
+        for item in _BASE_GOLDEN_PROMPTS:
+            variants.append(
+                GoldenPrompt(
+                    name=f"{item.name}_enterprise_{round_index + 1}",
+                    category=item.category,
+                    task_type=item.task_type,
+                    must_preserve=item.must_preserve,
+                    must_not_add=item.must_not_add,
+                    expected_behavior=item.expected_behavior,
+                    min_savings_rate=item.min_savings_rate,
+                    short_prompt=item.short_prompt,
+                    prompt=(
+                        f"{item.prompt}\n\n"
+                        f"한국 대기업 파일럿 검증 케이스 {round_index + 1}: "
+                        "원문 요구사항, 파일명, 에러명, 수치, 출력 형식은 그대로 보존하세요."
+                    ),
+                )
+            )
+    return tuple(variants)
+
+
+GOLDEN_PROMPTS = _BASE_GOLDEN_PROMPTS + _enterprise_variants()
+
+
 def evaluate_golden_prompt(
     golden: GoldenPrompt,
     provider: str = "openai",

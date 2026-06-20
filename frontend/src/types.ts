@@ -174,6 +174,59 @@ export interface RuntimeStatus {
   database_path: string;
 }
 
+export interface CompatibilityTargetStatus {
+  target_app: string;
+  status: "pending_real_test" | "limited" | "verified" | "failed";
+  attempts: number;
+  successes: number;
+  failures: number;
+  success_rate: number;
+  prompt_loss_count: number;
+  required_attempts: number;
+  last_verified_at?: string | null;
+  failure_reasons: string[];
+}
+
+export interface CompatibilityStatus {
+  overall_status: "pending_real_test" | "limited" | "verified" | "failed";
+  targets: CompatibilityTargetStatus[];
+}
+
+export interface AdminPolicy {
+  prompt_body_storage: string;
+  telemetry_scope: string;
+  hotkey_enabled: boolean;
+  allowed_measurement_sources: string[];
+  diagnostics_include_prompt_body: boolean;
+  security_scan_required: boolean;
+}
+
+export interface SecurityFinding {
+  kind: string;
+  label: string;
+  severity: "low" | "medium" | "high";
+  start: number;
+  end: number;
+  preview: string;
+}
+
+export interface SecurityScanResponse {
+  findings: SecurityFinding[];
+  redacted_prompt: string;
+  safe_to_store_body: boolean;
+}
+
+export interface DiagnosticsBundle {
+  generated_at: string;
+  app_version: string;
+  prompt_body_included: boolean;
+  runtime: RuntimeStatus;
+  dashboard: DashboardSummary;
+  compatibility: CompatibilityStatus;
+  policy: AdminPolicy;
+  recent_failures: Array<Record<string, unknown>>;
+}
+
 export interface MeasurementResponse {
   request_id: string;
   state: "measured";
