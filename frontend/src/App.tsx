@@ -83,6 +83,7 @@ interface AuditRecord {
   measuredInputTokens?: number | null;
   measuredOutputTokens?: number | null;
   measuredOriginalTokens?: number | null;
+  rejectionReason?: string | null;
   tokenErrorRate?: number | null;
 }
 
@@ -177,6 +178,7 @@ function toAuditRecord(record: AuditRecordSummary): AuditRecord {
     measuredInputTokens: record.measured_input_tokens,
     measuredOutputTokens: record.measured_output_tokens,
     measuredOriginalTokens: record.measured_original_tokens,
+    rejectionReason: record.rejection_reason,
     tokenErrorRate: record.token_error_rate
   };
 }
@@ -391,7 +393,7 @@ export default function App() {
     if (!result) return;
     setLoading(true);
     try {
-      await approvePrompt(result.request_id, approved);
+      await approvePrompt(result.request_id, approved, approved ? undefined : "user_kept_original");
       if (approved) {
         await copyOptimizedPrompt(result.optimized_prompt);
       }
@@ -452,7 +454,7 @@ export default function App() {
         expected_output_tokens: expectedOutputTokens
       });
       if (response.saved_tokens <= 0) {
-        await approvePrompt(response.request_id, false);
+        await approvePrompt(response.request_id, false, "no_savings");
         setResult(response);
         setPrompt(text);
         setStatus(locale === "ko" ? "절감 없음 - 클립보드 유지" : "No savings - clipboard unchanged");
@@ -1353,7 +1355,14 @@ function AuditRows(props: { copy: Copy; expanded: boolean; record: AuditRecord; 
         <td className="highlight-text">{(props.record.rate * 100).toFixed(0)}%</td>
         <td>${props.record.savedCost.toFixed(4)}</td>
         <td>
-          <span className={`badge badge-${props.record.state}`}>{props.record.state}</span>
+          <span className={`badge badge-${props.record.state}`}>
+            {formatUsageState(props.record.state, props.copy)}
+          </span>
+          {props.record.state === "rejected" ? (
+            <span className="state-reason">
+              {formatRejectionReason(props.record.rejectionReason, props.copy)}
+            </span>
+          ) : null}
         </td>
       </tr>
       {props.expanded ? (
@@ -1385,6 +1394,14 @@ function AuditRows(props: { copy: Copy; expanded: boolean; record: AuditRecord; 
               ) : (
                 <p>{props.copy.audit.usageEstimated}</p>
               )}
+              {props.record.state === "rejected" ? (
+                <div>
+                  <strong>{props.copy.audit.rejectionReason}</strong>
+                  <span className="hash-line">
+                    {formatRejectionReason(props.record.rejectionReason, props.copy)}
+                  </span>
+                </div>
+              ) : null}
             </div>
           </td>
         </tr>
@@ -1416,6 +1433,17 @@ function NavItem(props: { active: boolean; icon: JSX.Element; label: string; onC
 
 function formatQualityCategory(category: string, labels: Copy) {
   return labels.qualityCategories[category as keyof Copy["qualityCategories"]] ?? category;
+}
+
+function formatUsageState(state: AuditRecord["state"], labels: Copy) {
+  return labels.audit.stateLabels[state] ?? state;
+}
+
+function formatRejectionReason(reason: string | null | undefined, labels: Copy) {
+  const key = reason as keyof Copy["audit"]["rejectionReasons"] | undefined;
+  return key && labels.audit.rejectionReasons[key]
+    ? labels.audit.rejectionReasons[key]
+    : labels.audit.rejectionReasons.unknown;
 }
 
 function formatTokenCount(tokens: number) {

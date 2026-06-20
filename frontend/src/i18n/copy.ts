@@ -68,8 +68,8 @@ export const copy = {
       easyPrimary: "Optimize clipboard",
       easySecondary: "Preview pasted request",
       endpointChips: ["capture", "rewrite", "forward"],
-      heroSubtitle: "Paste a prompt, optimize it, then use the rewritten prompt with fewer tokens.",
-      heroTitle: "Scrooge reduces prompt waste before you send it.",
+      heroSubtitle: "Focus an AI input, press Ctrl+Alt+S, and Scrooge will select, optimize, and paste the prompt back.",
+      heroTitle: "Use Ctrl+Alt+S to optimize the prompt in place.",
       hotkeyHint: "Focus the Codex input and press Ctrl+Alt+S. Scrooge selects, optimizes, and pastes back automatically.",
       hookProxy: "Hook Proxy",
       inputTab: "Easy Mode",
@@ -134,9 +134,22 @@ export const copy = {
       optimizedHash: "Optimized SHA-256 Hash",
       originalHash: "Original SHA-256 Hash",
       privacy: "Prompt text was not written to local SQLite storage. Hashed-only mode is active.",
+      rejectionReason: "Reject reason",
+      rejectionReasons: {
+        no_savings: "No token savings were found, so the original prompt was kept.",
+        user_kept_original: "The original prompt was kept by user choice.",
+        unknown: "No reject reason was recorded."
+      },
       requestId: "Request ID",
       search: "Search audit logs...",
       state: "State",
+      stateLabels: {
+        estimated: "Estimated",
+        sent: "Sent",
+        measured: "Measured",
+        rejected: "Rejected",
+        failed: "Failed"
+      },
       task: "Task",
       tokenSource: "Token source",
       usageEstimated: "Usage is estimated until provider usage metadata is recorded."
@@ -260,8 +273,8 @@ export const copy = {
       easyPrimary: "클립보드 바로 절약",
       easySecondary: "붙여넣은 내용 미리보기",
       endpointChips: ["수집", "재작성", "전송"],
-      heroSubtitle: "프롬프트를 붙여넣고 최적화하면, 더 적은 토큰으로 보낼 수 있는 문구로 바꿉니다.",
-      heroTitle: "Scrooge는 AI에 보내기 전 프롬프트 낭비를 줄입니다.",
+      heroSubtitle: "AI 입력창에 커서를 두고 Ctrl+Alt+S를 누르면 Scrooge가 선택, 최적화, 붙여넣기를 자동으로 처리합니다.",
+      heroTitle: "Ctrl+Alt+S로 현재 프롬프트를 바로 최적화하세요.",
       hotkeyHint: "Codex 입력창에 커서를 두고 Ctrl+Alt+S만 누르세요. Scrooge가 선택, 복사, 최적화, 붙여넣기를 자동으로 처리합니다.",
       hookProxy: "후킹 프록시",
       inputTab: "쉬운 모드",
@@ -326,9 +339,22 @@ export const copy = {
       optimizedHash: "최적화 SHA-256 해시",
       originalHash: "원본 SHA-256 해시",
       privacy: "프롬프트 전문은 로컬 SQLite에 저장하지 않습니다. 해시 전용 모드가 활성화되어 있습니다.",
+      rejectionReason: "거절 사유",
+      rejectionReasons: {
+        no_savings: "절감 가능한 토큰이 없어 원문을 유지했습니다.",
+        user_kept_original: "사용자가 원문 유지를 선택했습니다.",
+        unknown: "거절 사유가 기록되지 않았습니다."
+      },
       requestId: "요청 ID",
       search: "감사 로그 검색...",
       state: "상태",
+      stateLabels: {
+        estimated: "추정",
+        sent: "전송됨",
+        measured: "실측",
+        rejected: "거절",
+        failed: "실패"
+      },
       task: "작업",
       tokenSource: "토큰 기준",
       usageEstimated: "provider 사용량 메타데이터가 기록될 때까지 추정값으로 표시됩니다."

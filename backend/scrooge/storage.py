@@ -75,7 +75,8 @@ class UsageStore:
                 measured_original_tokens INTEGER,
                 measured_input_tokens INTEGER,
                 measured_output_tokens INTEGER,
-                measurement_source TEXT
+                measurement_source TEXT,
+                decision_notes TEXT
             )
             """
         )
@@ -83,6 +84,7 @@ class UsageStore:
         self._ensure_column(db, "usage_records", "estimated_optimized_tokens", "INTEGER")
         self._ensure_column(db, "usage_records", "measured_original_tokens", "INTEGER")
         self._ensure_column(db, "usage_records", "measurement_source", "TEXT")
+        self._ensure_column(db, "usage_records", "decision_notes", "TEXT")
         db.execute(
             """
             UPDATE usage_records
@@ -144,11 +146,11 @@ class UsageStore:
                 ),
             )
 
-    def mark_state(self, request_id: str, state: UsageState) -> None:
+    def mark_state(self, request_id: str, state: UsageState, notes: str | None = None) -> None:
         with self.connect() as db:
             cursor = db.execute(
-                "UPDATE usage_records SET state = ? WHERE request_id = ?",
-                (state.value, request_id),
+                "UPDATE usage_records SET state = ?, decision_notes = COALESCE(?, decision_notes) WHERE request_id = ?",
+                (state.value, notes, request_id),
             )
             if cursor.rowcount == 0:
                 raise KeyError(request_id)
@@ -247,7 +249,7 @@ class UsageStore:
                     original_hash, optimized_hash, original_tokens, optimized_tokens,
                     saved_tokens, saved_cost_usd, pricing_version, applied_rules,
                     tokenizer_version, estimated_optimized_tokens, measured_original_tokens,
-                    measured_input_tokens, measured_output_tokens
+                    measured_input_tokens, measured_output_tokens, decision_notes
                 FROM usage_records
                 ORDER BY created_at DESC
                 LIMIT ?
@@ -284,6 +286,11 @@ class UsageStore:
                     "measured_original_tokens": row["measured_original_tokens"],
                     "measured_input_tokens": measured_input,
                     "measured_output_tokens": row["measured_output_tokens"],
+                    "rejection_reason": _rejection_reason(
+                        row["state"],
+                        row["decision_notes"],
+                        saved_tokens,
+                    ),
                     "token_error_rate": (
                         _token_error_rate(estimated_optimized, int(measured_input))
                         if measured_input is not None
@@ -363,6 +370,16 @@ class UsageStore:
 
 def _hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _rejection_reason(state: str, notes: str | None, saved_tokens: int) -> str | None:
+    if state != UsageState.REJECTED.value:
+        return None
+    if notes:
+        return notes
+    if saved_tokens <= 0:
+        return "no_savings"
+    return "user_kept_original"
 
 
 def _token_error_rate(estimated: int, measured: int) -> float:

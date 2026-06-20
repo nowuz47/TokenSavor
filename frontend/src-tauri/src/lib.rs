@@ -133,7 +133,7 @@ fn optimize_active_field_via_backend(app: AppHandle) {
             if !request_id.is_empty() {
                 let _ = post_json(
                     &format!("/api/approvals/{request_id}/approve"),
-                    &serde_json::json!({ "approved": false }),
+                    &serde_json::json!({ "approved": false, "notes": "no_savings" }),
                 );
             }
             let _ = app.clipboard().write_text(text);

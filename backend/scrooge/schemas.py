@@ -174,6 +174,7 @@ class AuditRecordSummary(BaseModel):
     measured_input_tokens: int | None = None
     measured_output_tokens: int | None = None
     measured_original_tokens: int | None = None
+    rejection_reason: str | None = None
     token_error_rate: float | None = None
 
 

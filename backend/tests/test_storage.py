@@ -68,3 +68,26 @@ def test_mark_state_unknown_request_raises_key_error(tmp_path) -> None:
         pass
     else:
         raise AssertionError("unknown request_id should fail")
+
+
+def test_rejected_records_include_reason_or_inferred_reason(tmp_path) -> None:
+    db_path = tmp_path / "scrooge.db"
+    settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)
+    store = UsageStore(settings)
+    no_savings = optimize_prompt(OptimizeRequest(prompt="짧은 요청", provider="openai"))
+    user_choice = optimize_prompt(
+        OptimizeRequest(
+            prompt="ERROR worker timeout\nERROR worker timeout\nERROR worker timeout\nERROR worker timeout",
+            provider="openai",
+        )
+    )
+
+    store.save_preview(no_savings, provider="openai", model="gpt-5.4-mini")
+    store.save_preview(user_choice, provider="openai", model="gpt-5.4-mini")
+    store.mark_state(no_savings.request_id, UsageState.REJECTED)
+    store.mark_state(user_choice.request_id, UsageState.REJECTED, notes="user_kept_original")
+
+    records = {record["request_id"]: record for record in store.list_records()}
+
+    assert records[no_savings.request_id]["rejection_reason"] == "no_savings"
+    assert records[user_choice.request_id]["rejection_reason"] == "user_kept_original"

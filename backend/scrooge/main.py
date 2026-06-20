@@ -72,7 +72,10 @@ def approve_request(
 ) -> ApprovalResponse:
     state = UsageState.SENT if approval.approved else UsageState.REJECTED
     try:
-        store.mark_state(request_id, state)
+        notes = approval.notes
+        if not approval.approved and not notes:
+            notes = "user_kept_original"
+        store.mark_state(request_id, state, notes=notes)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="request_id not found") from exc
     return ApprovalResponse(request_id=request_id, state=state)

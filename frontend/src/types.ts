@@ -125,6 +125,7 @@ export interface AuditRecordSummary {
   measured_input_tokens?: number | null;
   measured_output_tokens?: number | null;
   measured_original_tokens?: number | null;
+  rejection_reason?: string | null;
   token_error_rate?: number | null;
 }
 

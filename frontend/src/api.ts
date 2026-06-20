@@ -33,11 +33,11 @@ export async function optimizePrompt(input: {
   return response.json();
 }
 
-export async function approvePrompt(requestId: string, approved: boolean): Promise<void> {
+export async function approvePrompt(requestId: string, approved: boolean, notes?: string): Promise<void> {
   const response = await fetch(`${API_BASE}/api/approvals/${requestId}/approve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ approved })
+    body: JSON.stringify({ approved, notes: notes ?? null })
   });
   if (!response.ok) {
     throw new Error(`Approval failed: ${response.status}`);

@@ -1308,6 +1308,15 @@ select.form-control {
   color: var(--warning);
 }
 
+.state-reason {
+  color: var(--text-muted);
+  display: block;
+  font-size: 9px;
+  line-height: 1.25;
+  margin-top: 3px;
+  max-width: 140px;
+}
+
 .empty-table {
   color: var(--text-muted);
   padding: 20px;
