@@ -142,7 +142,10 @@ fn optimize_active_field_via_backend(app: AppHandle) {
             return;
         }
 
-        let Some(optimized_prompt) = response.get("optimized_prompt").and_then(|value| value.as_str()) else {
+        let Some(optimized_prompt) = response
+            .get("optimized_prompt")
+            .and_then(|value| value.as_str())
+        else {
             let _ = app.clipboard().write_text(text);
             send_ctrl_key('V');
             emit_hotkey_result(&app, "failed", 0, &request_id);
@@ -221,7 +224,9 @@ fn keyboard_input(vk: u16, key_up: bool) -> INPUT {
 fn post_json(path: &str, body: &serde_json::Value) -> Option<serde_json::Value> {
     let payload = serde_json::to_string(body).ok()?;
     let mut stream = TcpStream::connect_timeout(
-        &"127.0.0.1:8750".parse().expect("valid local socket address"),
+        &"127.0.0.1:8750"
+            .parse()
+            .expect("valid local socket address"),
         Duration::from_millis(700),
     )
     .ok()?;
@@ -252,18 +257,24 @@ fn stop_backend_sidecar(app: &AppHandle) {
     }
 }
 
+fn force_quit(app: &AppHandle) -> ! {
+    stop_backend_sidecar(app);
+    std::process::exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let shortcut_plugin = match tauri_plugin_global_shortcut::Builder::new().with_shortcuts(["ctrl+alt+s"]) {
-        Ok(builder) => builder
-            .with_handler(|app, _shortcut, event| {
-                if event.state == ShortcutState::Pressed {
-                    optimize_active_field_via_backend(app.clone());
-                }
-            })
-            .build(),
-        Err(_) => tauri_plugin_global_shortcut::Builder::new().build(),
-    };
+    let shortcut_plugin =
+        match tauri_plugin_global_shortcut::Builder::new().with_shortcuts(["ctrl+alt+s"]) {
+            Ok(builder) => builder
+                .with_handler(|app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        optimize_active_field_via_backend(app.clone());
+                    }
+                })
+                .build(),
+            Err(_) => tauri_plugin_global_shortcut::Builder::new().build(),
+        };
 
     tauri::Builder::default()
         .manage(BackendState {
@@ -287,9 +298,11 @@ pub fn run() {
             }
 
             let show = MenuItem::with_id(app, "show", "Show Scrooge", true, None::<&str>)?;
-            let hide = MenuItem::with_id(app, "hide", "Hide to Tray", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &hide, &quit])?;
+            let hide = MenuItem::with_id(app, "hide", "Close Window", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit Scrooge", true, None::<&str>)?;
+            let force_quit_item =
+                MenuItem::with_id(app, "force_quit", "Force Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show, &hide, &quit, &force_quit_item])?;
             let app_handle = app.handle().clone();
 
             TrayIconBuilder::new()
@@ -303,6 +316,7 @@ pub fn run() {
                         stop_backend_sidecar(app);
                         app.exit(0);
                     }
+                    "force_quit" => force_quit(app),
                     _ => {}
                 })
                 .on_tray_icon_event(move |_tray, event| {

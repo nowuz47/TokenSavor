@@ -167,7 +167,7 @@ const copy = {
       approve: "Use optimized prompt",
       capture: "Bring clipboard",
       clearDb: "Clear DB",
-      hideToTray: "Hide to tray",
+      hideToTray: "Close window",
       minimize: "Minimize",
       optimize: "Preview savings",
       optimizeClip: "Optimize clipboard",
@@ -195,7 +195,7 @@ const copy = {
       dbCleared: "Local SQLite audit records cleared.",
       defaultDone: "Task complete.",
       disabled: "Optimization disabled while proxy router is stopped.",
-      hideFallback: "Scrooge tray daemon keeps running.",
+      hideFallback: "Window closed. Scrooge keeps running in the tray.",
       minimizeFallback: "Window minimize is available in the installed desktop app.",
       optimizedCopied: "Optimized prompt copied. Paste it into Codex.",
       optimizedLoaded: "Optimization preview loaded.",
@@ -351,7 +351,7 @@ const copy = {
       approve: "최적화 문구 사용",
       capture: "클립보드 가져오기",
       clearDb: "DB 삭제",
-      hideToTray: "트레이로 숨기기",
+      hideToTray: "창 닫기",
       minimize: "최소화",
       optimize: "절약 미리보기",
       optimizeClip: "클립보드 최적화",
@@ -379,7 +379,7 @@ const copy = {
       dbCleared: "로컬 SQLite 감사 기록을 삭제했습니다.",
       defaultDone: "작업이 완료되었습니다.",
       disabled: "프록시 라우터가 중지되어 최적화를 사용할 수 없습니다.",
-      hideFallback: "Scrooge 트레이 데몬은 계속 실행됩니다.",
+      hideFallback: "창만 닫고 Scrooge는 트레이에서 계속 실행됩니다.",
       minimizeFallback: "설치된 데스크톱 앱에서 창 최소화를 사용할 수 있습니다.",
       optimizedCopied: "최적화 프롬프트를 복사했습니다. Codex에 붙여넣으세요.",
       optimizedLoaded: "최적화 미리보기를 불러왔습니다.",
@@ -931,7 +931,8 @@ export default function App() {
 
   async function hideWindowToTray() {
     try {
-      await getCurrentWindow().close();
+      await getCurrentWindow().hide();
+      showToast(labels.toast.hideFallback);
     } catch {
       showToast(labels.toast.hideFallback);
     }
