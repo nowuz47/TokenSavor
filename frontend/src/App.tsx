@@ -50,7 +50,6 @@ import type {
 import { copy, type Copy, type Locale } from "./i18n/copy";
 
 type TabId = "workspace" | "dashboard" | "audit" | "pricing" | "settings";
-type WorkspacePanel = "input" | "preview";
 type ThemeMode = "dark" | "light";
 
 const APP_LOGO_SRC = "/scrooge_flat_no_coin.png";
@@ -192,7 +191,6 @@ function toAuditRecord(record: AuditRecordSummary): AuditRecord {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>("workspace");
-  const [workspacePanel, setWorkspacePanel] = useState<WorkspacePanel>("input");
   const [prompt, setPrompt] = useState(defaultPrompt);
   const [provider, setProvider] = useState("openai");
   const [model, setModel] = useState("gpt-5.4-mini");
@@ -384,8 +382,8 @@ export default function App() {
         expected_output_tokens: expectedOutputTokens
       });
       setResult(response);
-      setWorkspacePanel("preview");
-      setStatus(locale === "ko" ? "최적화 미리보기 로드됨" : "Optimization preview loaded");
+      setPrompt(response.optimized_prompt);
+      setStatus(locale === "ko" ? "프롬프트 최적화됨" : "Prompt optimized");
       showToast(labels.toast.optimizedLoaded);
       await refreshTelemetry();
     } catch (error) {
@@ -408,7 +406,6 @@ export default function App() {
       setStatus(approved ? (locale === "ko" ? "Codex용 최적화 프롬프트 복사됨" : "Optimized prompt copied for Codex") : (locale === "ko" ? "최적화 프롬프트 거절됨" : "Optimized prompt rejected"));
       showToast(approved ? labels.toast.optimizedCopied : labels.toast.optimizedRejected);
       setResult(null);
-      setWorkspacePanel("input");
       await refreshTelemetry();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Approval failed";
@@ -431,7 +428,6 @@ export default function App() {
         return null;
       }
       setPrompt(text);
-      setWorkspacePanel("input");
       setStatus(locale === "ko" ? "Codex 브리지가 클립보드 프롬프트를 캡처함" : "Codex Bridge captured clipboard prompt");
       showToast(labels.toast.clipboardCaptured);
       return text;
@@ -467,7 +463,6 @@ export default function App() {
         await approvePrompt(response.request_id, false);
         setResult(response);
         setPrompt(text);
-        setWorkspacePanel("preview");
         setStatus(locale === "ko" ? "절감 없음 - 클립보드 유지" : "No savings - clipboard unchanged");
         showToast(labels.toast.hotkeyNoSavings);
         await refreshTelemetry();
@@ -476,8 +471,7 @@ export default function App() {
       await approvePrompt(response.request_id, true);
       await writeText(response.optimized_prompt);
       setResult(response);
-      setPrompt(text);
-      setWorkspacePanel("preview");
+      setPrompt(response.optimized_prompt);
       setStatus(locale === "ko" ? "클립보드가 최적화 프롬프트로 교체됨" : "Clipboard replaced with optimized prompt");
       showToast(labels.toast.hotkeyCopied);
       await refreshTelemetry();
@@ -504,8 +498,8 @@ export default function App() {
         expected_output_tokens: expectedOutputTokens
       });
       setResult(response);
-      setWorkspacePanel("preview");
-      setStatus(locale === "ko" ? "Codex 브리지 미리보기 로드됨" : "Codex Bridge preview loaded");
+      setPrompt(response.optimized_prompt);
+      setStatus(locale === "ko" ? "Codex 브리지 프롬프트 최적화됨" : "Codex Bridge prompt optimized");
       showToast(labels.toast.clipboardOptimized);
       await refreshTelemetry();
     } catch (error) {
@@ -579,19 +573,12 @@ export default function App() {
         provider={provider}
         result={result}
         taskType={taskType}
-        workspacePanel={workspacePanel}
-        onApprove={() => decide(true)}
-        onCaptureClipboard={captureClipboardPrompt}
         onExpectedOutputTokensChange={setExpectedOutputTokens}
         onModelChange={setModel}
         onOptimize={runOptimize}
-        onOptimizeClipboard={optimizeClipboardPrompt}
-        onOptimizeClipboardDirect={optimizeClipboardDirect}
         onPromptChange={setPrompt}
         onProviderChange={setProvider}
-        onReject={() => decide(false)}
         onTaskTypeChange={setTaskType}
-        onWorkspacePanelChange={setWorkspacePanel}
       />
     ),
     dashboard: (
@@ -696,218 +683,199 @@ function WorkspaceTab(props: {
   provider: string;
   result: OptimizeResponse | null;
   taskType: TaskType | "";
-  workspacePanel: WorkspacePanel;
-  onApprove: () => void;
-  onCaptureClipboard: () => void;
   onExpectedOutputTokensChange: (value: number) => void;
   onModelChange: (value: string) => void;
   onOptimize: () => void;
-  onOptimizeClipboard: () => void;
-  onOptimizeClipboardDirect: () => void;
   onPromptChange: (value: string) => void;
   onProviderChange: (value: string) => void;
-  onReject: () => void;
   onTaskTypeChange: (value: TaskType | "") => void;
-  onWorkspacePanelChange: (value: WorkspacePanel) => void;
 }) {
   return (
     <section className="tab-content active">
-      <div className="panel-toggle-bar">
-        <button
-          className={`panel-toggle-btn ${props.workspacePanel === "input" ? "active" : ""}`}
-          type="button"
-          onClick={() => props.onWorkspacePanelChange("input")}
-        >
-          <Edit3 size={12} />
-          {props.copy.workspace.inputTab}
-        </button>
-        <button
-          className={`panel-toggle-btn ${props.workspacePanel === "preview" ? "active" : ""}`}
-          type="button"
-          onClick={() => props.onWorkspacePanelChange("preview")}
-        >
-          <Eye size={12} />
-          {props.copy.workspace.previewTab}
-        </button>
+      <div className="easy-hero easy-hero-compact">
+        <div className="easy-hero-main">
+          <div className="easy-hero-logo">
+            <img src={APP_LOGO_SRC} alt="" />
+          </div>
+          <div className="easy-hero-copy">
+            <h2>{props.copy.workspace.heroTitle}</h2>
+            <p>{props.copy.workspace.heroSubtitle}</p>
+          </div>
+        </div>
       </div>
 
-      {props.workspacePanel === "input" ? (
-        <>
-          <div className="easy-hero">
-            <div className="easy-hero-main">
-              <div className="easy-hero-logo">
-                <img src={APP_LOGO_SRC} alt="" />
+      <div className="compact-card easy-input-card">
+        <div className="card-header">
+          <h3>
+            <Terminal size={14} />
+            {props.copy.workspace.pasteLabel}
+          </h3>
+        </div>
+        <div className="card-body">
+          <label className="form-group grow">
+            {props.copy.workspace.context}
+            <div className="editor-box">
+              <textarea
+                className="editor-textarea"
+                placeholder={props.copy.workspace.placeholder}
+                value={props.prompt}
+                onChange={(event) => props.onPromptChange(event.target.value)}
+              />
+            </div>
+          </label>
+          <button className="btn btn-primary optimize-main-button" type="button" onClick={props.onOptimize} disabled={props.loading}>
+            <Sparkles size={14} />
+            {props.copy.actions.optimize}
+          </button>
+          {props.result ? <ImprovementInsights copy={props.copy} result={props.result} /> : null}
+        </div>
+      </div>
+
+      <details className="advanced-panel">
+        <summary>
+          <SlidersHorizontal size={14} />
+          <span>{props.copy.workspace.advanced}</span>
+          <em>{props.copy.workspace.advancedNote}</em>
+        </summary>
+        <div className="advanced-body">
+          <div className="bridge-grid">
+            <div className="bridge-panel bridge-primary">
+              <div className="bridge-title">
+                <Server size={14} />
+                <span>{props.copy.workspace.hookProxy}</span>
+                <strong>{props.copy.workspace.primary}</strong>
               </div>
-              <div className="easy-hero-copy">
-                <span>Easy Mode</span>
-                <h2>{props.copy.workspace.heroTitle}</h2>
-                <p>{props.copy.workspace.heroSubtitle}</p>
+              <div className="hook-endpoint mono">http://127.0.0.1:8750/proxy/{props.provider}/v1/responses</div>
+              <div className="bridge-chips">
+                {props.copy.workspace.endpointChips.map((chip) => (
+                  <span key={chip}>{chip}</span>
+                ))}
               </div>
             </div>
-            <div className="easy-steps" aria-label="Scrooge workflow">
-              <div className="easy-step">
-                <Clipboard size={14} />
-                <span>{props.copy.workspace.stepPaste}</span>
+            <div className="bridge-panel">
+              <div className="bridge-title">
+                <ClipboardCheck size={14} />
+                <span>{props.copy.workspace.bridge}</span>
+                <strong>{props.copy.workspace.assist}</strong>
               </div>
-              <div className="easy-step">
-                <Sparkles size={14} />
-                <span>{props.copy.workspace.stepCheck}</span>
-              </div>
-              <div className="easy-step">
-                <CheckCircle size={14} />
-                <span>{props.copy.workspace.stepApply}</span>
-              </div>
+              <div className="hook-endpoint mono">{props.copy.workspace.hotkeyHint}</div>
             </div>
           </div>
 
-          <div className="easy-action-row">
-            <button className="btn btn-primary easy-primary-action" type="button" onClick={props.onOptimizeClipboardDirect} disabled={props.loading}>
-              <Sparkles size={14} />
-              {props.copy.workspace.easyPrimary}
-            </button>
-            <button className="btn btn-outline easy-secondary-action" type="button" onClick={props.onOptimize} disabled={props.loading}>
-              <Eye size={14} />
-              {props.copy.workspace.easySecondary}
-            </button>
-            <button className="btn btn-outline easy-secondary-action" type="button" onClick={props.onCaptureClipboard} disabled={props.loading}>
-              <Clipboard size={14} />
-              {props.copy.actions.capture}
-            </button>
-          </div>
-
-          <div className="easy-helper-note">
-            <ShieldCheck size={13} />
-            <span>{props.copy.workspace.privacyNote}</span>
-          </div>
-
-          <div className="compact-card easy-input-card">
-            <div className="card-header">
-              <h3>
-                <Terminal size={14} />
-                {props.copy.workspace.pasteLabel}
-              </h3>
-              <span className="soft-hint">{props.copy.workspace.captureHelper}</span>
-            </div>
-            <div className="card-body">
-              <label className="form-group grow">
-                {props.copy.workspace.context}
-                <div className="editor-box">
-                  <textarea
-                    className="editor-textarea"
-                    placeholder={props.copy.workspace.placeholder}
-                    value={props.prompt}
-                    onChange={(event) => props.onPromptChange(event.target.value)}
-                  />
-                </div>
+          <div className="advanced-controls">
+            <div className="form-row">
+              <label className="form-group">
+                {props.copy.workspace.provider}
+                <select
+                  className="form-control"
+                  value={props.provider}
+                  onChange={(event) => props.onProviderChange(event.target.value)}
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="gemini">Gemini</option>
+                </select>
+              </label>
+              <label className="form-group">
+                {props.copy.workspace.targetModel}
+                <select
+                  className="form-control"
+                  value={props.model}
+                  onChange={(event) => props.onModelChange(event.target.value)}
+                >
+                  {props.availableModels.map((item) => (
+                    <option key={item.model} value={item.model}>
+                      {item.model}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
-          </div>
 
-          <details className="advanced-panel">
-            <summary>
-              <SlidersHorizontal size={14} />
-              <span>{props.copy.workspace.advanced}</span>
-              <em>{props.copy.workspace.advancedNote}</em>
-            </summary>
-            <div className="advanced-body">
-              <div className="bridge-grid">
-                <div className="bridge-panel bridge-primary">
-                  <div className="bridge-title">
-                    <Server size={14} />
-                    <span>{props.copy.workspace.hookProxy}</span>
-                    <strong>{props.copy.workspace.primary}</strong>
-                  </div>
-                  <div className="hook-endpoint mono">http://127.0.0.1:8750/proxy/{props.provider}/v1/responses</div>
-                  <div className="bridge-chips">
-                    {props.copy.workspace.endpointChips.map((chip) => (
-                      <span key={chip}>{chip}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="bridge-panel">
-                  <div className="bridge-title">
-                    <ClipboardCheck size={14} />
-                    <span>{props.copy.workspace.bridge}</span>
-                    <strong>{props.copy.workspace.assist}</strong>
-                  </div>
-                  <div className="bridge-actions">
-                    <button className="btn btn-outline" type="button" onClick={props.onOptimizeClipboard} disabled={props.loading}>
-                      <Sparkles size={12} />
-                      {props.copy.actions.optimizeClip}
-                    </button>
-                  </div>
-                  <div className="hook-endpoint mono">{props.copy.workspace.hotkeyHint}</div>
-                </div>
+            <label className="form-group">
+              {props.copy.workspace.maxOut}: {props.expectedOutputTokens}
+              <div className="slider-box">
+                <input
+                  max={4000}
+                  min={100}
+                  step={100}
+                  type="range"
+                  value={props.expectedOutputTokens}
+                  onChange={(event) => props.onExpectedOutputTokensChange(Number(event.target.value))}
+                />
+                <span className="slider-val">~{Math.round(props.expectedOutputTokens / 1000)}K</span>
               </div>
+            </label>
 
-              <div className="advanced-controls">
-                <div className="form-row">
-                  <label className="form-group">
-                    {props.copy.workspace.provider}
-                    <select
-                      className="form-control"
-                      value={props.provider}
-                      onChange={(event) => props.onProviderChange(event.target.value)}
-                    >
-                      <option value="openai">OpenAI</option>
-                      <option value="anthropic">Anthropic</option>
-                      <option value="gemini">Gemini</option>
-                    </select>
-                  </label>
-                  <label className="form-group">
-                    {props.copy.workspace.targetModel}
-                    <select
-                      className="form-control"
-                      value={props.model}
-                      onChange={(event) => props.onModelChange(event.target.value)}
-                    >
-                      {props.availableModels.map((item) => (
-                        <option key={item.model} value={item.model}>
-                          {item.model}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <label className="form-group">
-                  {props.copy.workspace.maxOut}: {props.expectedOutputTokens}
-                  <div className="slider-box">
-                    <input
-                      max={4000}
-                      min={100}
-                      step={100}
-                      type="range"
-                      value={props.expectedOutputTokens}
-                      onChange={(event) => props.onExpectedOutputTokensChange(Number(event.target.value))}
-                    />
-                    <span className="slider-val">~{Math.round(props.expectedOutputTokens / 1000)}K</span>
-                  </div>
-                </label>
-
-                <div className="form-group">
-                  <span className="form-label">{props.copy.workspace.taskTemplate}</span>
-                  <div className="task-tags">
-                    {taskOptions.map((option) => (
-                      <button
-                        key={option.label}
-                        className={`tag-btn ${props.taskType === option.value ? "active" : ""}`}
-                        type="button"
-                        onClick={() => props.onTaskTypeChange(option.value)}
-                      >
-                        {props.copy.taskOptions[(option.value || "auto") as keyof Copy["taskOptions"]]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            <div className="form-group">
+              <span className="form-label">{props.copy.workspace.taskTemplate}</span>
+              <div className="task-tags">
+                {taskOptions.map((option) => (
+                  <button
+                    key={option.label}
+                    className={`tag-btn ${props.taskType === option.value ? "active" : ""}`}
+                    type="button"
+                    onClick={() => props.onTaskTypeChange(option.value)}
+                  >
+                    {props.copy.taskOptions[(option.value || "auto") as keyof Copy["taskOptions"]]}
+                  </button>
+                ))}
               </div>
             </div>
-          </details>
-        </>
-      ) : (
-        <PreviewPanel copy={props.copy} result={props.result} onApprove={props.onApprove} onReject={props.onReject} />
-      )}
+          </div>
+        </div>
+      </details>
     </section>
+  );
+}
+
+function ImprovementInsights(props: { copy: Copy; result: OptimizeResponse }) {
+  const savedRate = `${(props.result.savings_rate * 100).toFixed(1)}%`;
+  const savedTokens = `${props.result.saved_tokens.toLocaleString()} tokens`;
+  const savedCost = `$${props.result.saved_cost_usd.toFixed(4)}`;
+  const ruleSummary =
+    props.result.reasons.length > 0
+      ? props.result.reasons.slice(0, 2).map((reason) => reason.description).join(" / ")
+      : props.copy.workspace.privacyNote;
+
+  const items = [
+    {
+      icon: ShieldCheck,
+      title: props.copy.workspace.analysisPreserve,
+      body: props.copy.workspace.analysisPreserveText
+    },
+    {
+      icon: Sparkles,
+      title: props.copy.workspace.analysisCleanup,
+      body: props.copy.workspace.analysisCleanupText
+    },
+    {
+      icon: SlidersHorizontal,
+      title: props.copy.workspace.analysisStructure,
+      body: props.copy.workspace.analysisStructureText
+    },
+    {
+      icon: Banknote,
+      title: props.copy.workspace.analysisCost,
+      body: `${savedTokens} · ${savedRate} · ${savedCost} · ${props.copy.workspace.analysisRules}: ${ruleSummary}`
+    }
+  ];
+
+  return (
+    <div className="improvement-panel">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <div className="improvement-item" key={item.title}>
+            <Icon size={14} />
+            <div>
+              <strong>{item.title}</strong>
+              <p>{item.body}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

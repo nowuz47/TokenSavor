@@ -109,6 +109,7 @@ button {
 :root[data-theme="light"] .easy-hero-logo,
 :root[data-theme="light"] .easy-step,
 :root[data-theme="light"] .easy-helper-note,
+:root[data-theme="light"] .improvement-item,
 :root[data-theme="light"] .hook-endpoint,
 :root[data-theme="light"] .bridge-chips span,
 :root[data-theme="light"] .form-control,
@@ -340,6 +341,11 @@ button {
   padding: 12px;
 }
 
+.easy-hero-compact {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 10px;
+}
+
 .easy-hero-main {
   align-items: center;
   display: flex;
@@ -467,6 +473,49 @@ button {
 
 .easy-input-card .editor-box {
   min-height: 250px;
+}
+
+.optimize-main-button {
+  justify-content: center;
+  min-height: 44px;
+  width: 100%;
+}
+
+.improvement-panel {
+  display: grid;
+  gap: 6px;
+}
+
+.improvement-item {
+  align-items: flex-start;
+  background: rgba(6, 9, 7, 0.24);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 8px 10px;
+}
+
+.improvement-item svg {
+  color: var(--gold);
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.improvement-item strong {
+  color: var(--text-primary);
+  display: block;
+  font-size: 11px;
+  line-height: 1.25;
+  margin-bottom: 2px;
+}
+
+.improvement-item p {
+  font-size: 10px;
+  line-height: 1.35;
+  margin: 0;
 }
 
 .advanced-panel {
