@@ -93,6 +93,86 @@ button {
   border-color: rgba(159, 116, 29, 0.18);
 }
 
+:root[data-theme="light"] .app-header {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.2)),
+    var(--bg-panel);
+}
+
+:root[data-theme="light"] .brand-title {
+  background: linear-gradient(90deg, #191714, #9f741d);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+:root[data-theme="light"] .panel-toggle-bar,
+:root[data-theme="light"] .easy-hero-logo,
+:root[data-theme="light"] .easy-step,
+:root[data-theme="light"] .easy-helper-note,
+:root[data-theme="light"] .hook-endpoint,
+:root[data-theme="light"] .bridge-chips span,
+:root[data-theme="light"] .form-control,
+:root[data-theme="light"] .tag-btn,
+:root[data-theme="light"] .editor-box,
+:root[data-theme="light"] .diff-block,
+:root[data-theme="light"] .summary-bar,
+:root[data-theme="light"] .expanded-info,
+:root[data-theme="light"] .row-switch {
+  background: rgba(255, 250, 239, 0.74);
+}
+
+:root[data-theme="light"] .panel-toggle-btn.active {
+  background: #efe4cc;
+}
+
+:root[data-theme="light"] .card-header,
+:root[data-theme="light"] .quality-card-header,
+:root[data-theme="light"] .table-search-box,
+:root[data-theme="light"] .compact-table th,
+:root[data-theme="light"] .audit-footer-strip,
+:root[data-theme="light"] .activity-row {
+  background: rgba(248, 241, 226, 0.78);
+}
+
+:root[data-theme="light"] .table-search-box input,
+:root[data-theme="light"] .hash-line,
+:root[data-theme="light"] .shortcut-key {
+  background: #fffaf0;
+}
+
+:root[data-theme="light"] .btn-primary {
+  color: #fffdf7;
+}
+
+:root[data-theme="light"] .settings-brand-card,
+:root[data-theme="light"] .easy-hero {
+  background:
+    linear-gradient(135deg, rgba(159, 116, 29, 0.1), rgba(255, 255, 255, 0.55)),
+    var(--bg-panel);
+}
+
+:root[data-theme="light"] .settings-brand-logo {
+  background: rgba(255, 250, 239, 0.82);
+  border-color: rgba(159, 116, 29, 0.22);
+}
+
+:root[data-theme="light"] .chart-holder {
+  background: linear-gradient(180deg, rgba(159, 116, 29, 0.06), rgba(255, 255, 255, 0.5));
+}
+
+:root[data-theme="light"] .status-bar,
+:root[data-theme="light"] .bottom-nav {
+  background: #fffdf7;
+}
+
+:root[data-theme="light"] .bottom-nav {
+  box-shadow: 0 -4px 16px rgba(67, 52, 28, 0.12);
+}
+
+:root[data-theme="light"] .toast {
+  box-shadow: 0 6px 18px rgba(67, 52, 28, 0.18);
+}
+
 .app-header {
   align-items: center;
   background:

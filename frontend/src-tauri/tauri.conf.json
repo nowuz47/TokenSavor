@@ -13,10 +13,10 @@
     "windows": [
       {
         "title": "Scrooge",
-        "width": 1180,
-        "height": 820,
-        "minWidth": 900,
-        "minHeight": 640,
+        "width": 760,
+        "height": 950,
+        "minWidth": 520,
+        "minHeight": 650,
         "decorations": false,
         "shadow": true
       }
