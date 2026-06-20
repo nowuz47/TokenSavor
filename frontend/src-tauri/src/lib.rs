@@ -13,6 +13,12 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
+#[cfg(windows)]
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+    SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_A, VK_C, VK_CONTROL,
+    VK_V,
+};
+
 struct BackendState {
     child: Mutex<Option<CommandChild>>,
 }
@@ -79,14 +85,25 @@ fn start_backend_sidecar(app: &tauri::App) {
     }
 }
 
-fn optimize_clipboard_via_backend(app: AppHandle) {
+fn optimize_active_field_via_backend(app: AppHandle) {
     thread::spawn(move || {
+        thread::sleep(Duration::from_millis(350));
+        let previous_clipboard = app.clipboard().read_text().ok();
+        send_ctrl_key('A');
+        thread::sleep(Duration::from_millis(80));
+        send_ctrl_key('C');
+        thread::sleep(Duration::from_millis(220));
+
         let Ok(text) = app.clipboard().read_text() else {
             return;
         };
         if text.trim().is_empty() {
+            if let Some(previous) = previous_clipboard {
+                let _ = app.clipboard().write_text(previous);
+            }
             return;
         }
+
         let body = serde_json::json!({
             "prompt": text,
             "provider": "openai",
@@ -95,6 +112,8 @@ fn optimize_clipboard_via_backend(app: AppHandle) {
             "expected_output_tokens": 1000
         });
         let Some(response) = post_json("/api/optimize", &body) else {
+            let _ = app.clipboard().write_text(text);
+            send_ctrl_key('V');
             return;
         };
         let request_id = response
@@ -114,19 +133,70 @@ fn optimize_clipboard_via_backend(app: AppHandle) {
                     &serde_json::json!({ "approved": false }),
                 );
             }
+            let _ = app.clipboard().write_text(text);
+            send_ctrl_key('V');
             return;
         }
 
         let Some(optimized_prompt) = response.get("optimized_prompt").and_then(|value| value.as_str()) else {
+            let _ = app.clipboard().write_text(text);
+            send_ctrl_key('V');
             return;
         };
-        if app.clipboard().write_text(optimized_prompt).is_ok() && !request_id.is_empty() {
-            let _ = post_json(
-                &format!("/api/approvals/{request_id}/approve"),
-                &serde_json::json!({ "approved": true }),
-            );
+
+        if app.clipboard().write_text(optimized_prompt).is_ok() {
+            thread::sleep(Duration::from_millis(80));
+            send_ctrl_key('V');
+            if !request_id.is_empty() {
+                let _ = post_json(
+                    &format!("/api/approvals/{request_id}/approve"),
+                    &serde_json::json!({ "approved": true }),
+                );
+            }
         }
     });
+}
+
+#[cfg(windows)]
+fn send_ctrl_key(key: char) {
+    let virtual_key = match key {
+        'A' => VK_A,
+        'C' => VK_C,
+        'V' => VK_V,
+        _ => return,
+    };
+    let mut inputs = [
+        keyboard_input(VK_CONTROL, false),
+        keyboard_input(virtual_key, false),
+        keyboard_input(virtual_key, true),
+        keyboard_input(VK_CONTROL, true),
+    ];
+    unsafe {
+        let _ = SendInput(
+            inputs.len() as u32,
+            inputs.as_mut_ptr(),
+            std::mem::size_of::<INPUT>() as i32,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+fn send_ctrl_key(_key: char) {}
+
+#[cfg(windows)]
+fn keyboard_input(vk: u16, key_up: bool) -> INPUT {
+    INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: vk,
+                wScan: 0,
+                dwFlags: if key_up { KEYEVENTF_KEYUP } else { 0 },
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    }
 }
 
 fn post_json(path: &str, body: &serde_json::Value) -> Option<serde_json::Value> {
@@ -169,7 +239,7 @@ pub fn run() {
         Ok(builder) => builder
             .with_handler(|app, _shortcut, event| {
                 if event.state == ShortcutState::Pressed {
-                    optimize_clipboard_via_backend(app.clone());
+                    optimize_active_field_via_backend(app.clone());
                 }
             })
             .build(),
