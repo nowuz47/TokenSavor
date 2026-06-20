@@ -10,13 +10,84 @@ from scrooge.token_meter import estimate_tokens
 
 
 TASK_KEYWORDS: list[tuple[TaskType, tuple[str, ...]]] = [
-    (TaskType.LOG_ANALYSIS, ("log", "stack trace", "traceback", "exception", "cloudwatch")),
+    (
+        TaskType.LOG_ANALYSIS,
+        (
+            "log",
+            "logs",
+            "stack trace",
+            "traceback",
+            "exception",
+            "cloudwatch",
+            "로그",
+            "스택트레이스",
+            "장애 로그",
+            "운영 로그",
+        ),
+    ),
+    (
+        TaskType.DATA_ANALYSIS,
+        (
+            "csv",
+            "json",
+            "sql",
+            "dashboard",
+            "metric",
+            "metrics",
+            "revenue",
+            "retention",
+            "conversion",
+            "latency_ms",
+            "분석",
+            "데이터",
+            "매출",
+            "컬럼",
+            "지표",
+            "집계",
+            "이상치",
+            "전년",
+            "분기",
+            "보고용",
+        ),
+    ),
     (TaskType.CODE_REVIEW, ("review", "code review", "검토", "리뷰")),
-    (TaskType.REFACTORING, ("refactor", "리팩터", "cleanup", "정리")),
-    (TaskType.TEST_GENERATION, ("test", "pytest", "jest", "테스트")),
+    (TaskType.REFACTORING, ("refactor", "리팩터", "리팩토링", "cleanup", "정리")),
     (TaskType.ARCHITECTURE_REVIEW, ("architecture", "설계", "아키텍처")),
-    (TaskType.BUG_ANALYSIS, ("bug", "error", "fix", "이상", "버그", "고쳐")),
+    (
+        TaskType.BUG_ANALYSIS,
+        ("bug", "error", "fix", "failed", "failure", "오류", "에러", "이상", "버그", "고쳐", "수정"),
+    ),
+    (TaskType.TEST_GENERATION, ("test", "pytest", "jest", "테스트", "테스트 작성", "테스트 케이스")),
 ]
+
+IMPLEMENTATION_KEYWORDS = (
+    "build",
+    "create",
+    "implement",
+    "add",
+    "make",
+    "만들",
+    "구현",
+    "작성",
+    "추가",
+)
+
+CODE_ARTIFACT_KEYWORDS = (
+    "app",
+    "api",
+    "ui",
+    "python",
+    "javascript",
+    "typescript",
+    "react",
+    "tauri",
+    "fastapi",
+    "앱",
+    "계산기",
+    "파이썬",
+    "프론트엔드",
+    "백엔드",
+)
 
 TEMPLATES: dict[TaskType, str] = {
     TaskType.BUG_ANALYSIS: (
@@ -43,6 +114,10 @@ TEMPLATES: dict[TaskType, str] = {
         "Goal: Analyze logs and isolate the most likely failure pattern.\n"
         "Return: top signals, suspected cause, next checks, and remediation."
     ),
+    TaskType.DATA_ANALYSIS: (
+        "Goal: Analyze the provided data request while preserving columns, filters, metrics, and time ranges.\n"
+        "Return: summary, method/query, notable findings, caveats, and validation checks."
+    ),
     TaskType.GENERAL: (
         "Goal: Complete the user request efficiently.\n"
         "Return concise, actionable output with assumptions called out."
@@ -59,10 +134,56 @@ class OptimizedDraft:
 
 def detect_task_type(prompt: str) -> TaskType:
     lowered = prompt.lower()
+    if _looks_like_implementation_request(lowered):
+        return TaskType.GENERAL
+    if _has_explicit_bug_intent(lowered) and not _has_log_analysis_context(prompt):
+        return TaskType.BUG_ANALYSIS
     for task_type, keywords in TASK_KEYWORDS:
         if any(keyword in lowered for keyword in keywords):
             return task_type
     return TaskType.GENERAL
+
+
+def _looks_like_implementation_request(lowered_prompt: str) -> bool:
+    has_implementation_intent = any(keyword in lowered_prompt for keyword in IMPLEMENTATION_KEYWORDS)
+    has_code_artifact = any(keyword in lowered_prompt for keyword in CODE_ARTIFACT_KEYWORDS)
+    has_review_or_debug_intent = any(
+        keyword in lowered_prompt
+        for keyword in (
+            "review",
+            "code review",
+            "검토",
+            "리뷰",
+            "bug",
+            "error",
+            "failed",
+            "failure",
+            "오류",
+            "에러",
+            "버그",
+            "장애",
+        )
+    )
+    return has_implementation_intent and has_code_artifact and not has_review_or_debug_intent
+
+
+def _has_explicit_bug_intent(lowered_prompt: str) -> bool:
+    return any(
+        keyword in lowered_prompt
+        for keyword in ("bug", "버그", "오류", "에러", "고쳐", "수정", "반영되지", "안됩니다", "않습니다")
+    )
+
+
+def _has_log_analysis_context(prompt: str) -> bool:
+    lowered = prompt.lower()
+    if any(keyword in lowered for keyword in ("cloudwatch", "운영 로그", "장애 로그", "로그 분석")):
+        return True
+    error_like_lines = sum(
+        1
+        for line in prompt.splitlines()
+        if re.search(r"\b(error|exception|traceback|fatal|warn)\b", line, re.IGNORECASE)
+    )
+    return error_like_lines >= 2
 
 
 def optimize_prompt(request: OptimizeRequest) -> OptimizeResponse:

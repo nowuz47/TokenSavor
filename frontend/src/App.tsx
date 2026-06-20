@@ -150,7 +150,8 @@ const taskOptions: Array<{ label: string; value: TaskType | "" }> = [
   { label: "Review", value: "code_review" },
   { label: "Refactor", value: "refactoring" },
   { label: "Test", value: "test_generation" },
-  { label: "Logs", value: "log_analysis" }
+  { label: "Logs", value: "log_analysis" },
+  { label: "Data", value: "data_analysis" }
 ];
 
 const copy = {
@@ -314,7 +315,8 @@ const copy = {
       code_review: "Review",
       refactoring: "Refactor",
       test_generation: "Test",
-      log_analysis: "Logs"
+      log_analysis: "Logs",
+      data_analysis: "Data"
     },
     qualityCategories: {
       coding: "Coding",
@@ -484,7 +486,8 @@ const copy = {
       code_review: "리뷰",
       refactoring: "리팩터링",
       test_generation: "테스트",
-      log_analysis: "로그"
+      log_analysis: "로그",
+      data_analysis: "데이터"
     },
     qualityCategories: {
       coding: "코딩",

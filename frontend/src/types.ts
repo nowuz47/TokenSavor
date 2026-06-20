@@ -5,6 +5,7 @@ export type TaskType =
   | "test_generation"
   | "architecture_review"
   | "log_analysis"
+  | "data_analysis"
   | "general";
 
 export interface TokenBreakdown {

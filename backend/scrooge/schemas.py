@@ -12,6 +12,7 @@ class TaskType(StrEnum):
     TEST_GENERATION = "test_generation"
     ARCHITECTURE_REVIEW = "architecture_review"
     LOG_ANALYSIS = "log_analysis"
+    DATA_ANALYSIS = "data_analysis"
     GENERAL = "general"
 
 

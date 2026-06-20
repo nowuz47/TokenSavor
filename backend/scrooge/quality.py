@@ -483,62 +483,134 @@ GOLDEN_PROMPTS: tuple[GoldenPrompt, ...] = (
         ),
     ),
     GoldenPrompt(
+        name="coding_korean_calculator",
+        category=QualityCategory.CODING,
+        task_type=TaskType.GENERAL,
+        must_preserve=("파이썬", "eval()", "0으로 나누기", "pytest"),
+        must_not_add=("React", "Docker", "클라우드 배포"),
+        expected_behavior=("Goal:", "User request/context:"),
+        short_prompt=True,
+        prompt=(
+            "계산기 앱을 파이썬으로 만들어주세요. eval()은 쓰지 말고, "
+            "덧셈/뺄셈/곱셈/나눗셈과 0으로 나누기 예외 처리를 포함해 주세요. "
+            "pytest 테스트도 같이 작성해 주세요."
+        ),
+    ),
+    GoldenPrompt(
+        name="debugging_korean_hotkey_dashboard",
+        category=QualityCategory.DEBUGGING,
+        task_type=TaskType.BUG_ANALYSIS,
+        must_preserve=("Ctrl+Alt+S", "대시보드", "SQLite audit record"),
+        must_not_add=("로그인", "권한 서버", "클라우드 동기화"),
+        expected_behavior=("Root cause", "Fix plan"),
+        short_prompt=True,
+        prompt=(
+            "Tauri 앱에서 단축키 Ctrl+Alt+S를 눌러도 대시보드의 사용 로그와 "
+            "절감 토큰이 바로 반영되지 않습니다. 이벤트 emit, frontend refresh, "
+            "SQLite audit record 저장 여부를 기준으로 원인과 수정안을 제시해 주세요."
+        ),
+    ),
+    GoldenPrompt(
+        name="logs_korean_payment_repeated",
+        category=QualityCategory.LOGS,
+        task_type=TaskType.LOG_ANALYSIS,
+        must_preserve=("payment-api", "KCP", "배포 직후 5분"),
+        must_not_add=("인증 장애", "디스크 부족", "개인정보 유출"),
+        expected_behavior=("top signals", "suspected cause"),
+        min_savings_rate=0.2,
+        prompt="\n".join(
+            ["아래 운영 로그를 분석해서 장애 원인, 영향 범위, 즉시 조치, 재발 방지책을 정리해 주세요."]
+            + repeated(
+                ["2026-06-20 09:01:11 ERROR payment-api timeout order_id=1001 pg=KCP latency=5300ms"],
+                60,
+            )
+            + ["CloudWatch 기준이며 배포 직후 5분 동안만 발생했습니다."]
+        ),
+    ),
+    GoldenPrompt(
+        name="data_korean_sales_report",
+        category=QualityCategory.DATA,
+        task_type=TaskType.DATA_ANALYSIS,
+        must_preserve=("sales_2026_q1.csv", "business_unit", "region", "전년 동기 대비 15%"),
+        must_not_add=("고객 PII", "머신러닝 필수", "원본 업로드"),
+        expected_behavior=("validation checks", "method/query"),
+        short_prompt=True,
+        prompt=(
+            "sales_2026_q1.csv를 분석해서 사업부, 지역, 상품군별 매출 증감률을 구하고, "
+            "전년 동기 대비 15% 이상 하락한 항목을 찾아주세요. 컬럼은 business_unit, "
+            "region, product, revenue, year, quarter 입니다. 결과는 임원 보고용 요약과 SQL 예시를 함께 주세요."
+        ),
+    ),
+    GoldenPrompt(
+        name="docs_korean_enterprise_trust",
+        category=QualityCategory.DOCS_PLANNING,
+        task_type=TaskType.ARCHITECTURE_REVIEW,
+        must_preserve=("한국 대기업", "팀 단위 통계", "원문 프롬프트 저장 금지"),
+        must_not_add=("개인별 순위", "원문 중앙 저장", "자동 전송"),
+        expected_behavior=("recommendation", "risks"),
+        short_prompt=True,
+        prompt=(
+            "한국 대기업 사내 도입 기준으로 Scrooge 신뢰 정책을 정리해 주세요. "
+            "팀 단위 통계, 원문 프롬프트 저장 금지, 가격표 버전 추적, 실측/추정 구분을 포함해야 합니다."
+        ),
+    ),
+    GoldenPrompt(
         name="data_csv_revenue",
         category=QualityCategory.DATA,
-        task_type=TaskType.GENERAL,
+        task_type=TaskType.DATA_ANALYSIS,
         must_preserve=("revenue.csv", "region", "net_revenue", "2026-Q1"),
         must_not_add=("machine learning", "customer PII"),
-        expected_behavior=("assumptions", "Goal:"),
+        expected_behavior=("validation checks", "method/query"),
         short_prompt=True,
         prompt="Analyze revenue.csv for 2026-Q1 by region and net_revenue. Show top declines.",
     ),
     GoldenPrompt(
         name="data_sql_retention",
         category=QualityCategory.DATA,
-        task_type=TaskType.GENERAL,
+        task_type=TaskType.DATA_ANALYSIS,
         must_preserve=("users", "events", "retention_day_7", "signup_date"),
         must_not_add=("payments", "email export"),
-        expected_behavior=("actionable output", "assumptions"),
+        expected_behavior=("validation checks", "method/query"),
         short_prompt=True,
         prompt="Write SQL joining users and events to compute retention_day_7 grouped by signup_date.",
     ),
     GoldenPrompt(
         name="data_json_anomaly",
         category=QualityCategory.DATA,
-        task_type=TaskType.GENERAL,
+        task_type=TaskType.DATA_ANALYSIS,
         must_preserve=("events.json", "latency_ms", "service", "p99"),
         must_not_add=("financial forecast", "GPU"),
-        expected_behavior=("Goal:", "assumptions"),
+        expected_behavior=("validation checks", "method/query"),
         short_prompt=True,
         prompt="From events.json, find service-level p99 latency_ms anomalies and explain likely drivers.",
     ),
     GoldenPrompt(
         name="data_stat_summary",
         category=QualityCategory.DATA,
-        task_type=TaskType.GENERAL,
+        task_type=TaskType.DATA_ANALYSIS,
         must_preserve=("mean", "median", "stddev", "order_value"),
         must_not_add=("causal inference", "A/B test"),
-        expected_behavior=("concise", "actionable"),
+        expected_behavior=("validation checks", "method/query"),
         short_prompt=True,
         prompt="Summarize order_value with mean, median, stddev, min, max, and outliers.",
     ),
     GoldenPrompt(
         name="data_sql_cost",
         category=QualityCategory.DATA,
-        task_type=TaskType.GENERAL,
+        task_type=TaskType.DATA_ANALYSIS,
         must_preserve=("cloud_costs", "team", "month", "usd"),
         must_not_add=("invoice download", "currency conversion"),
-        expected_behavior=("Goal:", "assumptions"),
+        expected_behavior=("validation checks", "method/query"),
         short_prompt=True,
         prompt="Create a SQL query over cloud_costs to aggregate usd by team and month.",
     ),
     GoldenPrompt(
         name="data_csv_long_context",
         category=QualityCategory.DATA,
-        task_type=TaskType.GENERAL,
+        task_type=TaskType.DATA_ANALYSIS,
         must_preserve=("customer_id", "churn_score", "plan", "enterprise"),
         must_not_add=("credit card", "HIPAA"),
-        expected_behavior=("Goal:", "assumptions"),
+        expected_behavior=("validation checks", "method/query"),
         min_savings_rate=0.2,
         prompt="\n".join(
             ["Analyze CSV rows and identify enterprise churn risk drivers.", "customer_id,plan,churn_score,reason"]
@@ -551,20 +623,20 @@ GOLDEN_PROMPTS: tuple[GoldenPrompt, ...] = (
     GoldenPrompt(
         name="data_metric_definition",
         category=QualityCategory.DATA,
-        task_type=TaskType.GENERAL,
+        task_type=TaskType.DATA_ANALYSIS,
         must_preserve=("activation_rate", "activated_at", "created_at"),
         must_not_add=("revenue", "subscription"),
-        expected_behavior=("assumptions", "Goal:"),
+        expected_behavior=("validation checks", "method/query"),
         short_prompt=True,
         prompt="Define activation_rate using activated_at and created_at, then suggest validation checks.",
     ),
     GoldenPrompt(
         name="data_experiment_readout",
         category=QualityCategory.DATA,
-        task_type=TaskType.GENERAL,
+        task_type=TaskType.DATA_ANALYSIS,
         must_preserve=("variant", "conversion_rate", "confidence interval"),
         must_not_add=("Bayesian", "user emails"),
-        expected_behavior=("concise", "assumptions"),
+        expected_behavior=("validation checks", "method/query"),
         short_prompt=True,
         prompt="Analyze A/B test results by variant, conversion_rate, and confidence interval.",
     ),
@@ -581,10 +653,10 @@ GOLDEN_PROMPTS: tuple[GoldenPrompt, ...] = (
     GoldenPrompt(
         name="data_outlier_detection",
         category=QualityCategory.DATA,
-        task_type=TaskType.GENERAL,
+        task_type=TaskType.DATA_ANALYSIS,
         must_preserve=("z-score", "latency_ms", "service_name"),
         must_not_add=("deep learning", "anomaly API"),
-        expected_behavior=("Goal:", "assumptions"),
+        expected_behavior=("validation checks", "method/query"),
         short_prompt=True,
         prompt="Use z-score to flag latency_ms outliers grouped by service_name.",
     ),
