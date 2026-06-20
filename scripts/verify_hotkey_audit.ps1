@@ -34,12 +34,16 @@ $attempts = if ($dashboard.hotkey_attempts -ne $null) { [int]$dashboard.hotkey_a
 $failures = if ($dashboard.hotkey_failed_requests -ne $null) { [int]$dashboard.hotkey_failed_requests } else { $failedRecords.Count }
 $successes = [Math]::Max(0, $attempts - $failures)
 $successRate = if ($attempts -gt 0) { $successes / $attempts } else { 0 }
-$savedTokens = ($hotkeyRecords | Measure-Object -Property saved_tokens -Sum).Sum
-if ($null -eq $savedTokens) {
-    $savedTokens = ($hotkeyRecords | Measure-Object -Property savedTokens -Sum).Sum
-}
-if ($null -eq $savedTokens) {
-    $savedTokens = 0
+$savedTokens = 0
+foreach ($record in $hotkeyRecords) {
+    $snake = $record.PSObject.Properties["saved_tokens"]
+    $camel = $record.PSObject.Properties["savedTokens"]
+    if ($null -ne $snake -and $null -ne $snake.Value) {
+        $savedTokens += [int]$snake.Value
+    }
+    elseif ($null -ne $camel -and $null -ne $camel.Value) {
+        $savedTokens += [int]$camel.Value
+    }
 }
 
 $summary = [ordered]@{
