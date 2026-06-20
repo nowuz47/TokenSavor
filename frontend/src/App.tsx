@@ -155,15 +155,7 @@ const taskOptions: Array<{ label: string; value: TaskType | "" }> = [
 
 
 
-const defaultPrompt =
-  "이 코드가 이상한 것 같은데 한번 확인해 주세요.\n\n" +
-  "ERROR 12:04:15 c.s.config.ServerBootstrap - failed to parse config\n" +
-  "ERROR 12:04:15 c.s.config.ServerBootstrap - failed to parse config\n" +
-  "ERROR 12:04:15 c.s.config.ServerBootstrap - failed to parse config\n" +
-  "Traceback (most recent call last):\n" +
-  '  File "/app/scrooge/config.py", line 45, in parse_yaml\n' +
-  "    config = yaml.safe_load(f)\n" +
-  "yaml.parser.ParserError: expected '<document start>', but found '<block start>'";
+const defaultPrompt = "";
 
 function toAuditRecord(record: AuditRecordSummary): AuditRecord {
   return {
