@@ -134,6 +134,13 @@ $commands += Invoke-CheckedCommand -Label "calculator savings validation" -Comma
     finally { Pop-Location }
 }
 
+$attachmentReport = Join-Path (Split-Path $ReportPath -Parent) ("attachment-savings-for-" + [System.IO.Path]::GetFileNameWithoutExtension($ReportPath) + ".json")
+$commands += Invoke-CheckedCommand -Label "attachment savings validation" -Command {
+    Push-Location $backendDir
+    try { & $pythonExe .\tools\validate_attachment_savings.py --api $ApiBase --report $attachmentReport }
+    finally { Pop-Location }
+}
+
 $commands += Invoke-CheckedCommand -Label "api smoke matrix" -Command {
     Push-Location $backendDir
     try { & $pythonExe .\tools\run_smoke_matrix.py --api $ApiBase --mode smoke }

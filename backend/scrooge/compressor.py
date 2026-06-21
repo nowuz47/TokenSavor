@@ -182,6 +182,8 @@ def _looks_like_search_output(lines: list[str]) -> bool:
 
 def _compress_log(lines: list[str], max_lines: int) -> CompressionResult:
     error_lines = [line for line in lines if ERROR_RE.search(line)]
+    frame_lines = [line for line in lines if STACK_FRAME_RE.search(line)]
+    signal_lines = error_lines + [line for line in frame_lines if line not in error_lines]
     normalized = [re.sub(r"\d+", "<n>", line) for line in error_lines]
     counts = Counter(normalized)
     summary = ["Log summary:", f"- Total lines: {len(lines)}", f"- Error-like lines: {len(error_lines)}"]
@@ -189,12 +191,12 @@ def _compress_log(lines: list[str], max_lines: int) -> CompressionResult:
 
     sample_budget = max(5, max_lines - len(summary) - 2)
     representative: list[str] = []
-    for line in error_lines[: max(1, sample_budget // 2)] + error_lines[-max(1, sample_budget // 2) :]:
+    for line in signal_lines[: max(1, sample_budget // 2)] + signal_lines[-max(1, sample_budget // 2) :]:
         if line not in representative:
             representative.append(line)
-    for line in error_lines:
+    for line in signal_lines:
         normalized_line = re.sub(r"\d+", "<n>", line)
-        if counts[normalized_line] == 1 and line not in representative:
+        if (counts.get(normalized_line, 0) <= 1 or STACK_FRAME_RE.search(line)) and line not in representative:
             representative.append(line)
         if len(representative) >= sample_budget:
             break

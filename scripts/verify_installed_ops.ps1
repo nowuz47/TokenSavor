@@ -48,6 +48,8 @@ $checks = [ordered]@{
     hotkeyValidationStatus = $summary.hotkey_validation_status
     hotkeyAttempts = $summary.hotkey_attempts
     usedAssumedRequests = $summary.used_assumed_requests
+    attachmentFieldsPresent = $null -ne $summary.attachment_requests -and $null -ne $summary.attachment_measured_coverage
+    attachmentMeasuredCoverage = $summary.attachment_measured_coverage
     compatibilityStatus = $compatibility.overall_status
     diagnosticsPromptBodyExcluded = $diagnostics.prompt_body_included -eq $false
     securityScanRequired = $policy.security_scan_required -eq $true
@@ -81,6 +83,7 @@ $failed = @(
     $checks.sidecarManaged,
     $checks.databaseExists,
     $checks.noScroogeCmdWindow,
+    $checks.attachmentFieldsPresent,
     $checks.diagnosticsPromptBodyExcluded,
     $checks.securityScanRequired
 ) | Where-Object { -not $_ }
