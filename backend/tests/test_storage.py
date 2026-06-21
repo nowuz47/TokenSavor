@@ -1,6 +1,14 @@
 from scrooge.config import Settings
 from scrooge.optimizer import optimize_prompt
-from scrooge.schemas import CaptureSource, HotkeyEventRequest, MeasurementRequest, OptimizeRequest, UsageState
+from scrooge.schemas import (
+    AttachmentMetadata,
+    AttachmentTokenStatus,
+    CaptureSource,
+    HotkeyEventRequest,
+    MeasurementRequest,
+    OptimizeRequest,
+    UsageState,
+)
 from scrooge.storage import UsageStore
 
 
@@ -187,3 +195,79 @@ def test_summary_counts_repeated_prompt_family_as_followup_request(tmp_path) -> 
     assert summary["total_requests"] == 2
     assert summary["followup_requests"] == 1
     assert summary["reask_rate"] == 0.5
+
+
+def test_storage_tracks_attachment_metadata_without_prompt_body(tmp_path) -> None:
+    db_path = tmp_path / "scrooge.db"
+    settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)
+    store = UsageStore(settings)
+    attachments = [
+        AttachmentMetadata(
+            name="orders.csv",
+            mime_type="text/csv",
+            size_bytes=4096,
+            content_hash="sha256:orders",
+            token_status=AttachmentTokenStatus.ESTIMATED,
+            estimated_tokens=1200,
+        )
+    ]
+    response = optimize_prompt(
+        OptimizeRequest(
+            prompt="Analyze the attached orders.csv and summarize revenue anomalies.",
+            provider="openai",
+            attachments=attachments,
+        )
+    )
+
+    store.save_preview(response, provider="openai", model="gpt-5.4-mini", attachments=attachments)
+    record = store.list_records()[0]
+    summary = store.summary("all")
+
+    assert record["attachment_count"] == 1
+    assert record["attachment_token_status"] == "estimated"
+    assert record["attachment_estimated_tokens"] == 1200
+    assert record["total_savings_rate"] == response.total_savings_rate
+    assert summary["attachment_requests"] == 1
+    assert summary["attachment_unknown_requests"] == 0
+    assert summary["attachment_measured_requests"] == 0
+
+
+def test_measurement_marks_attachments_measured_when_total_input_is_available(tmp_path) -> None:
+    db_path = tmp_path / "scrooge.db"
+    settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)
+    store = UsageStore(settings)
+    attachments = [
+        AttachmentMetadata(
+            name="trace.log",
+            token_status=AttachmentTokenStatus.UNKNOWN,
+        )
+    ]
+    response = optimize_prompt(
+        OptimizeRequest(
+            prompt="Use the attached trace.log to find the exception.",
+            provider="openai",
+            attachments=attachments,
+        )
+    )
+
+    store.save_preview(response, provider="openai", model="gpt-5.4-mini", attachments=attachments)
+    store.record_measurement(
+        response.request_id,
+        MeasurementRequest(
+            measured_original_tokens=response.original_tokens.input_tokens,
+            measured_input_tokens=response.optimized_tokens.input_tokens,
+            measured_total_input_tokens=response.optimized_tokens.input_tokens + 800,
+            measured_output_tokens=42,
+            source="openai_usage",
+        ),
+    )
+
+    record = store.list_records()[0]
+    summary = store.summary("all")
+
+    assert record["attachment_token_status"] == "measured"
+    assert record["attachment_measured_tokens"] == 800
+    assert record["total_savings_rate"] is not None
+    assert summary["attachment_requests"] == 1
+    assert summary["attachment_measured_requests"] == 1
+    assert summary["attachment_measured_coverage"] == 1

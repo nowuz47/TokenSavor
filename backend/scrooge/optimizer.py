@@ -5,7 +5,15 @@ from uuid import uuid4
 
 from scrooge.compressor import compress_context
 from scrooge.pricing import calculate_cost
-from scrooge.schemas import OptimizationReason, OptimizeRequest, OptimizeResponse, TaskType
+from scrooge.schemas import (
+    AttachmentMetadata,
+    AttachmentSummary,
+    AttachmentTokenStatus,
+    OptimizationReason,
+    OptimizeRequest,
+    OptimizeResponse,
+    TaskType,
+)
 from scrooge.token_meter import estimate_tokens
 
 
@@ -222,6 +230,14 @@ def optimize_prompt(request: OptimizeRequest) -> OptimizeResponse:
     saved_tokens = max(0, original_tokens.input_tokens - optimized_tokens.input_tokens)
     saved_cost = max(0.0, original_cost.total_cost_usd - optimized_cost.total_cost_usd)
     savings_rate = saved_tokens / original_tokens.input_tokens if original_tokens.input_tokens else 0
+    attachment_summary = build_attachment_summary(
+        prompt=request.prompt,
+        attachments=request.attachments,
+        original_input_tokens=original_tokens.input_tokens,
+        optimized_input_tokens=optimized_tokens.input_tokens,
+        saved_tokens=saved_tokens,
+        prompt_savings_rate=savings_rate,
+    )
 
     return OptimizeResponse(
         request_id=str(uuid4()),
@@ -235,9 +251,128 @@ def optimize_prompt(request: OptimizeRequest) -> OptimizeResponse:
         saved_tokens=saved_tokens,
         saved_cost_usd=round(saved_cost, 8),
         savings_rate=round(savings_rate, 4),
+        prompt_savings_rate=round(savings_rate, 4),
+        total_savings_rate=attachment_summary.total_savings_rate,
+        attachment_summary=attachment_summary,
         reasons=draft.reasons,
         created_at=datetime.now(timezone.utc),
     )
+
+
+def build_attachment_summary(
+    prompt: str,
+    attachments: list[AttachmentMetadata],
+    original_input_tokens: int,
+    optimized_input_tokens: int,
+    saved_tokens: int,
+    prompt_savings_rate: float,
+) -> AttachmentSummary:
+    possible_reference = detect_possible_attachment_reference(prompt)
+    if not attachments:
+        if possible_reference:
+            return AttachmentSummary(
+                attachment_count=0,
+                token_status=AttachmentTokenStatus.UNKNOWN,
+                possible_attachment_reference=True,
+                prompt_original_tokens=original_input_tokens,
+                prompt_optimized_tokens=optimized_input_tokens,
+                prompt_saved_tokens=saved_tokens,
+                prompt_savings_rate=round(prompt_savings_rate, 4),
+                note="Possible attachment reference detected; attachment tokens are not included.",
+            )
+        return AttachmentSummary(
+            attachment_count=0,
+            token_status=AttachmentTokenStatus.NOT_PRESENT,
+            possible_attachment_reference=False,
+            prompt_original_tokens=original_input_tokens,
+            prompt_optimized_tokens=optimized_input_tokens,
+            prompt_saved_tokens=saved_tokens,
+            total_original_tokens=original_input_tokens,
+            total_optimized_tokens=optimized_input_tokens,
+            total_saved_tokens=saved_tokens,
+            prompt_savings_rate=round(prompt_savings_rate, 4),
+            total_savings_rate=round(prompt_savings_rate, 4),
+            note="No attachment metadata was provided.",
+        )
+
+    known_estimated = [
+        int(item.estimated_tokens)
+        for item in attachments
+        if item.estimated_tokens is not None and item.token_status in {AttachmentTokenStatus.ESTIMATED, AttachmentTokenStatus.MEASURED}
+    ]
+    known_measured = [
+        int(item.measured_tokens)
+        for item in attachments
+        if item.measured_tokens is not None and item.token_status == AttachmentTokenStatus.MEASURED
+    ]
+    has_unknown = any(
+        item.token_status == AttachmentTokenStatus.UNKNOWN
+        or (item.token_status == AttachmentTokenStatus.ESTIMATED and item.estimated_tokens is None)
+        or (item.token_status == AttachmentTokenStatus.MEASURED and item.measured_tokens is None and item.estimated_tokens is None)
+        for item in attachments
+    )
+    all_measured = bool(attachments) and all(
+        item.token_status == AttachmentTokenStatus.MEASURED and item.measured_tokens is not None
+        for item in attachments
+    )
+    estimated_attachment_tokens = sum(known_estimated) if known_estimated else None
+    measured_attachment_tokens = sum(known_measured) if known_measured else None
+    attachment_tokens_for_total = measured_attachment_tokens if all_measured else estimated_attachment_tokens
+
+    if has_unknown or attachment_tokens_for_total is None:
+        status = AttachmentTokenStatus.UNKNOWN
+        total_original = None
+        total_optimized = None
+        total_savings_rate = None
+        total_saved = None
+        note = "Attachment metadata was present, but attachment tokens are not fully measured or estimated."
+    else:
+        status = AttachmentTokenStatus.MEASURED if all_measured else AttachmentTokenStatus.ESTIMATED
+        total_original = original_input_tokens + attachment_tokens_for_total
+        total_optimized = optimized_input_tokens + attachment_tokens_for_total
+        total_saved = max(0, total_original - total_optimized)
+        total_savings_rate = round(total_saved / total_original, 4) if total_original else 0
+        note = (
+            "Attachment-inclusive savings use measured attachment tokens."
+            if status == AttachmentTokenStatus.MEASURED
+            else "Attachment-inclusive savings use estimated attachment tokens."
+        )
+
+    return AttachmentSummary(
+        attachment_count=len(attachments),
+        token_status=status,
+        possible_attachment_reference=possible_reference,
+        prompt_original_tokens=original_input_tokens,
+        prompt_optimized_tokens=optimized_input_tokens,
+        prompt_saved_tokens=saved_tokens,
+        estimated_attachment_tokens=estimated_attachment_tokens,
+        measured_attachment_tokens=measured_attachment_tokens,
+        total_original_tokens=total_original,
+        total_optimized_tokens=total_optimized,
+        total_saved_tokens=total_saved,
+        prompt_savings_rate=round(prompt_savings_rate, 4),
+        total_savings_rate=total_savings_rate,
+        note=note,
+    )
+
+
+def detect_possible_attachment_reference(prompt: str) -> bool:
+    lowered = prompt.lower()
+    attachment_terms = (
+        "attachment",
+        "attached",
+        "uploaded",
+        "upload",
+        "file",
+        "files",
+        "첨부",
+        "첨부한",
+        "첨부된",
+        "파일",
+        "파일을 보고",
+        "업로드",
+    )
+    return any(term in lowered for term in attachment_terms)
 
 
 def build_optimized_draft(prompt: str, task_type: TaskType | None = None) -> OptimizedDraft:

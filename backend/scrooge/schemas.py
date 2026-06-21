@@ -54,6 +54,13 @@ class TokenizerConfidence(StrEnum):
     PROVIDER_MEASURED = "provider_measured"
 
 
+class AttachmentTokenStatus(StrEnum):
+    NOT_PRESENT = "not_present"
+    UNKNOWN = "unknown"
+    ESTIMATED = "estimated"
+    MEASURED = "measured"
+
+
 class TokenBreakdown(BaseModel):
     input_tokens: int
     output_tokens: int = 0
@@ -78,6 +85,34 @@ class OptimizeRequest(BaseModel):
     task_type: TaskType | None = None
     expected_output_tokens: int = Field(default=1000, ge=0, le=200000)
     capture_source: CaptureSource = CaptureSource.MANUAL
+    attachments: list["AttachmentMetadata"] = Field(default_factory=list)
+
+
+class AttachmentMetadata(BaseModel):
+    name: str = Field(min_length=1)
+    mime_type: str | None = None
+    size_bytes: int | None = Field(default=None, ge=0)
+    content_hash: str | None = None
+    token_status: AttachmentTokenStatus = AttachmentTokenStatus.UNKNOWN
+    estimated_tokens: int | None = Field(default=None, ge=0)
+    measured_tokens: int | None = Field(default=None, ge=0)
+
+
+class AttachmentSummary(BaseModel):
+    attachment_count: int = 0
+    token_status: AttachmentTokenStatus = AttachmentTokenStatus.NOT_PRESENT
+    possible_attachment_reference: bool = False
+    prompt_original_tokens: int = 0
+    prompt_optimized_tokens: int = 0
+    prompt_saved_tokens: int = 0
+    estimated_attachment_tokens: int | None = None
+    measured_attachment_tokens: int | None = None
+    total_original_tokens: int | None = None
+    total_optimized_tokens: int | None = None
+    total_saved_tokens: int | None = None
+    prompt_savings_rate: float = 0
+    total_savings_rate: float | None = None
+    note: str
 
 
 class OptimizationReason(BaseModel):
@@ -97,6 +132,9 @@ class OptimizeResponse(BaseModel):
     saved_tokens: int
     saved_cost_usd: float
     savings_rate: float
+    prompt_savings_rate: float
+    total_savings_rate: float | None = None
+    attachment_summary: AttachmentSummary
     reasons: list[OptimizationReason]
     created_at: datetime
 
@@ -128,6 +166,7 @@ class MeasurementRequest(BaseModel):
     measured_input_tokens: int = Field(ge=0)
     measured_output_tokens: int = Field(ge=0)
     measured_original_tokens: int | None = Field(default=None, ge=0)
+    measured_total_input_tokens: int | None = Field(default=None, ge=0)
     source: str = "provider_usage"
     upstream_status: int | None = None
 
@@ -169,6 +208,10 @@ class DashboardSummary(BaseModel):
     latest_hotkey_status: str | None = None
     used_assumed_requests: int = 0
     backend_health_status: str = "ok"
+    attachment_requests: int = 0
+    attachment_unknown_requests: int = 0
+    attachment_measured_requests: int = 0
+    attachment_measured_coverage: float = 0
 
 
 class QualityCaseResult(BaseModel):
@@ -242,6 +285,13 @@ class AuditRecordSummary(BaseModel):
     failure_reason: str | None = None
     tokenizer_confidence: TokenizerConfidence = TokenizerConfidence.HEURISTIC_FALLBACK
     token_error_rate: float | None = None
+    attachment_count: int = 0
+    attachment_token_status: AttachmentTokenStatus = AttachmentTokenStatus.NOT_PRESENT
+    attachment_estimated_tokens: int | None = None
+    attachment_measured_tokens: int | None = None
+    possible_attachment_reference: bool = False
+    prompt_savings_rate: float = 0
+    total_savings_rate: float | None = None
 
 
 class RuntimeStatusResponse(BaseModel):

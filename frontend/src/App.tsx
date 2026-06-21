@@ -15,6 +15,7 @@ import {
   Languages,
   Minus,
   Moon,
+  Paperclip,
   RefreshCw,
   Server,
   Settings,
@@ -108,6 +109,13 @@ interface AuditRecord {
   failureReason?: string | null;
   tokenizerConfidence: "estimated_local" | "estimated_provider_count" | "heuristic_fallback" | "provider_measured";
   tokenErrorRate?: number | null;
+  attachmentCount: number;
+  attachmentTokenStatus: "not_present" | "unknown" | "estimated" | "measured";
+  attachmentEstimatedTokens?: number | null;
+  attachmentMeasuredTokens?: number | null;
+  possibleAttachmentReference: boolean;
+  promptSavingsRate: number;
+  totalSavingsRate?: number | null;
 }
 
 const modelsRegistry: ModelOption[] = [
@@ -209,7 +217,14 @@ function toAuditRecord(record: AuditRecordSummary): AuditRecord {
     measurementStatus: record.measurement_status,
     failureReason: record.failure_reason,
     tokenizerConfidence: record.tokenizer_confidence,
-    tokenErrorRate: record.token_error_rate
+    tokenErrorRate: record.token_error_rate,
+    attachmentCount: record.attachment_count,
+    attachmentTokenStatus: record.attachment_token_status,
+    attachmentEstimatedTokens: record.attachment_estimated_tokens,
+    attachmentMeasuredTokens: record.attachment_measured_tokens,
+    possibleAttachmentReference: record.possible_attachment_reference,
+    promptSavingsRate: record.prompt_savings_rate,
+    totalSavingsRate: record.total_savings_rate
   };
 }
 
@@ -274,6 +289,10 @@ export default function App() {
       backendHealthStatus: runtimeStatus?.backend_status ?? summary?.backend_health_status ?? "unknown",
       databaseStatus: runtimeStatus?.database_status ?? "unknown",
       sidecarStatus: runtimeStatus?.sidecar_status ?? "unknown",
+      attachmentRequests: summary?.attachment_requests ?? 0,
+      attachmentUnknownRequests: summary?.attachment_unknown_requests ?? 0,
+      attachmentMeasuredRequests: summary?.attachment_measured_requests ?? 0,
+      attachmentMeasuredCoverage: summary?.attachment_measured_coverage ?? 0,
       qualityPreservationRate:
         summary?.quality_preservation_rate ?? qualitySummary?.quality_preservation_rate ?? 0
     };
@@ -921,9 +940,10 @@ function WorkspaceTab(props: {
 }
 
 function ImprovementInsights(props: { copy: Copy; result: OptimizeResponse }) {
-  const savedRate = `${(props.result.savings_rate * 100).toFixed(1)}%`;
+  const savedRate = `${(props.result.prompt_savings_rate * 100).toFixed(1)}%`;
   const savedTokens = `${props.result.saved_tokens.toLocaleString()} tokens`;
   const savedCost = `$${props.result.saved_cost_usd.toFixed(4)}`;
+  const attachmentText = formatAttachmentSummary(props.result, props.copy);
   const ruleSummary =
     props.result.reasons.length > 0
       ? props.result.reasons.slice(0, 2).map((reason) => reason.description).join(" / ")
@@ -941,9 +961,9 @@ function ImprovementInsights(props: { copy: Copy; result: OptimizeResponse }) {
       body: props.copy.workspace.analysisCleanupText
     },
     {
-      icon: SlidersHorizontal,
-      title: props.copy.workspace.analysisStructure,
-      body: props.copy.workspace.analysisStructureText
+      icon: Paperclip,
+      title: props.copy.workspace.attachmentScope,
+      body: attachmentText
     },
     {
       icon: Banknote,
@@ -1009,7 +1029,16 @@ function PreviewPanel(props: {
             <div>
               {props.copy.preview.estimatedOptimized}: <strong>{props.result.optimized_tokens.input_tokens.toLocaleString()}</strong>
             </div>
-            <span className="token-badge">{(props.result.savings_rate * 100).toFixed(1)}% {props.copy.preview.estimatedSaved}</span>
+            <span className="token-badge">
+              {(props.result.prompt_savings_rate * 100).toFixed(1)}% {props.copy.preview.promptOnlySavings}
+            </span>
+          </div>
+          <div className={`attachment-notice attachment-${props.result.attachment_summary.token_status}`}>
+            <Paperclip size={14} />
+            <div>
+              <strong>{formatAttachmentStatus(props.result.attachment_summary.token_status, props.copy)}</strong>
+              <span>{formatAttachmentSummary(props.result, props.copy)}</span>
+            </div>
           </div>
           <div className="audit-footer-strip">
             <div>
@@ -1075,6 +1104,10 @@ function DashboardTab(props: {
     hotkeyValidationStatus: "needs_validation" | "passed" | "failed";
     latestHotkeyStatus: string | null;
     usedAssumedRequests: number;
+    attachmentRequests: number;
+    attachmentUnknownRequests: number;
+    attachmentMeasuredRequests: number;
+    attachmentMeasuredCoverage: number;
     longContextSavingsRate: number;
     maxTokenErrorRate: number;
     measuredRequests: number;
@@ -1216,6 +1249,9 @@ function DashboardTab(props: {
             <DashboardCard icon={<X />} label={props.copy.dashboard.hotkeyFailures} value={props.aggregate.hotkeyFailedRequests} />
             <DashboardCard icon={<Terminal />} label={props.copy.dashboard.latestHotkey} value={props.aggregate.latestHotkeyStatus ?? "-"} />
             <DashboardCard icon={<CheckCircle />} label={props.copy.dashboard.usedAssumed} value={props.aggregate.usedAssumedRequests} />
+            <DashboardCard icon={<Paperclip />} label={props.copy.dashboard.attachmentRequests} value={props.aggregate.attachmentRequests} />
+            <DashboardCard icon={<Paperclip />} label={props.copy.dashboard.attachmentUnknown} value={props.aggregate.attachmentUnknownRequests} />
+            <DashboardCard icon={<Activity />} label={props.copy.dashboard.attachmentMeasuredCoverage} value={`${(props.aggregate.attachmentMeasuredCoverage * 100).toFixed(0)}%`} />
             <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.shortPromptProtected} value={props.aggregate.shortPromptProtectedCount} />
             <DashboardCard icon={<X />} label={props.copy.dashboard.shortOverOptimization} value={props.aggregate.shortPromptOverOptimizationCount} />
             <DashboardCard icon={<Server />} label={props.copy.dashboard.backendHealth} value={props.aggregate.backendHealthStatus} />
@@ -1608,6 +1644,22 @@ function AuditRows(props: { copy: Copy; expanded: boolean; record: AuditRecord; 
                   {formatMeasurementStatus(props.record.measurementStatus, props.copy)}
                 </span>
               </div>
+              <div>
+                <strong>{props.copy.audit.attachmentStatus}</strong>
+                <span className="hash-line">
+                  {formatAttachmentStatus(props.record.attachmentTokenStatus, props.copy)}
+                  {props.record.attachmentCount > 0 ? ` · ${props.record.attachmentCount}` : ""}
+                  {props.record.possibleAttachmentReference && props.record.attachmentCount === 0 ? " · referenced" : ""}
+                </span>
+              </div>
+              {props.record.attachmentEstimatedTokens || props.record.attachmentMeasuredTokens ? (
+                <div>
+                  <strong>{props.copy.audit.attachmentTokens}</strong>
+                  <span className="hash-line">
+                    {(props.record.attachmentMeasuredTokens ?? props.record.attachmentEstimatedTokens ?? 0).toLocaleString()}
+                  </span>
+                </div>
+              ) : null}
               {props.record.failureReason ? (
                 <div>
                   <strong>{props.copy.audit.failureReason}</strong>
@@ -1717,6 +1769,26 @@ function formatDeliveryStatus(status: AuditRecord["deliveryStatus"], labels: Cop
 
 function formatMeasurementStatus(status: AuditRecord["measurementStatus"], labels: Copy) {
   return labels.audit.measurementStatusLabels[status] ?? status;
+}
+
+function formatAttachmentStatus(status: "not_present" | "unknown" | "estimated" | "measured", labels: Copy) {
+  return labels.audit.attachmentStatusLabels[status] ?? status;
+}
+
+function formatAttachmentSummary(result: OptimizeResponse, labels: Copy) {
+  const summary = result.attachment_summary;
+  if (summary.token_status === "not_present") {
+    return labels.workspace.attachmentTextOnly;
+  }
+  if (summary.token_status === "unknown") {
+    return labels.workspace.attachmentUnknown;
+  }
+  if (summary.token_status === "measured") {
+    const totalRate = summary.total_savings_rate ?? result.prompt_savings_rate;
+    return `${labels.workspace.attachmentMeasured}: ${(totalRate * 100).toFixed(1)}%`;
+  }
+  const totalRate = summary.total_savings_rate ?? result.prompt_savings_rate;
+  return `${labels.workspace.attachmentEstimated}: ${(totalRate * 100).toFixed(1)}%`;
 }
 
 function formatCompatibilityStatus(status: CompatibilityStatus["overall_status"], labels: Copy) {

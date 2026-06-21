@@ -1,6 +1,7 @@
 import type {
   AuditRecordSummary,
   AdminPolicy,
+  AttachmentMetadata,
   CategoryDashboardSummary,
   CompatibilityStatus,
   DashboardSummary,
@@ -22,6 +23,7 @@ export async function optimizePrompt(input: {
   task_type?: TaskType | "";
   expected_output_tokens?: number;
   capture_source?: "manual" | "clipboard" | "hotkey" | "proxy";
+  attachments?: AttachmentMetadata[];
 }): Promise<OptimizeResponse> {
   const response = await fetch(`${API_BASE}/api/optimize`, {
     method: "POST",
@@ -32,7 +34,8 @@ export async function optimizePrompt(input: {
       model: input.model,
       task_type: input.task_type || null,
       expected_output_tokens: input.expected_output_tokens ?? 1000,
-      capture_source: input.capture_source ?? "manual"
+      capture_source: input.capture_source ?? "manual",
+      attachments: input.attachments ?? []
     })
   });
   if (!response.ok) {
@@ -140,6 +143,7 @@ export async function recordMeasurement(input: {
   measured_input_tokens: number;
   measured_output_tokens: number;
   measured_original_tokens?: number;
+  measured_total_input_tokens?: number;
   source?: string;
 }): Promise<MeasurementResponse> {
   const response = await fetch(`${API_BASE}/api/audit/records/${input.request_id}/measurement`, {
@@ -149,6 +153,7 @@ export async function recordMeasurement(input: {
       measured_input_tokens: input.measured_input_tokens,
       measured_output_tokens: input.measured_output_tokens,
       measured_original_tokens: input.measured_original_tokens ?? null,
+      measured_total_input_tokens: input.measured_total_input_tokens ?? null,
       source: input.source ?? "provider_usage"
     })
   });

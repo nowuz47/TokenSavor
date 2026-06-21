@@ -6,7 +6,15 @@ from fastapi import APIRouter, Depends, Header, Request
 
 from scrooge.config import Settings, get_settings
 from scrooge.optimizer import optimize_prompt
-from scrooge.schemas import CaptureSource, MeasurementRequest, OptimizeRequest, ProxyCaptureResponse, UsageState
+from scrooge.schemas import (
+    AttachmentMetadata,
+    AttachmentTokenStatus,
+    CaptureSource,
+    MeasurementRequest,
+    OptimizeRequest,
+    ProxyCaptureResponse,
+    UsageState,
+)
 from scrooge.storage import UsageStore
 
 router = APIRouter(prefix="/proxy", tags=["proxy"])
@@ -67,8 +75,17 @@ async def capture_and_forward(
     optimized_forwarded = False
     if prompt:
         model = _extract_model(payload) or settings.default_model
-        preview = optimize_prompt(OptimizeRequest(prompt=prompt, provider=provider, model=model))
-        store.save_preview(preview, provider=provider, model=model, capture_source=CaptureSource.PROXY)
+        attachments = extract_attachments(payload)
+        preview = optimize_prompt(
+            OptimizeRequest(prompt=prompt, provider=provider, model=model, attachments=attachments)
+        )
+        store.save_preview(
+            preview,
+            provider=provider,
+            model=model,
+            capture_source=CaptureSource.PROXY,
+            attachments=attachments,
+        )
         optimized_payload, optimized_forwarded = apply_optimized_prompt(payload, preview.optimized_prompt)
 
     should_forward = x_scrooge_forward == "true"
@@ -150,6 +167,66 @@ def apply_optimized_prompt(payload: Any, optimized_prompt: str) -> tuple[Any, bo
         return updated, True
 
     return payload, False
+
+
+def extract_attachments(payload: Any) -> list[AttachmentMetadata]:
+    if not isinstance(payload, dict):
+        return []
+    attachments: list[AttachmentMetadata] = []
+    for key in ("attachments", "files"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            for index, item in enumerate(value):
+                attachment = _attachment_from_object(item, fallback_name=f"{key}-{index + 1}")
+                if attachment:
+                    attachments.append(attachment)
+
+    messages = payload.get("messages")
+    if isinstance(messages, list):
+        for message_index, message in enumerate(messages):
+            if not isinstance(message, dict):
+                continue
+            content = message.get("content")
+            if not isinstance(content, list):
+                continue
+            for block_index, block in enumerate(content):
+                if not isinstance(block, dict):
+                    continue
+                block_type = str(block.get("type") or "")
+                if block_type in {"file", "input_file", "image", "input_image"} or block.get("file_id"):
+                    attachment = _attachment_from_object(
+                        block,
+                        fallback_name=f"message-{message_index + 1}-attachment-{block_index + 1}",
+                    )
+                    if attachment:
+                        attachments.append(attachment)
+    return attachments
+
+
+def _attachment_from_object(value: Any, fallback_name: str) -> AttachmentMetadata | None:
+    if isinstance(value, str):
+        return AttachmentMetadata(name=value, token_status=AttachmentTokenStatus.UNKNOWN)
+    if not isinstance(value, dict):
+        return None
+    name = (
+        value.get("name")
+        or value.get("filename")
+        or value.get("file_name")
+        or value.get("file_id")
+        or value.get("id")
+        or fallback_name
+    )
+    size_bytes = _int_or_none(value.get("size_bytes") or value.get("size"))
+    estimated_tokens = _int_or_none(value.get("estimated_tokens"))
+    token_status = AttachmentTokenStatus.ESTIMATED if estimated_tokens is not None else AttachmentTokenStatus.UNKNOWN
+    return AttachmentMetadata(
+        name=str(name),
+        mime_type=value.get("mime_type") or value.get("mimeType"),
+        size_bytes=size_bytes,
+        content_hash=value.get("content_hash") or value.get("sha256"),
+        token_status=token_status,
+        estimated_tokens=estimated_tokens,
+    )
 
 
 def extract_provider_usage(provider: str, body: Any) -> tuple[int, int, str] | None:

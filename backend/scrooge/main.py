@@ -74,7 +74,13 @@ def optimize(
     model = request.model or settings.default_model
     normalized = request.model_copy(update={"provider": provider, "model": model})
     response = optimize_prompt(normalized)
-    store.save_preview(response, provider=provider, model=model, capture_source=request.capture_source)
+    store.save_preview(
+        response,
+        provider=provider,
+        model=model,
+        capture_source=request.capture_source,
+        attachments=normalized.attachments,
+    )
     return response
 
 

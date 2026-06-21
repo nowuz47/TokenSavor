@@ -1,5 +1,5 @@
 from scrooge.optimizer import detect_task_type, optimize_prompt
-from scrooge.schemas import OptimizeRequest, TaskType
+from scrooge.schemas import AttachmentMetadata, AttachmentTokenStatus, OptimizeRequest, TaskType
 
 
 def test_optimizer_detects_bug_analysis_and_reduces_duplicate_noise() -> None:
@@ -62,3 +62,45 @@ def test_korean_repeated_logs_are_compressed_and_preserved() -> None:
     assert response.savings_rate >= 0.2
     assert "payment-api" in response.optimized_prompt
     assert "KCP" in response.optimized_prompt
+
+
+def test_attachment_reference_keeps_total_savings_unknown_without_metadata() -> None:
+    response = optimize_prompt(
+        OptimizeRequest(
+            prompt="Please review the attached file and find the bug.",
+            provider="openai",
+            model="gpt-5.4-mini",
+        )
+    )
+
+    assert response.attachment_summary.possible_attachment_reference is True
+    assert response.attachment_summary.token_status == AttachmentTokenStatus.UNKNOWN
+    assert response.attachment_summary.total_savings_rate is None
+    assert response.total_savings_rate is None
+    assert response.prompt_savings_rate == response.savings_rate
+
+
+def test_estimated_attachment_tokens_lower_total_savings_rate() -> None:
+    response = optimize_prompt(
+        OptimizeRequest(
+            prompt="Analyze this uploaded app.log file. ERROR timeout\nERROR timeout\nERROR timeout",
+            provider="openai",
+            model="gpt-5.4-mini",
+            attachments=[
+                AttachmentMetadata(
+                    name="app.log",
+                    mime_type="text/plain",
+                    size_bytes=2048,
+                    content_hash="sha256:test",
+                    token_status=AttachmentTokenStatus.ESTIMATED,
+                    estimated_tokens=5000,
+                )
+            ],
+        )
+    )
+
+    assert response.attachment_summary.attachment_count == 1
+    assert response.attachment_summary.token_status == AttachmentTokenStatus.ESTIMATED
+    assert response.attachment_summary.estimated_attachment_tokens == 5000
+    assert response.attachment_summary.total_savings_rate is not None
+    assert response.attachment_summary.total_savings_rate <= response.prompt_savings_rate

@@ -25,6 +25,35 @@ export interface CostBreakdown {
   is_estimate: boolean;
 }
 
+export type AttachmentTokenStatus = "not_present" | "unknown" | "estimated" | "measured";
+
+export interface AttachmentMetadata {
+  name: string;
+  mime_type?: string | null;
+  size_bytes?: number | null;
+  content_hash?: string | null;
+  token_status: AttachmentTokenStatus;
+  estimated_tokens?: number | null;
+  measured_tokens?: number | null;
+}
+
+export interface AttachmentSummary {
+  attachment_count: number;
+  token_status: AttachmentTokenStatus;
+  possible_attachment_reference: boolean;
+  prompt_original_tokens: number;
+  prompt_optimized_tokens: number;
+  prompt_saved_tokens: number;
+  estimated_attachment_tokens?: number | null;
+  measured_attachment_tokens?: number | null;
+  total_original_tokens?: number | null;
+  total_optimized_tokens?: number | null;
+  total_saved_tokens?: number | null;
+  prompt_savings_rate: number;
+  total_savings_rate?: number | null;
+  note: string;
+}
+
 export interface OptimizationReason {
   rule_id: string;
   description: string;
@@ -42,6 +71,9 @@ export interface OptimizeResponse {
   saved_tokens: number;
   saved_cost_usd: number;
   savings_rate: number;
+  prompt_savings_rate: number;
+  total_savings_rate?: number | null;
+  attachment_summary: AttachmentSummary;
   reasons: OptimizationReason[];
   created_at: string;
 }
@@ -75,6 +107,10 @@ export interface DashboardSummary {
   latest_hotkey_status?: string | null;
   used_assumed_requests: number;
   backend_health_status: string;
+  attachment_requests: number;
+  attachment_unknown_requests: number;
+  attachment_measured_requests: number;
+  attachment_measured_coverage: number;
 }
 
 export interface QualityCategorySummary {
@@ -155,6 +191,13 @@ export interface AuditRecordSummary {
   failure_reason?: string | null;
   tokenizer_confidence: "estimated_local" | "estimated_provider_count" | "heuristic_fallback" | "provider_measured";
   token_error_rate?: number | null;
+  attachment_count: number;
+  attachment_token_status: AttachmentTokenStatus;
+  attachment_estimated_tokens?: number | null;
+  attachment_measured_tokens?: number | null;
+  possible_attachment_reference: boolean;
+  prompt_savings_rate: number;
+  total_savings_rate?: number | null;
 }
 
 export interface CategoryDashboardSummary {

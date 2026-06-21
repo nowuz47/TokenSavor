@@ -11,6 +11,8 @@ from uuid import uuid4
 from scrooge.config import Settings
 from scrooge.pricing import calculate_cost
 from scrooge.schemas import (
+    AttachmentMetadata,
+    AttachmentTokenStatus,
     CaptureSource,
     CompatibilityRunRequest,
     DeliveryStatus,
@@ -102,7 +104,10 @@ class UsageStore:
                 delivery_status TEXT,
                 measurement_status TEXT,
                 failure_reason TEXT,
-                tokenizer_confidence TEXT
+                tokenizer_confidence TEXT,
+                possible_attachment_reference INTEGER,
+                prompt_savings_rate REAL,
+                total_savings_rate REAL
             )
             """
         )
@@ -119,6 +124,25 @@ class UsageStore:
         self._ensure_column(db, "usage_records", "measurement_status", "TEXT")
         self._ensure_column(db, "usage_records", "failure_reason", "TEXT")
         self._ensure_column(db, "usage_records", "tokenizer_confidence", "TEXT")
+        self._ensure_column(db, "usage_records", "possible_attachment_reference", "INTEGER")
+        self._ensure_column(db, "usage_records", "prompt_savings_rate", "REAL")
+        self._ensure_column(db, "usage_records", "total_savings_rate", "REAL")
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS request_attachments (
+                attachment_id TEXT PRIMARY KEY,
+                request_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                mime_type TEXT,
+                size_bytes INTEGER,
+                content_hash TEXT,
+                token_status TEXT NOT NULL,
+                estimated_tokens INTEGER,
+                measured_tokens INTEGER,
+                FOREIGN KEY(request_id) REFERENCES usage_records(request_id) ON DELETE CASCADE
+            )
+            """
+        )
         db.execute(
             """
             CREATE TABLE IF NOT EXISTS hotkey_events (
@@ -176,7 +200,12 @@ class UsageStore:
                         ELSE 'unavailable'
                     END
                 ),
-                tokenizer_confidence = COALESCE(tokenizer_confidence, 'heuristic_fallback')
+                tokenizer_confidence = COALESCE(tokenizer_confidence, 'heuristic_fallback'),
+                possible_attachment_reference = COALESCE(possible_attachment_reference, 0),
+                prompt_savings_rate = COALESCE(
+                    prompt_savings_rate,
+                    CASE WHEN original_tokens > 0 THEN saved_tokens * 1.0 / original_tokens ELSE 0 END
+                )
             """
         )
 
@@ -197,6 +226,7 @@ class UsageStore:
         provider: str,
         model: str,
         capture_source: CaptureSource = CaptureSource.MANUAL,
+        attachments: list[AttachmentMetadata] | None = None,
     ) -> None:
         original_prompt = response.original_prompt if self.settings.store_prompt_bodies else None
         optimized_prompt = response.optimized_prompt if self.settings.store_prompt_bodies else None
@@ -211,8 +241,9 @@ class UsageStore:
                     original_cost_usd, optimized_cost_usd, saved_cost_usd,
                     tokenizer_version, pricing_version, pricing_source_url, applied_rules,
                     request_family_hash, capture_source, delivery_status, measurement_status,
-                    tokenizer_confidence
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tokenizer_confidence, possible_attachment_reference, prompt_savings_rate,
+                    total_savings_rate
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     response.request_id,
@@ -242,8 +273,12 @@ class UsageStore:
                     DeliveryStatus.PREVIEWED.value,
                     MeasurementStatus.ESTIMATED.value,
                     response.optimized_tokens.tokenizer_confidence.value,
+                    1 if response.attachment_summary.possible_attachment_reference else 0,
+                    response.prompt_savings_rate,
+                    response.total_savings_rate,
                 ),
             )
+            self._replace_attachments(db, response.request_id, attachments or [])
 
     def mark_state(
         self,
@@ -506,6 +541,7 @@ class UsageStore:
                 measured_original = estimated_original
             measured_optimized = measurement.measured_input_tokens
             measured_output = measurement.measured_output_tokens
+            measured_total_input = measurement.measured_total_input_tokens
             saved_tokens = max(0, measured_original - measured_optimized)
             original_cost = calculate_cost(
                 TokenBreakdown(
@@ -551,7 +587,8 @@ class UsageStore:
                     measurement_status = ?,
                     tokenizer_confidence = ?,
                     pricing_version = ?,
-                    pricing_source_url = ?
+                    pricing_source_url = ?,
+                    total_savings_rate = COALESCE(?, total_savings_rate)
                 WHERE request_id = ?
                 """,
                 (
@@ -573,9 +610,24 @@ class UsageStore:
                     "provider_measured",
                     optimized_cost.pricing_version,
                     optimized_cost.source_url,
+                    _total_savings_rate(measured_original, measured_optimized, measured_total_input),
                     request_id,
                 ),
             )
+            if measured_total_input is not None:
+                measured_attachment_tokens = max(0, measured_total_input - measured_optimized)
+                db.execute(
+                    """
+                    UPDATE request_attachments
+                    SET token_status = ?, measured_tokens = ?
+                    WHERE request_id = ?
+                    """,
+                    (
+                        AttachmentTokenStatus.MEASURED.value,
+                        measured_attachment_tokens,
+                        request_id,
+                    ),
+                )
 
         return {
             "request_id": request_id,
@@ -596,13 +648,37 @@ class UsageStore:
                     tokenizer_version, estimated_optimized_tokens, measured_original_tokens,
                     measured_input_tokens, measured_output_tokens, decision_notes,
                     provider_usage_source, upstream_status, capture_source, failure_reason,
-                    delivery_status, measurement_status, tokenizer_confidence
+                    delivery_status, measurement_status, tokenizer_confidence,
+                    possible_attachment_reference, prompt_savings_rate, total_savings_rate
                 FROM usage_records
                 ORDER BY created_at DESC
                 LIMIT ?
                 """,
                 (limit,),
             ).fetchall()
+            attachment_rows = db.execute(
+                """
+                SELECT
+                    request_id,
+                    COUNT(*) as attachment_count,
+                    SUM(CASE WHEN token_status = 'unknown' THEN 1 ELSE 0 END) as unknown_count,
+                    SUM(CASE WHEN token_status = 'measured' THEN 1 ELSE 0 END) as measured_count,
+                    SUM(estimated_tokens) as estimated_tokens,
+                    SUM(measured_tokens) as measured_tokens
+                FROM request_attachments
+                GROUP BY request_id
+                """
+            ).fetchall()
+        attachments_by_request = {
+            row["request_id"]: {
+                "attachment_count": int(row["attachment_count"] or 0),
+                "unknown_count": int(row["unknown_count"] or 0),
+                "measured_count": int(row["measured_count"] or 0),
+                "estimated_tokens": row["estimated_tokens"],
+                "measured_tokens": row["measured_tokens"],
+            }
+            for row in attachment_rows
+        }
 
         records: list[dict[str, object]] = []
         for row in rows:
@@ -610,6 +686,15 @@ class UsageStore:
             saved_tokens = int(row["saved_tokens"] or 0)
             estimated_optimized = int(row["estimated_optimized_tokens"] or row["optimized_tokens"] or 0)
             measured_input = row["measured_input_tokens"]
+            attachment = attachments_by_request.get(str(row["request_id"]), {})
+            attachment_count = int(attachment.get("attachment_count", 0) or 0)
+            possible_reference = bool(row["possible_attachment_reference"])
+            attachment_status = _attachment_status(
+                attachment_count,
+                possible_reference,
+                int(attachment.get("unknown_count", 0) or 0),
+                int(attachment.get("measured_count", 0) or 0),
+            )
             records.append(
                 {
                     "request_id": row["request_id"],
@@ -652,6 +737,17 @@ class UsageStore:
                         if measured_input is not None
                         else None
                     ),
+                    "attachment_count": attachment_count,
+                    "attachment_token_status": attachment_status,
+                    "attachment_estimated_tokens": attachment.get("estimated_tokens"),
+                    "attachment_measured_tokens": attachment.get("measured_tokens"),
+                    "possible_attachment_reference": possible_reference,
+                    "prompt_savings_rate": round(float(row["prompt_savings_rate"] or 0), 4),
+                    "total_savings_rate": (
+                        round(float(row["total_savings_rate"]), 4)
+                        if row["total_savings_rate"] is not None
+                        else None
+                    ),
                 }
             )
         return records
@@ -659,6 +755,7 @@ class UsageStore:
     def clear_records(self) -> None:
         with self.connect() as db:
             db.execute("DELETE FROM usage_records")
+            db.execute("DELETE FROM request_attachments")
             db.execute("DELETE FROM hotkey_events")
 
     def summary(self, period: str = "month") -> dict[str, float | int | str]:
@@ -699,6 +796,7 @@ class UsageStore:
                 {where}
                 """
             ).fetchone()
+            attachment_metrics = self._attachment_metrics(db, where)
             followup_requests = self._count_followups(db, where)
             long_context_savings_rate = self._long_context_savings_rate(db, where)
             hotkey_metrics = self._hotkey_metrics(db, where)
@@ -738,6 +836,10 @@ class UsageStore:
             "latest_hotkey_status": hotkey_metrics["latest_status"],
             "used_assumed_requests": used_assumed_requests,
             "backend_health_status": "ok",
+            "attachment_requests": attachment_metrics["attachment_requests"],
+            "attachment_unknown_requests": attachment_metrics["attachment_unknown_requests"],
+            "attachment_measured_requests": attachment_metrics["attachment_measured_requests"],
+            "attachment_measured_coverage": attachment_metrics["attachment_measured_coverage"],
         }
 
     def category_summary(self, period: str = "month") -> list[dict[str, object]]:
@@ -905,6 +1007,71 @@ class UsageStore:
         ).fetchone()
         return int(row["used_count"] or 0)
 
+    def _attachment_metrics(self, db: sqlite3.Connection, where: str) -> dict[str, int | float]:
+        row = db.execute(
+            f"""
+            SELECT
+                COUNT(DISTINCT usage_records.request_id) as attachment_requests,
+                COUNT(DISTINCT CASE
+                    WHEN (
+                        usage_records.possible_attachment_reference = 1
+                        AND request_attachments.request_id IS NULL
+                    )
+                    OR request_attachments.token_status = 'unknown'
+                    THEN usage_records.request_id
+                END) as attachment_unknown_requests,
+                COUNT(DISTINCT CASE
+                    WHEN request_attachments.token_status = 'measured'
+                    THEN usage_records.request_id
+                END) as attachment_measured_requests
+            FROM usage_records
+            LEFT JOIN request_attachments ON request_attachments.request_id = usage_records.request_id
+            {where}
+            {'AND' if where else 'WHERE'} (
+                usage_records.possible_attachment_reference = 1
+                OR request_attachments.request_id IS NOT NULL
+            )
+            """
+        ).fetchone()
+        attachment_requests = int(row["attachment_requests"] or 0)
+        measured_requests = int(row["attachment_measured_requests"] or 0)
+        return {
+            "attachment_requests": attachment_requests,
+            "attachment_unknown_requests": int(row["attachment_unknown_requests"] or 0),
+            "attachment_measured_requests": measured_requests,
+            "attachment_measured_coverage": round(measured_requests / attachment_requests, 4)
+            if attachment_requests
+            else 0,
+        }
+
+    def _replace_attachments(
+        self,
+        db: sqlite3.Connection,
+        request_id: str,
+        attachments: list[AttachmentMetadata],
+    ) -> None:
+        db.execute("DELETE FROM request_attachments WHERE request_id = ?", (request_id,))
+        for item in attachments:
+            db.execute(
+                """
+                INSERT INTO request_attachments (
+                    attachment_id, request_id, name, mime_type, size_bytes, content_hash,
+                    token_status, estimated_tokens, measured_tokens
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    uuid4().hex,
+                    request_id,
+                    item.name,
+                    item.mime_type,
+                    item.size_bytes,
+                    item.content_hash,
+                    item.token_status.value,
+                    item.estimated_tokens,
+                    item.measured_tokens,
+                ),
+            )
+
 
 def _hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -944,10 +1111,39 @@ def _rejection_reason(
     if saved_tokens <= 0:
         if original_tokens <= 120:
             return "no_savings_short_prompt"
-        if optimized_tokens >= original_tokens:
-            return "no_savings_quality_guard"
-        return "no_savings"
-    return "user_kept_original"
+    if optimized_tokens >= original_tokens:
+        return "no_savings_quality_guard"
+    return "no_savings"
+
+
+def _attachment_status(
+    attachment_count: int,
+    possible_reference: bool,
+    unknown_count: int,
+    measured_count: int,
+) -> str:
+    if attachment_count == 0:
+        return AttachmentTokenStatus.UNKNOWN.value if possible_reference else AttachmentTokenStatus.NOT_PRESENT.value
+    if unknown_count > 0:
+        return AttachmentTokenStatus.UNKNOWN.value
+    if measured_count == attachment_count:
+        return AttachmentTokenStatus.MEASURED.value
+    return AttachmentTokenStatus.ESTIMATED.value
+
+
+def _total_savings_rate(
+    measured_original: int,
+    measured_optimized: int,
+    measured_total_input: int | None,
+) -> float | None:
+    if measured_total_input is None:
+        return None
+    attachment_tokens = max(0, measured_total_input - measured_optimized)
+    total_original = measured_original + attachment_tokens
+    total_optimized = measured_optimized + attachment_tokens
+    if total_original <= 0:
+        return 0
+    return round(max(0, total_original - total_optimized) / total_original, 4)
 
 
 def _delivery_status_for_state(state: UsageState) -> str:
