@@ -71,7 +71,15 @@ Unsupported or unsafe-to-measure files, such as PDF, images, and Office document
 
 ## Demo Video
 
-[Watch the 24-second Scrooge UI demo](docs/assets/scrooge-readme-demo.webm)
+<p align="center">
+  <a href="docs/assets/scrooge-readme-demo.webm">
+    <img src="docs/assets/scrooge-readme-demo.gif" alt="24-second Scrooge UI demo" width="760" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="docs/assets/scrooge-readme-demo.webm">Open the original WebM recording</a>
+</p>
 
 This is a real screen recording of the current production frontend build connected to a local FastAPI backend with a temporary SQLite database. It shows:
 
@@ -209,10 +217,6 @@ Recommended pilot:
 - PDF, image, and Office file token savings are not supported in v1.
 - Billing-confirmed savings require provider usage metadata.
 - Current release is Windows-focused.
-
-## Korean Summary
-
-Scrooge는 Codex에 보내기 전 프롬프트와 텍스트 첨부 컨텍스트를 줄이고, 절감량을 `추정`, `통제 실측`, `provider 실측`으로 구분해 기록하는 로컬 우선 데스크톱 앱입니다. 현재는 개인 검증과 부서 내 제한 파일럿에 적합하며, 전사 배포 전에는 추가 파일럿과 provider usage 연동 확대가 필요합니다.
 
 ## License
 
