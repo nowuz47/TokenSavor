@@ -1316,7 +1316,7 @@ select.form-control {
 }
 
 .chart-holder {
-  align-items: end;
+  align-items: stretch;
   background: linear-gradient(180deg, rgba(212, 175, 55, 0.04), rgba(255, 255, 255, 0.006));
   border: 1px solid var(--border-color);
   border-radius: 5px;
@@ -1326,11 +1326,33 @@ select.form-control {
   padding: 12px;
 }
 
-.chart-holder span {
+.trend-bar-item {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.trend-bar {
   background: linear-gradient(180deg, var(--gold), rgba(212, 175, 55, 0.18));
   border-radius: 5px 5px 1px 1px;
-  flex: 1;
   min-width: 10px;
+  width: 100%;
+}
+
+.trend-bar-item small {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
 }
 
 .chart-empty,

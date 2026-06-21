@@ -53,6 +53,7 @@ import type {
   AuditRecordSummary,
   CompatibilityStatus,
   DashboardSummary,
+  DailySavingsTrendItem,
   DiagnosticsBundle,
   OptimizationReason,
   OptimizeResponse,
@@ -358,6 +359,7 @@ export default function App() {
       attachmentOptimizedTokens: summary?.attachment_optimized_tokens ?? 0,
       attachmentSavedTokens: summary?.attachment_saved_tokens ?? 0,
       attachmentSavingsRate: summary?.attachment_savings_rate ?? 0,
+      dailySavingsTrend: summary?.daily_savings_trend ?? [],
       qualityPreservationRate:
         summary?.quality_preservation_rate ?? qualitySummary?.quality_preservation_rate ?? 0
     };
@@ -1239,6 +1241,7 @@ function DashboardTab(props: {
     attachmentOptimizedTokens: number;
     attachmentSavedTokens: number;
     attachmentSavingsRate: number;
+    dailySavingsTrend: DailySavingsTrendItem[];
     longContextSavingsRate: number;
     maxTokenErrorRate: number;
     measuredRequests: number;
@@ -1260,11 +1263,8 @@ function DashboardTab(props: {
   records: AuditRecord[];
 }) {
   const quality = props.qualitySummary;
-  const trendRecords = props.records
-    .filter((record) => record.savedTokens > 0)
-    .slice(0, 7)
-    .reverse();
-  const maxTrendSavedTokens = Math.max(0, ...trendRecords.map((record) => record.savedTokens));
+  const trendRecords = props.aggregate.dailySavingsTrend.slice(-7);
+  const maxTrendSavedTokens = Math.max(0, ...trendRecords.map((record) => record.saved_tokens));
   const runtimeHealthy =
     props.aggregate.backendHealthStatus === "ok" && props.aggregate.databaseStatus === "ok";
   const measuredCoveragePercent = `${(props.aggregate.measurementCoverage * 100).toFixed(0)}%`;
@@ -1325,11 +1325,17 @@ function DashboardTab(props: {
         ) : (
           <div className="chart-holder" aria-label="Token savings trend">
             {trendRecords.map((record) => (
-              <span
-                key={record.id}
-                title={`${record.id}: ${record.savedTokens.toLocaleString()} tokens`}
-                style={{ height: `${Math.max(8, (record.savedTokens / maxTrendSavedTokens) * 100)}%` }}
-              />
+              <div
+                className="trend-bar-item"
+                key={record.date}
+                title={`${record.date}: ${record.saved_tokens.toLocaleString()} tokens`}
+              >
+                <span
+                  className="trend-bar"
+                  style={{ height: `${Math.max(8, (record.saved_tokens / maxTrendSavedTokens) * 100)}%` }}
+                />
+                <small>{formatTrendDate(record.date)}</small>
+              </div>
             ))}
           </div>
         )}
@@ -1971,6 +1977,11 @@ function formatTokenCount(tokens: number) {
   if (tokens < 1000) return tokens.toLocaleString();
   if (tokens < 1_000_000) return `${(tokens / 1000).toFixed(tokens < 10_000 ? 1 : 0)}K`;
   return `${(tokens / 1_000_000).toFixed(1)}M`;
+}
+
+function formatTrendDate(value: string) {
+  const [, month, day] = value.match(/^(\d{4})-(\d{2})-(\d{2})$/) ?? [];
+  return month && day ? `${month}/${day}` : value;
 }
 
 function renderDiffLines(text: string, reasons: OptimizationReason[], mode: "added" | "removed") {

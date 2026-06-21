@@ -864,6 +864,7 @@ class UsageStore:
             hotkey_metrics = self._hotkey_metrics(db, where)
             short_prompt_protected_count = self._short_prompt_protected_count(db, where)
             used_assumed_requests = self._used_assumed_requests(db, where)
+            daily_savings_trend = self._daily_savings_trend(db, where)
 
         total_original = int(row["original_tokens"] or 0)
         saved = int(row["saved_tokens"] or 0)
@@ -910,6 +911,7 @@ class UsageStore:
             "attachment_optimized_tokens": attachment_metrics["attachment_optimized_tokens"],
             "attachment_saved_tokens": attachment_metrics["attachment_saved_tokens"],
             "attachment_savings_rate": attachment_metrics["attachment_savings_rate"],
+            "daily_savings_trend": daily_savings_trend,
         }
 
     def category_summary(self, period: str = "month") -> list[dict[str, object]]:
@@ -1096,6 +1098,41 @@ class UsageStore:
             """
         ).fetchone()
         return int(row["used_count"] or 0)
+
+    def _daily_savings_trend(self, db: sqlite3.Connection, where: str) -> list[dict[str, object]]:
+        rows = db.execute(
+            f"""
+            SELECT
+                date(created_at) as day,
+                COUNT(*) as total_requests,
+                SUM(original_tokens) as original_tokens,
+                SUM(optimized_tokens) as optimized_tokens,
+                SUM(saved_tokens) as saved_tokens,
+                SUM(saved_cost_usd) as saved_cost_usd
+            FROM usage_records
+            {where}
+            GROUP BY day
+            HAVING SUM(saved_tokens) > 0
+            ORDER BY day DESC
+            LIMIT 7
+            """
+        ).fetchall()
+        trend: list[dict[str, object]] = []
+        for row in reversed(rows):
+            original_tokens = int(row["original_tokens"] or 0)
+            saved_tokens = int(row["saved_tokens"] or 0)
+            trend.append(
+                {
+                    "date": str(row["day"]),
+                    "total_requests": int(row["total_requests"] or 0),
+                    "original_tokens": original_tokens,
+                    "optimized_tokens": int(row["optimized_tokens"] or 0),
+                    "saved_tokens": saved_tokens,
+                    "saved_cost_usd": round(float(row["saved_cost_usd"] or 0), 8),
+                    "savings_rate": round(saved_tokens / original_tokens, 4) if original_tokens else 0,
+                }
+            )
+        return trend
 
     def _attachment_metrics(self, db: sqlite3.Connection, where: str) -> dict[str, int | float]:
         row = db.execute(

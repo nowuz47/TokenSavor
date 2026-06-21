@@ -102,6 +102,16 @@ export interface OptimizeResponse {
   created_at: string;
 }
 
+export interface DailySavingsTrendItem {
+  date: string;
+  total_requests: number;
+  original_tokens: number;
+  optimized_tokens: number;
+  saved_tokens: number;
+  saved_cost_usd: number;
+  savings_rate: number;
+}
+
 export interface DashboardSummary {
   period: string;
   total_requests: number;
@@ -143,6 +153,7 @@ export interface DashboardSummary {
   attachment_optimized_tokens: number;
   attachment_saved_tokens: number;
   attachment_savings_rate: number;
+  daily_savings_trend: DailySavingsTrendItem[];
 }
 
 export interface QualityCategorySummary {

@@ -209,6 +209,16 @@ class MeasurementResponse(BaseModel):
     token_error_rate: float
 
 
+class DailySavingsTrendItem(BaseModel):
+    date: str
+    total_requests: int
+    original_tokens: int
+    optimized_tokens: int
+    saved_tokens: int
+    saved_cost_usd: float
+    savings_rate: float
+
+
 class DashboardSummary(BaseModel):
     period: str
     total_requests: int
@@ -250,6 +260,7 @@ class DashboardSummary(BaseModel):
     attachment_optimized_tokens: int = 0
     attachment_saved_tokens: int = 0
     attachment_savings_rate: float = 0
+    daily_savings_trend: list[DailySavingsTrendItem] = Field(default_factory=list)
 
 
 class QualityCaseResult(BaseModel):

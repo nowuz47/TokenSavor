@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from scrooge.config import Settings
 from scrooge.optimizer import optimize_prompt
 from scrooge.schemas import (
@@ -72,6 +74,81 @@ def test_storage_recreates_schema_after_sqlite_file_is_deleted(tmp_path) -> None
     records = store.list_records()
     assert len(records) == 1
     assert records[0]["request_id"] == second.request_id
+
+
+def test_summary_daily_savings_trend_is_grouped_and_limited_to_seven_days(tmp_path) -> None:
+    db_path = tmp_path / "scrooge.db"
+    settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)
+    store = UsageStore(settings)
+    base = datetime(2026, 6, 21, tzinfo=timezone.utc)
+    requests_by_date: dict[str, int] = {}
+
+    for index in range(8):
+        created_at = base - timedelta(days=7 - index)
+        response = optimize_prompt(
+            OptimizeRequest(
+                prompt=(
+                    f"ERROR payment timeout day {index}\n"
+                    f"ERROR payment timeout day {index}\n"
+                    f"ERROR payment timeout day {index}\n"
+                    "Traceback File /app/payment.py line 42 TimeoutError"
+                ),
+                provider="openai",
+            )
+        )
+        store.save_preview(response, provider="openai", model="gpt-5.4-mini")
+        with store.connect() as db:
+            db.execute(
+                """
+                UPDATE usage_records
+                SET created_at = ?,
+                    original_tokens = ?,
+                    optimized_tokens = ?,
+                    saved_tokens = ?,
+                    saved_cost_usd = ?
+                WHERE request_id = ?
+                """,
+                (created_at.isoformat(), 1000, 880 - index, 120 + index, 0.001 + index / 10000, response.request_id),
+            )
+        requests_by_date[created_at.date().isoformat()] = 1
+
+    duplicate = optimize_prompt(
+        OptimizeRequest(
+            prompt=(
+                "ERROR duplicate day\n"
+                "ERROR duplicate day\n"
+                "ERROR duplicate day\n"
+                "Traceback File /app/duplicate.py line 7 RuntimeError"
+            ),
+            provider="openai",
+        )
+    )
+    store.save_preview(duplicate, provider="openai", model="gpt-5.4-mini")
+    duplicate_date = (base - timedelta(days=2)).date().isoformat()
+    with store.connect() as db:
+        db.execute(
+            """
+            UPDATE usage_records
+            SET created_at = ?,
+                original_tokens = ?,
+                optimized_tokens = ?,
+                saved_tokens = ?,
+                saved_cost_usd = ?
+            WHERE request_id = ?
+            """,
+            ((base - timedelta(days=2)).isoformat(), 900, 750, 150, 0.002, duplicate.request_id),
+        )
+    requests_by_date[duplicate_date] += 1
+
+    trend = store.summary("all")["daily_savings_trend"]
+
+    assert len(trend) == 7
+    assert [item["date"] for item in trend] == [
+        (base - timedelta(days=offset)).date().isoformat() for offset in range(6, -1, -1)
+    ]
+    assert trend[-3]["date"] == duplicate_date
+    assert trend[-3]["total_requests"] == requests_by_date[duplicate_date]
+    assert all(item["saved_tokens"] > 0 for item in trend)
 
 
 def test_mark_state_unknown_request_raises_key_error(tmp_path) -> None:
