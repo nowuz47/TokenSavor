@@ -197,3 +197,9 @@ samples/    테스트용 샘플 데이터
 ## 라이선스
 
 이 저장소의 라이선스는 [LICENSE](LICENSE)를 확인하세요.
+
+## 첨부파일 실측 리포트
+
+Scrooge에 텍스트 파일을 직접 첨부하면 파일 본문을 로컬에서 요약하고, 첨부 원본 토큰과 요약 토큰을 `measured_controlled`로 기록합니다. 본문 전체는 기록에 저장하지 않고, 파일명/크기/hash/토큰 수만 남깁니다.
+
+최신 검증 결과는 [reports/attachment-validation-dev.json](reports/attachment-validation-dev.json)에 있습니다. 이 리포트는 로그, CSV, JSON, Python 코드, 짧은 Markdown 파일을 사용해 첨부 절감량이 API, SQLite 기록, 대시보드 요약과 일치하는지 확인합니다.
