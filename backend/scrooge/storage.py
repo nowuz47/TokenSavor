@@ -144,6 +144,10 @@ class UsageStore:
                 saved_tokens INTEGER,
                 savings_rate REAL,
                 measurement_source TEXT,
+                discovery_source TEXT,
+                content_available INTEGER,
+                path_available INTEGER,
+                read_error TEXT,
                 FOREIGN KEY(request_id) REFERENCES usage_records(request_id) ON DELETE CASCADE
             )
             """
@@ -153,6 +157,10 @@ class UsageStore:
         self._ensure_column(db, "request_attachments", "saved_tokens", "INTEGER")
         self._ensure_column(db, "request_attachments", "savings_rate", "REAL")
         self._ensure_column(db, "request_attachments", "measurement_source", "TEXT")
+        self._ensure_column(db, "request_attachments", "discovery_source", "TEXT")
+        self._ensure_column(db, "request_attachments", "content_available", "INTEGER")
+        self._ensure_column(db, "request_attachments", "path_available", "INTEGER")
+        self._ensure_column(db, "request_attachments", "read_error", "TEXT")
         db.execute(
             """
             CREATE TABLE IF NOT EXISTS hotkey_events (
@@ -162,10 +170,18 @@ class UsageStore:
                 status TEXT NOT NULL,
                 failure_reason TEXT,
                 saved_tokens INTEGER NOT NULL,
-                elapsed_ms INTEGER
+                elapsed_ms INTEGER,
+                discovered_attachment_count INTEGER,
+                content_available_attachment_count INTEGER,
+                unknown_attachment_count INTEGER,
+                unsupported_attachment_count INTEGER
             )
             """
         )
+        self._ensure_column(db, "hotkey_events", "discovered_attachment_count", "INTEGER")
+        self._ensure_column(db, "hotkey_events", "content_available_attachment_count", "INTEGER")
+        self._ensure_column(db, "hotkey_events", "unknown_attachment_count", "INTEGER")
+        self._ensure_column(db, "hotkey_events", "unsupported_attachment_count", "INTEGER")
         db.execute(
             """
             CREATE TABLE IF NOT EXISTS compatibility_runs (
@@ -339,8 +355,10 @@ class UsageStore:
             db.execute(
                 """
                 INSERT INTO hotkey_events (
-                    event_id, created_at, request_id, status, failure_reason, saved_tokens, elapsed_ms
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    event_id, created_at, request_id, status, failure_reason, saved_tokens, elapsed_ms,
+                    discovered_attachment_count, content_available_attachment_count,
+                    unknown_attachment_count, unsupported_attachment_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     event_id,
@@ -350,6 +368,10 @@ class UsageStore:
                     event.failure_reason,
                     event.saved_tokens,
                     event.elapsed_ms,
+                    event.discovered_attachment_count,
+                    event.content_available_attachment_count,
+                    event.unknown_attachment_count,
+                    event.unsupported_attachment_count,
                 ),
             )
             if event.request_id:
@@ -679,7 +701,11 @@ class UsageStore:
                     SUM(original_tokens) as original_tokens,
                     SUM(optimized_tokens) as optimized_tokens,
                     SUM(saved_tokens) as saved_tokens,
-                    GROUP_CONCAT(DISTINCT measurement_source) as measurement_source
+                    GROUP_CONCAT(DISTINCT measurement_source) as measurement_source,
+                    GROUP_CONCAT(DISTINCT discovery_source) as discovery_source,
+                    SUM(CASE WHEN content_available = 1 THEN 1 ELSE 0 END) as content_available_count,
+                    SUM(CASE WHEN path_available = 1 THEN 1 ELSE 0 END) as path_available_count,
+                    SUM(CASE WHEN read_error IS NOT NULL AND read_error != '' THEN 1 ELSE 0 END) as read_error_count
                 FROM request_attachments
                 GROUP BY request_id
                 """
@@ -695,6 +721,10 @@ class UsageStore:
                 "optimized_tokens": row["optimized_tokens"],
                 "saved_tokens": row["saved_tokens"],
                 "measurement_source": row["measurement_source"],
+                "discovery_source": row["discovery_source"],
+                "content_available_count": int(row["content_available_count"] or 0),
+                "path_available_count": int(row["path_available_count"] or 0),
+                "read_error_count": int(row["read_error_count"] or 0),
             }
             for row in attachment_rows
         }
@@ -769,6 +799,10 @@ class UsageStore:
                         else None
                     ),
                     "attachment_measurement_source": attachment.get("measurement_source"),
+                    "attachment_discovery_source": attachment.get("discovery_source"),
+                    "attachment_content_available_count": attachment.get("content_available_count", 0),
+                    "attachment_path_available_count": attachment.get("path_available_count", 0),
+                    "attachment_read_error_count": attachment.get("read_error_count", 0),
                     "possible_attachment_reference": possible_reference,
                     "prompt_savings_rate": round(float(row["prompt_savings_rate"] or 0), 4),
                     "total_savings_rate": (
@@ -862,6 +896,10 @@ class UsageStore:
             "hotkey_success_rate": hotkey_metrics["success_rate"],
             "hotkey_validation_status": hotkey_metrics["validation_status"],
             "latest_hotkey_status": hotkey_metrics["latest_status"],
+            "hotkey_discovered_attachments": hotkey_metrics["discovered_attachments"],
+            "hotkey_content_available_attachments": hotkey_metrics["content_available_attachments"],
+            "hotkey_unknown_attachments": hotkey_metrics["unknown_attachments"],
+            "hotkey_unsupported_attachments": hotkey_metrics["unsupported_attachments"],
             "used_assumed_requests": used_assumed_requests,
             "backend_health_status": "ok",
             "attachment_requests": attachment_metrics["attachment_requests"],
@@ -963,7 +1001,13 @@ class UsageStore:
     def _hotkey_metrics(self, db: sqlite3.Connection, where: str) -> dict[str, float | int | str]:
         event_rows = db.execute(
             """
-            SELECT status, failure_reason
+            SELECT
+                status,
+                failure_reason,
+                discovered_attachment_count,
+                content_available_attachment_count,
+                unknown_attachment_count,
+                unsupported_attachment_count
             FROM hotkey_events
             ORDER BY created_at DESC, rowid DESC
             LIMIT 30
@@ -973,6 +1017,12 @@ class UsageStore:
             total_requests = len(event_rows)
             failed_requests = sum(1 for row in event_rows if _is_failed_hotkey_status(str(row["status"])))
             latest_status = str(event_rows[0]["status"])
+            discovered_attachments = sum(int(row["discovered_attachment_count"] or 0) for row in event_rows)
+            content_available_attachments = sum(
+                int(row["content_available_attachment_count"] or 0) for row in event_rows
+            )
+            unknown_attachments = sum(int(row["unknown_attachment_count"] or 0) for row in event_rows)
+            unsupported_attachments = sum(int(row["unsupported_attachment_count"] or 0) for row in event_rows)
         else:
             row = db.execute(
                 f"""
@@ -987,6 +1037,10 @@ class UsageStore:
             total_requests = int(row["total_requests"] or 0)
             failed_requests = int(row["failed_requests"] or 0)
             latest_status = None
+            discovered_attachments = 0
+            content_available_attachments = 0
+            unknown_attachments = 0
+            unsupported_attachments = 0
         successful_requests = max(0, total_requests - failed_requests)
         success_rate = round(successful_requests / total_requests, 4) if total_requests else 0
         if total_requests < 30:
@@ -1001,6 +1055,10 @@ class UsageStore:
             "success_rate": success_rate,
             "validation_status": validation_status,
             "latest_status": latest_status,
+            "discovered_attachments": discovered_attachments,
+            "content_available_attachments": content_available_attachments,
+            "unknown_attachments": unknown_attachments,
+            "unsupported_attachments": unsupported_attachments,
         }
 
     def _short_prompt_protected_count(self, db: sqlite3.Connection, where: str) -> int:
@@ -1100,8 +1158,9 @@ class UsageStore:
                 INSERT INTO request_attachments (
                     attachment_id, request_id, name, mime_type, size_bytes, content_hash,
                     token_status, estimated_tokens, measured_tokens, original_tokens,
-                    optimized_tokens, saved_tokens, savings_rate, measurement_source
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    optimized_tokens, saved_tokens, savings_rate, measurement_source,
+                    discovery_source, content_available, path_available, read_error
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     uuid4().hex,
@@ -1118,6 +1177,10 @@ class UsageStore:
                     item.saved_tokens,
                     item.savings_rate,
                     item.measurement_source,
+                    item.discovery_source.value,
+                    1 if item.content_available else 0,
+                    1 if item.path_available else 0,
+                    item.read_error,
                 ),
             )
 

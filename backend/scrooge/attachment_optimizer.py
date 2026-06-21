@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from scrooge.compressor import compress_context
-from scrooge.schemas import AttachmentMetadata, AttachmentTokenStatus, OptimizationReason
+from scrooge.schemas import AttachmentDiscoverySource, AttachmentMetadata, AttachmentTokenStatus, OptimizationReason
 from scrooge.token_meter import estimate_tokens
 
 
@@ -68,6 +68,8 @@ def optimize_text_attachments(
                         "content_hash": item.content_hash or _hash_text(item.content),
                         "token_status": AttachmentTokenStatus.UNKNOWN,
                         "measurement_source": None,
+                        "content_available": True,
+                        "read_error": item.read_error or "unsupported_attachment_type",
                     }
                 )
             )
@@ -102,6 +104,10 @@ def optimize_text_attachments(
                     "saved_tokens": saved_tokens,
                     "savings_rate": savings_rate,
                     "measurement_source": "measured_controlled",
+                    "discovery_source": item.discovery_source
+                    if item.discovery_source != AttachmentDiscoverySource.UNKNOWN
+                    else AttachmentDiscoverySource.SCROOGE_FILE,
+                    "content_available": True,
                 }
             )
         )

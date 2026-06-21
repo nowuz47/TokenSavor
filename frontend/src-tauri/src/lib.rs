@@ -7,8 +7,10 @@ use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 
+use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpStream;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -21,6 +23,14 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 
 struct BackendState {
     child: Mutex<Option<CommandChild>>,
+}
+
+#[derive(Clone, Copy, Default)]
+struct HotkeyAttachmentStats {
+    discovered: i64,
+    content_available: i64,
+    unknown: i64,
+    unsupported: i64,
 }
 
 fn show_main_window(app: &AppHandle) {
@@ -104,6 +114,7 @@ fn start_backend_sidecar(app: &tauri::App) {
 fn optimize_active_field_via_backend(app: AppHandle) {
     thread::spawn(move || {
         let started = Instant::now();
+        let empty_attachment_stats = HotkeyAttachmentStats::default();
         thread::sleep(Duration::from_millis(350));
         let previous_clipboard = app.clipboard().read_text().ok();
         send_ctrl_key('A');
@@ -120,6 +131,7 @@ fn optimize_active_field_via_backend(app: AppHandle) {
                 "",
                 Some("clipboard_read_failed"),
                 started.elapsed().as_millis(),
+                empty_attachment_stats,
             );
             return;
         };
@@ -135,17 +147,21 @@ fn optimize_active_field_via_backend(app: AppHandle) {
                 "",
                 None,
                 started.elapsed().as_millis(),
+                empty_attachment_stats,
             );
             return;
         }
 
+        let attachments = discover_hotkey_attachments(&text);
+        let attachment_stats = hotkey_attachment_stats(&attachments);
         let body = serde_json::json!({
             "prompt": text,
             "provider": "openai",
             "model": "gpt-5.4-mini",
             "task_type": null,
             "expected_output_tokens": 1000,
-            "capture_source": "hotkey"
+            "capture_source": "hotkey",
+            "attachments": attachments
         });
         let Some(response) = post_json("/api/optimize", &body) else {
             let _ = app.clipboard().write_text(text);
@@ -158,6 +174,7 @@ fn optimize_active_field_via_backend(app: AppHandle) {
                 "",
                 Some("optimize_request_failed"),
                 started.elapsed().as_millis(),
+                attachment_stats,
             );
             return;
         };
@@ -189,6 +206,7 @@ fn optimize_active_field_via_backend(app: AppHandle) {
                 &request_id,
                 None,
                 started.elapsed().as_millis(),
+                attachment_stats,
             );
             return;
         }
@@ -207,6 +225,7 @@ fn optimize_active_field_via_backend(app: AppHandle) {
                 &request_id,
                 Some("missing_optimized_prompt"),
                 started.elapsed().as_millis(),
+                attachment_stats,
             );
             return;
         };
@@ -228,6 +247,7 @@ fn optimize_active_field_via_backend(app: AppHandle) {
                 &request_id,
                 None,
                 started.elapsed().as_millis(),
+                attachment_stats,
             );
         } else {
             emit_hotkey_result(
@@ -238,6 +258,7 @@ fn optimize_active_field_via_backend(app: AppHandle) {
                 &request_id,
                 Some("optimized_clipboard_write_failed"),
                 started.elapsed().as_millis(),
+                attachment_stats,
             );
         }
     });
@@ -271,6 +292,7 @@ fn emit_hotkey_result(
     request_id: &str,
     failure_reason: Option<&str>,
     elapsed_ms: u128,
+    attachment_stats: HotkeyAttachmentStats,
 ) {
     let request_id_value = if request_id.is_empty() {
         serde_json::Value::Null
@@ -284,7 +306,11 @@ fn emit_hotkey_result(
             "status": event_status,
             "failure_reason": failure_reason,
             "saved_tokens": saved_tokens.max(0),
-            "elapsed_ms": elapsed_ms
+            "elapsed_ms": elapsed_ms,
+            "discovered_attachment_count": attachment_stats.discovered,
+            "content_available_attachment_count": attachment_stats.content_available,
+            "unknown_attachment_count": attachment_stats.unknown,
+            "unsupported_attachment_count": attachment_stats.unsupported
         }),
     );
     let _ = app.emit(
@@ -293,9 +319,251 @@ fn emit_hotkey_result(
             "status": status,
             "event_status": event_status,
             "saved_tokens": saved_tokens,
-            "request_id": request_id
+            "request_id": request_id,
+            "discovered_attachment_count": attachment_stats.discovered,
+            "content_available_attachment_count": attachment_stats.content_available,
+            "unknown_attachment_count": attachment_stats.unknown,
+            "unsupported_attachment_count": attachment_stats.unsupported
         }),
     );
+}
+
+fn discover_hotkey_attachments(prompt: &str) -> Vec<serde_json::Value> {
+    let mut attachments = Vec::new();
+    for path in file_path_candidates(prompt) {
+        let name = display_name(&path);
+        if attachments
+            .iter()
+            .any(|item: &serde_json::Value| item.get("name").and_then(|value| value.as_str()) == Some(name.as_str()))
+        {
+            continue;
+        }
+        attachments.push(attachment_from_path(&path));
+    }
+
+    if attachments.is_empty() && mentions_attachment(prompt) {
+        attachments.push(serde_json::json!({
+            "name": "codex-attached-file",
+            "token_status": "unknown",
+            "discovery_source": "prompt_reference",
+            "content_available": false,
+            "path_available": false,
+            "read_error": "codex_attachment_body_not_exposed"
+        }));
+    }
+    attachments
+}
+
+fn hotkey_attachment_stats(attachments: &[serde_json::Value]) -> HotkeyAttachmentStats {
+    HotkeyAttachmentStats {
+        discovered: attachments.len() as i64,
+        content_available: attachments
+            .iter()
+            .filter(|item| item.get("content_available").and_then(|value| value.as_bool()) == Some(true))
+            .count() as i64,
+        unknown: attachments
+            .iter()
+            .filter(|item| item.get("token_status").and_then(|value| value.as_str()) == Some("unknown"))
+            .count() as i64,
+        unsupported: attachments
+            .iter()
+            .filter(|item| {
+                item.get("read_error")
+                    .and_then(|value| value.as_str())
+                    .map(|value| value.contains("unsupported"))
+                    == Some(true)
+            })
+            .count() as i64,
+    }
+}
+
+fn file_path_candidates(prompt: &str) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    for token in prompt.split_whitespace() {
+        add_path_candidate(token, &mut candidates);
+    }
+
+    let mut quoted = String::new();
+    let mut in_quote = false;
+    for ch in prompt.chars() {
+        if ch == '"' || ch == '\'' {
+            if in_quote {
+                add_path_candidate(&quoted, &mut candidates);
+                quoted.clear();
+            }
+            in_quote = !in_quote;
+            continue;
+        }
+        if in_quote {
+            quoted.push(ch);
+        }
+    }
+    candidates
+}
+
+fn add_path_candidate(raw: &str, candidates: &mut Vec<PathBuf>) {
+    let trimmed = raw.trim_matches(|ch: char| {
+        matches!(
+            ch,
+            '"' | '\'' | '`' | '<' | '>' | '(' | ')' | '[' | ']' | '{' | '}' | ',' | ';'
+        )
+    });
+    if trimmed.len() < 4 {
+        return;
+    }
+    let looks_like_path = trimmed.contains('\\')
+        || trimmed.contains('/')
+        || trimmed.contains(":\\")
+        || supported_or_known_extension(trimmed);
+    if !looks_like_path {
+        return;
+    }
+    let path = PathBuf::from(trimmed);
+    if path.exists() && path.is_file() && !candidates.iter().any(|item| item == &path) {
+        candidates.push(path);
+    }
+}
+
+fn attachment_from_path(path: &Path) -> serde_json::Value {
+    let name = display_name(path);
+    let size_bytes = fs::metadata(path).map(|metadata| metadata.len()).unwrap_or(0);
+    if !is_supported_text_path(path) {
+        return serde_json::json!({
+            "name": name,
+            "mime_type": mime_type_for(path),
+            "size_bytes": size_bytes,
+            "token_status": "unknown",
+            "discovery_source": "workspace_match",
+            "content_available": false,
+            "path_available": true,
+            "read_error": "unsupported_attachment_type"
+        });
+    }
+    if size_bytes > 2_000_000 {
+        return serde_json::json!({
+            "name": name,
+            "mime_type": mime_type_for(path),
+            "size_bytes": size_bytes,
+            "token_status": "unknown",
+            "discovery_source": "workspace_match",
+            "content_available": false,
+            "path_available": true,
+            "read_error": "attachment_file_too_large"
+        });
+    }
+    match fs::read_to_string(path) {
+        Ok(content) => serde_json::json!({
+            "name": name,
+            "mime_type": mime_type_for(path),
+            "size_bytes": size_bytes,
+            "content": content,
+            "token_status": "unknown",
+            "discovery_source": "workspace_match",
+            "content_available": true,
+            "path_available": true
+        }),
+        Err(error) => serde_json::json!({
+            "name": name,
+            "mime_type": mime_type_for(path),
+            "size_bytes": size_bytes,
+            "token_status": "unknown",
+            "discovery_source": "workspace_match",
+            "content_available": false,
+            "path_available": true,
+            "read_error": format!("read_failed:{error}")
+        }),
+    }
+}
+
+fn mentions_attachment(prompt: &str) -> bool {
+    let lowered = prompt.to_lowercase();
+    [
+        "attachment",
+        "attached",
+        "uploaded",
+        "file",
+        "files",
+        "첨부",
+        "첨부한",
+        "파일",
+        "업로드",
+    ]
+    .iter()
+    .any(|term| lowered.contains(term))
+}
+
+fn supported_or_known_extension(value: &str) -> bool {
+    Path::new(value)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| {
+            matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "csv"
+                    | "json"
+                    | "log"
+                    | "md"
+                    | "txt"
+                    | "py"
+                    | "ts"
+                    | "tsx"
+                    | "js"
+                    | "jsx"
+                    | "java"
+                    | "sql"
+                    | "pdf"
+                    | "png"
+                    | "jpg"
+                    | "jpeg"
+                    | "docx"
+                    | "xlsx"
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn is_supported_text_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| {
+            matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "csv" | "json" | "log" | "md" | "txt" | "py" | "ts" | "tsx" | "js" | "jsx" | "java" | "sql"
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn mime_type_for(path: &Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("csv") => "text/csv",
+        Some("json") => "application/json",
+        Some("md") => "text/markdown",
+        Some("py") => "text/x-python",
+        Some("ts") | Some("tsx") => "application/typescript",
+        Some("js") | Some("jsx") => "application/javascript",
+        Some("java") => "text/x-java-source",
+        Some("sql") => "application/sql",
+        Some("log") | Some("txt") => "text/plain",
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("pdf") => "application/pdf",
+        Some("docx") => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        Some("xlsx") => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        _ => "application/octet-stream",
+    }
+}
+
+fn display_name(path: &Path) -> String {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name.to_string())
+        .unwrap_or_else(|| path.display().to_string())
 }
 
 #[cfg(windows)]

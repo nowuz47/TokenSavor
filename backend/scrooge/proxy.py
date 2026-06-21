@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Header, Request
 from scrooge.config import Settings, get_settings
 from scrooge.optimizer import optimize_prompt
 from scrooge.schemas import (
+    AttachmentDiscoverySource,
     AttachmentMetadata,
     AttachmentTokenStatus,
     CaptureSource,
@@ -226,6 +227,9 @@ def _attachment_from_object(value: Any, fallback_name: str) -> AttachmentMetadat
         content_hash=value.get("content_hash") or value.get("sha256"),
         token_status=token_status,
         estimated_tokens=estimated_tokens,
+        discovery_source=AttachmentDiscoverySource.PROXY_PAYLOAD,
+        content_available=False,
+        path_available=False,
     )
 
 

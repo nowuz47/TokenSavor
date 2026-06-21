@@ -26,6 +26,14 @@ export interface CostBreakdown {
 }
 
 export type AttachmentTokenStatus = "not_present" | "unknown" | "estimated" | "measured";
+export type AttachmentDiscoverySource =
+  | "scrooge_file"
+  | "codex_uia"
+  | "clipboard_file_drop"
+  | "workspace_match"
+  | "prompt_reference"
+  | "proxy_payload"
+  | "unknown";
 
 export interface AttachmentMetadata {
   name: string;
@@ -41,6 +49,10 @@ export interface AttachmentMetadata {
   saved_tokens?: number | null;
   savings_rate?: number | null;
   measurement_source?: string | null;
+  discovery_source?: AttachmentDiscoverySource;
+  content_available?: boolean;
+  path_available?: boolean;
+  read_error?: string | null;
 }
 
 export interface AttachmentSummary {
@@ -117,6 +129,10 @@ export interface DashboardSummary {
   hotkey_success_rate: number;
   hotkey_validation_status: "needs_validation" | "passed" | "failed";
   latest_hotkey_status?: string | null;
+  hotkey_discovered_attachments: number;
+  hotkey_content_available_attachments: number;
+  hotkey_unknown_attachments: number;
+  hotkey_unsupported_attachments: number;
   used_assumed_requests: number;
   backend_health_status: string;
   attachment_requests: number;
@@ -216,6 +232,10 @@ export interface AuditRecordSummary {
   attachment_saved_tokens?: number | null;
   attachment_savings_rate?: number | null;
   attachment_measurement_source?: string | null;
+  attachment_discovery_source?: string | null;
+  attachment_content_available_count: number;
+  attachment_path_available_count: number;
+  attachment_read_error_count: number;
   possible_attachment_reference: boolean;
   prompt_savings_rate: number;
   total_savings_rate?: number | null;

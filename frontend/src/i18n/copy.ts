@@ -142,6 +142,10 @@ export const copy = {
       harmfulOmissions: "Harmful Omissions",
       hotkeyFailures: "Hotkey Failures",
       hotkeySuccess: "Hotkey Success",
+      hotkeyAttachmentDetected: "Hotkey Attachments",
+      hotkeyAttachmentReadable: "Readable Attachments",
+      hotkeyAttachmentUnknown: "Unknown Attachments",
+      hotkeyAttachmentUnsupported: "Unsupported Attachments",
       hotkeyValidation: "Hotkey Validation",
       hotkeyValidationStates: {
         failed: "Failed",
@@ -191,6 +195,7 @@ export const copy = {
       },
       attachmentTokens: "Attachment tokens",
       attachmentMeasurementSource: "Attachment measurement",
+      attachmentDiscoverySource: "Attachment discovery",
       optimizedHash: "Optimized SHA-256 Hash",
       originalHash: "Original SHA-256 Hash",
       captureSource: "Capture source",
@@ -439,6 +444,10 @@ export const copy = {
       harmfulOmissions: "심각 누락",
       hotkeyFailures: "단축키 실패",
       hotkeySuccess: "단축키 성공률",
+      hotkeyAttachmentDetected: "단축키 첨부 감지",
+      hotkeyAttachmentReadable: "본문 접근 가능",
+      hotkeyAttachmentUnknown: "미측정 첨부",
+      hotkeyAttachmentUnsupported: "미지원 첨부",
       hotkeyValidation: "단축키 검증",
       hotkeyValidationStates: {
         failed: "실패",
@@ -488,6 +497,7 @@ export const copy = {
       },
       attachmentTokens: "첨부 토큰",
       attachmentMeasurementSource: "첨부 실측 기준",
+      attachmentDiscoverySource: "첨부 감지 경로",
       optimizedHash: "최적화 SHA-256 해시",
       originalHash: "원본 SHA-256 해시",
       captureSource: "캡처 경로",
@@ -597,4 +607,3 @@ export const copy = {
 } as const;
 
 export type Copy = (typeof copy)[Locale];
-

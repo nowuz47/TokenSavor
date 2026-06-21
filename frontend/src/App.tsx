@@ -121,6 +121,10 @@ interface AuditRecord {
   attachmentSavedTokens?: number | null;
   attachmentSavingsRate?: number | null;
   attachmentMeasurementSource?: string | null;
+  attachmentDiscoverySource?: string | null;
+  attachmentContentAvailableCount: number;
+  attachmentPathAvailableCount: number;
+  attachmentReadErrorCount: number;
   possibleAttachmentReference: boolean;
   promptSavingsRate: number;
   totalSavingsRate?: number | null;
@@ -206,7 +210,10 @@ async function fileToAttachment(file: File): Promise<AttachmentMetadata> {
     size_bytes: file.size,
     content_hash,
     content,
-    token_status: "unknown"
+    token_status: "unknown",
+    discovery_source: "scrooge_file",
+    content_available: true,
+    path_available: false
   };
 }
 
@@ -267,6 +274,10 @@ function toAuditRecord(record: AuditRecordSummary): AuditRecord {
     attachmentSavedTokens: record.attachment_saved_tokens,
     attachmentSavingsRate: record.attachment_savings_rate,
     attachmentMeasurementSource: record.attachment_measurement_source,
+    attachmentDiscoverySource: record.attachment_discovery_source,
+    attachmentContentAvailableCount: record.attachment_content_available_count ?? 0,
+    attachmentPathAvailableCount: record.attachment_path_available_count ?? 0,
+    attachmentReadErrorCount: record.attachment_read_error_count ?? 0,
     possibleAttachmentReference: record.possible_attachment_reference,
     promptSavingsRate: record.prompt_savings_rate,
     totalSavingsRate: record.total_savings_rate
@@ -331,6 +342,10 @@ export default function App() {
       hotkeySuccessRate: summary?.hotkey_success_rate ?? 0,
       hotkeyValidationStatus: summary?.hotkey_validation_status ?? "needs_validation",
       latestHotkeyStatus: summary?.latest_hotkey_status ?? null,
+      hotkeyDiscoveredAttachments: summary?.hotkey_discovered_attachments ?? 0,
+      hotkeyContentAvailableAttachments: summary?.hotkey_content_available_attachments ?? 0,
+      hotkeyUnknownAttachments: summary?.hotkey_unknown_attachments ?? 0,
+      hotkeyUnsupportedAttachments: summary?.hotkey_unsupported_attachments ?? 0,
       usedAssumedRequests: summary?.used_assumed_requests ?? 0,
       backendHealthStatus: runtimeStatus?.backend_status ?? summary?.backend_health_status ?? "unknown",
       databaseStatus: runtimeStatus?.database_status ?? "unknown",
@@ -1211,6 +1226,10 @@ function DashboardTab(props: {
     hotkeyFailedRequests: number;
     hotkeyValidationStatus: "needs_validation" | "passed" | "failed";
     latestHotkeyStatus: string | null;
+    hotkeyDiscoveredAttachments: number;
+    hotkeyContentAvailableAttachments: number;
+    hotkeyUnknownAttachments: number;
+    hotkeyUnsupportedAttachments: number;
     usedAssumedRequests: number;
     attachmentRequests: number;
     attachmentUnknownRequests: number;
@@ -1360,6 +1379,10 @@ function DashboardTab(props: {
             <DashboardCard icon={<ClipboardCheck />} label={props.copy.dashboard.hotkeySuccess} value={`${props.aggregate.hotkeyAttempts} / ${(props.aggregate.hotkeySuccessRate * 100).toFixed(0)}%`} />
             <DashboardCard icon={<X />} label={props.copy.dashboard.hotkeyFailures} value={props.aggregate.hotkeyFailedRequests} />
             <DashboardCard icon={<Terminal />} label={props.copy.dashboard.latestHotkey} value={props.aggregate.latestHotkeyStatus ?? "-"} />
+            <DashboardCard icon={<Paperclip />} label={props.copy.dashboard.hotkeyAttachmentDetected} value={props.aggregate.hotkeyDiscoveredAttachments} />
+            <DashboardCard icon={<Paperclip />} label={props.copy.dashboard.hotkeyAttachmentReadable} value={props.aggregate.hotkeyContentAvailableAttachments} />
+            <DashboardCard icon={<Paperclip />} label={props.copy.dashboard.hotkeyAttachmentUnknown} value={props.aggregate.hotkeyUnknownAttachments} />
+            <DashboardCard icon={<X />} label={props.copy.dashboard.hotkeyAttachmentUnsupported} value={props.aggregate.hotkeyUnsupportedAttachments} />
             <DashboardCard icon={<CheckCircle />} label={props.copy.dashboard.usedAssumed} value={props.aggregate.usedAssumedRequests} />
             <DashboardCard icon={<Paperclip />} label={props.copy.dashboard.attachmentRequests} value={props.aggregate.attachmentRequests} />
             <DashboardCard icon={<Paperclip />} label={props.copy.dashboard.attachmentUnknown} value={props.aggregate.attachmentUnknownRequests} />
@@ -1780,6 +1803,20 @@ function AuditRows(props: { copy: Copy; expanded: boolean; record: AuditRecord; 
                 <div>
                   <strong>{props.copy.audit.attachmentMeasurementSource}</strong>
                   <span className="hash-line">{props.record.attachmentMeasurementSource}</span>
+                </div>
+              ) : null}
+              {props.record.attachmentDiscoverySource ? (
+                <div>
+                  <strong>{props.copy.audit.attachmentDiscoverySource}</strong>
+                  <span className="hash-line">
+                    {props.record.attachmentDiscoverySource}
+                    {props.record.attachmentContentAvailableCount > 0
+                      ? ` · readable ${props.record.attachmentContentAvailableCount}`
+                      : ""}
+                    {props.record.attachmentReadErrorCount > 0
+                      ? ` · read errors ${props.record.attachmentReadErrorCount}`
+                      : ""}
+                  </span>
                 </div>
               ) : null}
               {props.record.failureReason ? (

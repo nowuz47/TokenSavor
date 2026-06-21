@@ -141,6 +141,13 @@ $commands += Invoke-CheckedCommand -Label "attachment savings validation" -Comma
     finally { Pop-Location }
 }
 
+$hotkeyAttachmentReport = Join-Path (Split-Path $ReportPath -Parent) ("hotkey-attachment-for-" + [System.IO.Path]::GetFileNameWithoutExtension($ReportPath) + ".json")
+$commands += Invoke-CheckedCommand -Label "hotkey attachment flow validation" -Command {
+    Push-Location $backendDir
+    try { & $pythonExe .\tools\validate_hotkey_attachment_flow.py --api $ApiBase --report $hotkeyAttachmentReport }
+    finally { Pop-Location }
+}
+
 $commands += Invoke-CheckedCommand -Label "api smoke matrix" -Command {
     Push-Location $backendDir
     try { & $pythonExe .\tools\run_smoke_matrix.py --api $ApiBase --mode smoke }

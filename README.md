@@ -203,3 +203,12 @@ samples/    테스트용 샘플 데이터
 Scrooge에 텍스트 파일을 직접 첨부하면 파일 본문을 로컬에서 요약하고, 첨부 원본 토큰과 요약 토큰을 `measured_controlled`로 기록합니다. 본문 전체는 기록에 저장하지 않고, 파일명/크기/hash/토큰 수만 남깁니다.
 
 최신 검증 결과는 [reports/attachment-validation-dev.json](reports/attachment-validation-dev.json)에 있습니다. 이 리포트는 로그, CSV, JSON, Python 코드, 짧은 Markdown 파일을 사용해 첨부 절감량이 API, SQLite 기록, 대시보드 요약과 일치하는지 확인합니다.
+
+## 단일 핫키 첨부 처리
+
+Codex 입력창에서 `Ctrl + Alt + S`를 누르면 첨부 여부와 관계없이 같은 흐름으로 동작합니다.
+
+- 입력창 텍스트를 캡처하고 최적화합니다.
+- 프롬프트 안에 로컬 텍스트 파일 경로가 있으면 파일을 읽어 첨부 컨텍스트를 압축합니다.
+- Codex Desktop에 이미 붙은 첨부처럼 파일 본문을 읽을 수 없는 경우에는 `첨부 미측정`으로 기록하고 전체 절감률을 확정값처럼 표시하지 않습니다.
+- 최신 핫키 첨부 검증 결과는 [reports/hotkey-attachment-validation-dev.json](reports/hotkey-attachment-validation-dev.json)에 있습니다.

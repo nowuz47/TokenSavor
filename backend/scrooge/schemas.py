@@ -61,6 +61,16 @@ class AttachmentTokenStatus(StrEnum):
     MEASURED = "measured"
 
 
+class AttachmentDiscoverySource(StrEnum):
+    SCROOGE_FILE = "scrooge_file"
+    CODEX_UIA = "codex_uia"
+    CLIPBOARD_FILE_DROP = "clipboard_file_drop"
+    WORKSPACE_MATCH = "workspace_match"
+    PROMPT_REFERENCE = "prompt_reference"
+    PROXY_PAYLOAD = "proxy_payload"
+    UNKNOWN = "unknown"
+
+
 class TokenBreakdown(BaseModel):
     input_tokens: int
     output_tokens: int = 0
@@ -102,6 +112,10 @@ class AttachmentMetadata(BaseModel):
     saved_tokens: int | None = Field(default=None, ge=0)
     savings_rate: float | None = Field(default=None, ge=0)
     measurement_source: str | None = None
+    discovery_source: AttachmentDiscoverySource = AttachmentDiscoverySource.UNKNOWN
+    content_available: bool = False
+    path_available: bool = False
+    read_error: str | None = None
 
 
 class AttachmentSummary(BaseModel):
@@ -167,6 +181,10 @@ class HotkeyEventRequest(BaseModel):
     failure_reason: str | None = None
     saved_tokens: int = Field(default=0, ge=0)
     elapsed_ms: int | None = Field(default=None, ge=0)
+    discovered_attachment_count: int = Field(default=0, ge=0)
+    content_available_attachment_count: int = Field(default=0, ge=0)
+    unknown_attachment_count: int = Field(default=0, ge=0)
+    unsupported_attachment_count: int = Field(default=0, ge=0)
 
 
 class HotkeyEventResponse(BaseModel):
@@ -218,6 +236,10 @@ class DashboardSummary(BaseModel):
     hotkey_success_rate: float = 0
     hotkey_validation_status: str = "needs_validation"
     latest_hotkey_status: str | None = None
+    hotkey_discovered_attachments: int = 0
+    hotkey_content_available_attachments: int = 0
+    hotkey_unknown_attachments: int = 0
+    hotkey_unsupported_attachments: int = 0
     used_assumed_requests: int = 0
     backend_health_status: str = "ok"
     attachment_requests: int = 0
@@ -310,6 +332,10 @@ class AuditRecordSummary(BaseModel):
     attachment_saved_tokens: int | None = None
     attachment_savings_rate: float | None = None
     attachment_measurement_source: str | None = None
+    attachment_discovery_source: str | None = None
+    attachment_content_available_count: int = 0
+    attachment_path_available_count: int = 0
+    attachment_read_error_count: int = 0
     possible_attachment_reference: bool = False
     prompt_savings_rate: float = 0
     total_savings_rate: float | None = None

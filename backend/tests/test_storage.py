@@ -1,6 +1,7 @@
 from scrooge.config import Settings
 from scrooge.optimizer import optimize_prompt
 from scrooge.schemas import (
+    AttachmentDiscoverySource,
     AttachmentMetadata,
     AttachmentTokenStatus,
     CaptureSource,
@@ -153,6 +154,10 @@ def test_hotkey_events_drive_recent_validation_and_delivery_status(tmp_path) -> 
             status="optimized_pasted",
             saved_tokens=response.saved_tokens,
             elapsed_ms=420,
+            discovered_attachment_count=2,
+            content_available_attachment_count=1,
+            unknown_attachment_count=1,
+            unsupported_attachment_count=0,
         )
     )
     for index in range(26):
@@ -168,6 +173,10 @@ def test_hotkey_events_drive_recent_validation_and_delivery_status(tmp_path) -> 
     assert summary["hotkey_success_rate"] == 0.9
     assert summary["hotkey_validation_status"] == "passed"
     assert summary["latest_hotkey_status"] == "paste_failed"
+    assert summary["hotkey_discovered_attachments"] == 2
+    assert summary["hotkey_content_available_attachments"] == 1
+    assert summary["hotkey_unknown_attachments"] == 1
+    assert summary["hotkey_unsupported_attachments"] == 0
     assert summary["used_assumed_requests"] == 1
     assert record["state"] == "sent"
     assert record["delivery_status"] == "pasted_assumed_used"
@@ -209,6 +218,9 @@ def test_storage_tracks_attachment_metadata_without_prompt_body(tmp_path) -> Non
             content_hash="sha256:orders",
             token_status=AttachmentTokenStatus.ESTIMATED,
             estimated_tokens=1200,
+            discovery_source=AttachmentDiscoverySource.SCROOGE_FILE,
+            content_available=True,
+            path_available=False,
         )
     ]
     response = optimize_prompt(
@@ -226,6 +238,9 @@ def test_storage_tracks_attachment_metadata_without_prompt_body(tmp_path) -> Non
     assert record["attachment_count"] == 1
     assert record["attachment_token_status"] == "estimated"
     assert record["attachment_estimated_tokens"] == 1200
+    assert record["attachment_discovery_source"] == "scrooge_file"
+    assert record["attachment_content_available_count"] == 1
+    assert record["attachment_path_available_count"] == 0
     assert record["total_savings_rate"] == response.total_savings_rate
     assert summary["attachment_requests"] == 1
     assert summary["attachment_unknown_requests"] == 0

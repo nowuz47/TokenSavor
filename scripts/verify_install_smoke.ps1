@@ -83,6 +83,7 @@ try {
     Invoke-Checked { & $pythonExe .\tools\evaluate_optimization_quality.py } "Optimization quality gate"
     Invoke-Checked { & $pythonExe .\tools\validate_calculator_savings.py --api $ApiBase } "Calculator savings validation"
     Invoke-Checked { & $pythonExe .\tools\validate_attachment_savings.py --api $ApiBase } "Attachment savings validation"
+    Invoke-Checked { & $pythonExe .\tools\validate_hotkey_attachment_flow.py --api $ApiBase } "Hotkey attachment flow validation"
     Invoke-Checked { & $pythonExe .\tools\run_smoke_matrix.py --api $ApiBase --mode smoke } "Installed API smoke matrix"
 }
 finally {
