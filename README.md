@@ -10,10 +10,10 @@
 </p>
 
 <p align="center">
-  <a href="#why-scrooge">Why</a> ·
-  <a href="#how-it-works">How it works</a> ·
-  <a href="#measured-results">Measured results</a> ·
-  <a href="#install">Install</a> ·
+  <a href="#why-scrooge">Why</a> |
+  <a href="#how-it-works">How it works</a> |
+  <a href="#measured-results">Measured results</a> |
+  <a href="#install">Install</a> |
   <a href="#trust-model">Trust model</a>
 </p>
 
@@ -71,17 +71,25 @@ Unsupported or unsafe-to-measure files, such as PDF, images, and Office document
 
 ## Demo Video
 
-No synthetic demo is included in this README. The previous animated SVG mock did not match the actual app and has been removed.
+[Watch the 24-second Scrooge UI demo](docs/assets/scrooge-readme-demo.webm)
 
-The right next step is to add a short real screen recording from the installed app:
+This is a real screen recording of the current production frontend build connected to a local FastAPI backend with a temporary SQLite database. It shows:
 
-- open Scrooge,
-- type a Codex prompt,
-- press `Ctrl + Alt + S`,
-- show the dashboard update,
-- show an attachment-aware case with a text file.
+- prompt optimization,
+- text attachment compression,
+- savings dashboard update,
+- audit history update.
 
-Until that recording exists, this README intentionally uses only the actual logo, measured reports, and implementation details.
+No synthetic animation is used. The previous animated SVG mock did not match the actual app and has been removed.
+
+To regenerate the video locally:
+
+```bash
+cd frontend
+npm run record:readme-demo
+```
+
+The recording script uses a temporary database and generated demo CSV, so it does not modify your normal Scrooge usage history.
 
 ## Measured Results
 
