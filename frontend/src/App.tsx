@@ -11,6 +11,7 @@ import {
   Database,
   Edit3,
   Eye,
+  FileText,
   Flame,
   Languages,
   Minus,
@@ -25,6 +26,7 @@ import {
   Sun,
   Terminal,
   Trash2,
+  Upload,
   X
 } from "lucide-react";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -47,6 +49,7 @@ import {
 } from "./api";
 import type {
   AdminPolicy,
+  AttachmentMetadata,
   AuditRecordSummary,
   CompatibilityStatus,
   DashboardSummary,
@@ -113,6 +116,11 @@ interface AuditRecord {
   attachmentTokenStatus: "not_present" | "unknown" | "estimated" | "measured";
   attachmentEstimatedTokens?: number | null;
   attachmentMeasuredTokens?: number | null;
+  attachmentOriginalTokens?: number | null;
+  attachmentOptimizedTokens?: number | null;
+  attachmentSavedTokens?: number | null;
+  attachmentSavingsRate?: number | null;
+  attachmentMeasurementSource?: string | null;
   possibleAttachmentReference: boolean;
   promptSavingsRate: number;
   totalSavingsRate?: number | null;
@@ -189,6 +197,38 @@ const taskOptions: Array<{ label: string; value: TaskType | "" }> = [
 
 const defaultPrompt = "";
 
+async function fileToAttachment(file: File): Promise<AttachmentMetadata> {
+  const content = await file.text();
+  const content_hash = await sha256Text(content);
+  return {
+    name: file.name,
+    mime_type: file.type || "text/plain",
+    size_bytes: file.size,
+    content_hash,
+    content,
+    token_status: "unknown"
+  };
+}
+
+async function sha256Text(text: string): Promise<string> {
+  if (!window.crypto?.subtle) {
+    return nullHash(text);
+  }
+  const bytes = new TextEncoder().encode(text);
+  const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+  return `sha256:${Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function nullHash(text: string): string {
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 31 + text.charCodeAt(index)) >>> 0;
+  }
+  return `local:${hash.toString(16).padStart(8, "0")}`;
+}
+
 function toAuditRecord(record: AuditRecordSummary): AuditRecord {
   return {
     id: record.request_id.slice(0, 10),
@@ -222,6 +262,11 @@ function toAuditRecord(record: AuditRecordSummary): AuditRecord {
     attachmentTokenStatus: record.attachment_token_status,
     attachmentEstimatedTokens: record.attachment_estimated_tokens,
     attachmentMeasuredTokens: record.attachment_measured_tokens,
+    attachmentOriginalTokens: record.attachment_original_tokens,
+    attachmentOptimizedTokens: record.attachment_optimized_tokens,
+    attachmentSavedTokens: record.attachment_saved_tokens,
+    attachmentSavingsRate: record.attachment_savings_rate,
+    attachmentMeasurementSource: record.attachment_measurement_source,
     possibleAttachmentReference: record.possible_attachment_reference,
     promptSavingsRate: record.prompt_savings_rate,
     totalSavingsRate: record.total_savings_rate
@@ -231,6 +276,7 @@ function toAuditRecord(record: AuditRecordSummary): AuditRecord {
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>("workspace");
   const [prompt, setPrompt] = useState(defaultPrompt);
+  const [attachments, setAttachments] = useState<AttachmentMetadata[]>([]);
   const [provider, setProvider] = useState("openai");
   const [model, setModel] = useState("gpt-5.4-mini");
   const [taskType, setTaskType] = useState<TaskType | "">("");
@@ -293,6 +339,10 @@ export default function App() {
       attachmentUnknownRequests: summary?.attachment_unknown_requests ?? 0,
       attachmentMeasuredRequests: summary?.attachment_measured_requests ?? 0,
       attachmentMeasuredCoverage: summary?.attachment_measured_coverage ?? 0,
+      attachmentOriginalTokens: summary?.attachment_original_tokens ?? 0,
+      attachmentOptimizedTokens: summary?.attachment_optimized_tokens ?? 0,
+      attachmentSavedTokens: summary?.attachment_saved_tokens ?? 0,
+      attachmentSavingsRate: summary?.attachment_savings_rate ?? 0,
       qualityPreservationRate:
         summary?.quality_preservation_rate ?? qualitySummary?.quality_preservation_rate ?? 0
     };
@@ -455,10 +505,12 @@ export default function App() {
         model,
         task_type: taskType,
         expected_output_tokens: expectedOutputTokens,
-        capture_source: "manual"
+        capture_source: "manual",
+        attachments
       });
       setResult(response);
       setPrompt(response.optimized_prompt);
+      setAttachments([]);
       setStatus(locale === "ko" ? "프롬프트 최적화됨" : "Prompt optimized");
       showToast(labels.toast.optimizedLoaded);
       await refreshTelemetry();
@@ -469,6 +521,26 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleAttachmentFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    try {
+      const nextAttachments = await Promise.all(Array.from(files).map(fileToAttachment));
+      setAttachments((current) => [...current, ...nextAttachments]);
+      showToast(
+        locale === "ko"
+          ? `${nextAttachments.length}개 파일을 첨부했습니다.`
+          : `${nextAttachments.length} file(s) attached.`
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Attachment read failed";
+      showToast(message);
+    }
+  }
+
+  function clearAttachment(name: string) {
+    setAttachments((current) => current.filter((item) => item.name !== name));
   }
 
   async function decide(approved: boolean) {
@@ -670,6 +742,7 @@ export default function App() {
   const tabContent = {
     workspace: (
       <WorkspaceTab
+        attachments={attachments}
         availableModels={availableModels}
         copy={labels}
         expectedOutputTokens={expectedOutputTokens}
@@ -680,10 +753,12 @@ export default function App() {
         result={result}
         taskType={taskType}
         onExpectedOutputTokensChange={setExpectedOutputTokens}
+        onFilesSelected={handleAttachmentFiles}
         onModelChange={setModel}
         onOptimize={runOptimize}
         onPromptChange={setPrompt}
         onProviderChange={setProvider}
+        onClearAttachment={clearAttachment}
         onTaskTypeChange={setTaskType}
       />
     ),
@@ -784,6 +859,7 @@ export default function App() {
 }
 
 function WorkspaceTab(props: {
+  attachments: AttachmentMetadata[];
   availableModels: ModelOption[];
   copy: Copy;
   expectedOutputTokens: number;
@@ -793,7 +869,9 @@ function WorkspaceTab(props: {
   provider: string;
   result: OptimizeResponse | null;
   taskType: TaskType | "";
+  onClearAttachment: (name: string) => void;
   onExpectedOutputTokensChange: (value: number) => void;
+  onFilesSelected: (files: FileList | null) => void;
   onModelChange: (value: string) => void;
   onOptimize: () => void;
   onPromptChange: (value: string) => void;
@@ -833,6 +911,36 @@ function WorkspaceTab(props: {
               />
             </div>
           </label>
+          <div className="attachment-picker">
+            <label className="attachment-drop">
+              <Upload size={14} />
+              <span>{props.copy.workspace.attachFile}</span>
+              <input
+                accept=".csv,.json,.log,.md,.txt,.py,.ts,.tsx,.js,.jsx,.java,.sql,text/*,application/json"
+                multiple
+                type="file"
+                onChange={(event) => {
+                  props.onFilesSelected(event.target.files);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
+            <span className="attachment-help">{props.copy.workspace.attachFileHelp}</span>
+          </div>
+          {props.attachments.length > 0 ? (
+            <div className="attachment-list">
+              {props.attachments.map((item) => (
+                <div className="attachment-pill" key={`${item.name}-${item.size_bytes ?? 0}`}>
+                  <FileText size={13} />
+                  <span>{item.name}</span>
+                  <em>{((item.size_bytes ?? 0) / 1024).toFixed(1)} KB</em>
+                  <button type="button" onClick={() => props.onClearAttachment(item.name)}>
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <button className="btn btn-primary optimize-main-button" type="button" onClick={props.onOptimize} disabled={props.loading}>
             <Sparkles size={14} />
             {props.copy.actions.optimize}
@@ -1108,6 +1216,10 @@ function DashboardTab(props: {
     attachmentUnknownRequests: number;
     attachmentMeasuredRequests: number;
     attachmentMeasuredCoverage: number;
+    attachmentOriginalTokens: number;
+    attachmentOptimizedTokens: number;
+    attachmentSavedTokens: number;
+    attachmentSavingsRate: number;
     longContextSavingsRate: number;
     maxTokenErrorRate: number;
     measuredRequests: number;
@@ -1252,6 +1364,8 @@ function DashboardTab(props: {
             <DashboardCard icon={<Paperclip />} label={props.copy.dashboard.attachmentRequests} value={props.aggregate.attachmentRequests} />
             <DashboardCard icon={<Paperclip />} label={props.copy.dashboard.attachmentUnknown} value={props.aggregate.attachmentUnknownRequests} />
             <DashboardCard icon={<Activity />} label={props.copy.dashboard.attachmentMeasuredCoverage} value={`${(props.aggregate.attachmentMeasuredCoverage * 100).toFixed(0)}%`} />
+            <DashboardCard icon={<Paperclip />} label={props.copy.dashboard.attachmentSavedTokens} value={formatTokenCount(props.aggregate.attachmentSavedTokens)} />
+            <DashboardCard icon={<Activity />} label={props.copy.dashboard.attachmentSavingsRate} value={`${(props.aggregate.attachmentSavingsRate * 100).toFixed(1)}%`} />
             <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.shortPromptProtected} value={props.aggregate.shortPromptProtectedCount} />
             <DashboardCard icon={<X />} label={props.copy.dashboard.shortOverOptimization} value={props.aggregate.shortPromptOverOptimizationCount} />
             <DashboardCard icon={<Server />} label={props.copy.dashboard.backendHealth} value={props.aggregate.backendHealthStatus} />
@@ -1652,12 +1766,20 @@ function AuditRows(props: { copy: Copy; expanded: boolean; record: AuditRecord; 
                   {props.record.possibleAttachmentReference && props.record.attachmentCount === 0 ? " · referenced" : ""}
                 </span>
               </div>
-              {props.record.attachmentEstimatedTokens || props.record.attachmentMeasuredTokens ? (
+              {props.record.attachmentOriginalTokens || props.record.attachmentMeasuredTokens || props.record.attachmentEstimatedTokens ? (
                 <div>
                   <strong>{props.copy.audit.attachmentTokens}</strong>
                   <span className="hash-line">
-                    {(props.record.attachmentMeasuredTokens ?? props.record.attachmentEstimatedTokens ?? 0).toLocaleString()}
+                    {props.record.attachmentOriginalTokens != null && props.record.attachmentOptimizedTokens != null
+                      ? `${props.record.attachmentOriginalTokens.toLocaleString()} -> ${props.record.attachmentOptimizedTokens.toLocaleString()} / saved ${(props.record.attachmentSavedTokens ?? 0).toLocaleString()}`
+                      : (props.record.attachmentMeasuredTokens ?? props.record.attachmentEstimatedTokens ?? 0).toLocaleString()}
                   </span>
+                </div>
+              ) : null}
+              {props.record.attachmentMeasurementSource ? (
+                <div>
+                  <strong>{props.copy.audit.attachmentMeasurementSource}</strong>
+                  <span className="hash-line">{props.record.attachmentMeasurementSource}</span>
                 </div>
               ) : null}
               {props.record.failureReason ? (
@@ -1782,6 +1904,9 @@ function formatAttachmentSummary(result: OptimizeResponse, labels: Copy) {
   }
   if (summary.token_status === "unknown") {
     return labels.workspace.attachmentUnknown;
+  }
+  if (summary.attachment_savings_rate != null && summary.attachment_saved_tokens != null) {
+    return `${labels.workspace.attachmentMeasured}: ${(summary.attachment_savings_rate * 100).toFixed(1)}% · ${summary.attachment_saved_tokens.toLocaleString()} tokens`;
   }
   if (summary.token_status === "measured") {
     const totalRate = summary.total_savings_rate ?? result.prompt_savings_rate;
