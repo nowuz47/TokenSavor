@@ -7,19 +7,26 @@ use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 
+use std::env;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
 #[cfg(windows)]
+use std::os::windows::process::CommandExt;
+#[cfg(windows)]
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_A, VK_C, VK_CONTROL,
     VK_V,
 };
+
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 struct BackendState {
     child: Mutex<Option<CommandChild>>,
@@ -84,14 +91,11 @@ fn start_backend_sidecar(app: &tauri::App) {
         return;
     }
 
-    match app
-        .shell()
-        .sidecar("scrooge-backend")
-        .map(|command| {
-            command
-                .env("SCROOGE_SIDECAR_STATUS", "managed")
-                .env("SCROOGE_HOTKEY_STATUS", "registered")
-        }) {
+    match app.shell().sidecar("scrooge-backend").map(|command| {
+        command
+            .env("SCROOGE_SIDECAR_STATUS", "managed")
+            .env("SCROOGE_HOTKEY_STATUS", "registered")
+    }) {
         Ok(command) => match command.spawn() {
             Ok((mut rx, child)) => {
                 *state.child.lock().expect("backend child mutex poisoned") = Some(child);
@@ -332,13 +336,31 @@ fn discover_hotkey_attachments(prompt: &str) -> Vec<serde_json::Value> {
     let mut attachments = Vec::new();
     for path in file_path_candidates(prompt) {
         let name = display_name(&path);
-        if attachments
-            .iter()
-            .any(|item: &serde_json::Value| item.get("name").and_then(|value| value.as_str()) == Some(name.as_str()))
-        {
+        if attachments.iter().any(|item: &serde_json::Value| {
+            item.get("name").and_then(|value| value.as_str()) == Some(name.as_str())
+        }) {
             continue;
         }
-        attachments.push(attachment_from_path(&path));
+        attachments.push(attachment_from_path(&path, "workspace_match"));
+    }
+
+    for name in codex_ui_attachment_names() {
+        if attachments.iter().any(|item: &serde_json::Value| {
+            item.get("name").and_then(|value| value.as_str()) == Some(name.as_str())
+        }) {
+            continue;
+        }
+        match resolve_attached_file_name(&name, prompt) {
+            Some(path) => attachments.push(attachment_from_path(&path, "codex_uia")),
+            None => attachments.push(serde_json::json!({
+                "name": name,
+                "token_status": "unknown",
+                "discovery_source": "codex_uia",
+                "content_available": false,
+                "path_available": false,
+                "read_error": "attached_file_path_not_found"
+            })),
+        }
     }
 
     if attachments.is_empty() && mentions_attachment(prompt) {
@@ -359,11 +381,17 @@ fn hotkey_attachment_stats(attachments: &[serde_json::Value]) -> HotkeyAttachmen
         discovered: attachments.len() as i64,
         content_available: attachments
             .iter()
-            .filter(|item| item.get("content_available").and_then(|value| value.as_bool()) == Some(true))
+            .filter(|item| {
+                item.get("content_available")
+                    .and_then(|value| value.as_bool())
+                    == Some(true)
+            })
             .count() as i64,
         unknown: attachments
             .iter()
-            .filter(|item| item.get("token_status").and_then(|value| value.as_str()) == Some("unknown"))
+            .filter(|item| {
+                item.get("token_status").and_then(|value| value.as_str()) == Some("unknown")
+            })
             .count() as i64,
         unsupported: attachments
             .iter()
@@ -375,6 +403,68 @@ fn hotkey_attachment_stats(attachments: &[serde_json::Value]) -> HotkeyAttachmen
             })
             .count() as i64,
     }
+}
+
+#[cfg(windows)]
+fn codex_ui_attachment_names() -> Vec<String> {
+    let script = r#"
+$ErrorActionPreference = 'SilentlyContinue'
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public static class NativeWin {
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+}
+"@
+$hwnd = [NativeWin]::GetForegroundWindow()
+if ($hwnd -eq [IntPtr]::Zero) { exit 0 }
+$root = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
+if ($null -eq $root) { exit 0 }
+$items = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+$seen = @{}
+foreach ($item in $items) {
+  $name = $item.Current.Name
+  if ([string]::IsNullOrWhiteSpace($name)) { continue }
+  $matches = [regex]::Matches($name, '[^\\/:*?"<>|\s]+\.(?:log|csv|json|md|txt|py|ts|tsx|js|jsx|java|sql|pdf|png|jpg|jpeg|docx|xlsx)', 'IgnoreCase')
+  foreach ($match in $matches) {
+    $value = $match.Value.Trim()
+    if ($value.Length -gt 3 -and -not $seen.ContainsKey($value)) {
+      $seen[$value] = $true
+      Write-Output $value
+    }
+  }
+}
+"#;
+    let output = Command::new("powershell")
+        .creation_flags(CREATE_NO_WINDOW)
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            script,
+        ])
+        .output();
+    let Ok(output) = output else {
+        return Vec::new();
+    };
+    if !output.status.success() {
+        return Vec::new();
+    }
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(|line| line.trim().to_string())
+        .filter(|line| supported_or_known_extension(line))
+        .collect()
+}
+
+#[cfg(not(windows))]
+fn codex_ui_attachment_names() -> Vec<String> {
+    Vec::new()
 }
 
 fn file_path_candidates(prompt: &str) -> Vec<PathBuf> {
@@ -424,16 +514,137 @@ fn add_path_candidate(raw: &str, candidates: &mut Vec<PathBuf>) {
     }
 }
 
-fn attachment_from_path(path: &Path) -> serde_json::Value {
+fn resolve_attached_file_name(name: &str, prompt: &str) -> Option<PathBuf> {
+    let direct = PathBuf::from(name);
+    if direct.exists() && direct.is_file() {
+        return Some(direct);
+    }
+
+    let mut matches = Vec::new();
+    let mut visited_files = 0usize;
+    for root in attachment_search_roots(prompt) {
+        find_named_file(&root, name, 0, &mut visited_files, &mut matches);
+        if matches.len() > 1 || visited_files > 12_000 {
+            break;
+        }
+    }
+    if matches.len() == 1 {
+        matches.pop()
+    } else {
+        None
+    }
+}
+
+fn attachment_search_roots(prompt: &str) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    for raw in env::var("SCROOGE_ATTACHMENT_SEARCH_ROOTS")
+        .unwrap_or_default()
+        .split(';')
+    {
+        add_search_root(PathBuf::from(raw.trim()), &mut roots);
+    }
+    if let Ok(current) = env::current_dir() {
+        add_search_root(current, &mut roots);
+    }
+    for path in file_path_candidates(prompt) {
+        if let Some(parent) = path.parent() {
+            add_search_root(parent.to_path_buf(), &mut roots);
+        }
+    }
+    if let Ok(profile) = env::var("USERPROFILE") {
+        let profile = PathBuf::from(profile);
+        add_search_root(profile.join("Documents"), &mut roots);
+        add_search_root(profile.join("Desktop"), &mut roots);
+        add_search_root(profile.join("Downloads"), &mut roots);
+    }
+    add_search_root(PathBuf::from(r"C:\Mac\Home\Documents"), &mut roots);
+    add_search_root(PathBuf::from(r"\\Mac\Home\Documents"), &mut roots);
+    roots
+}
+
+fn add_search_root(path: PathBuf, roots: &mut Vec<PathBuf>) {
+    if path.as_os_str().is_empty() || !path.exists() || !path.is_dir() {
+        return;
+    }
+    let normalized = fs::canonicalize(&path).unwrap_or(path);
+    if !roots.iter().any(|item| item == &normalized) {
+        roots.push(normalized);
+    }
+}
+
+fn find_named_file(
+    root: &Path,
+    name: &str,
+    depth: usize,
+    visited_files: &mut usize,
+    matches: &mut Vec<PathBuf>,
+) {
+    if depth > 5 || *visited_files > 12_000 || matches.len() > 1 || should_skip_dir(root) {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(root) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() {
+            *visited_files += 1;
+            if path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .map(|value| value.eq_ignore_ascii_case(name))
+                == Some(true)
+            {
+                matches.push(path);
+                if matches.len() > 1 {
+                    return;
+                }
+            }
+        } else if path.is_dir() {
+            find_named_file(&path, name, depth + 1, visited_files, matches);
+            if matches.len() > 1 || *visited_files > 12_000 {
+                return;
+            }
+        }
+    }
+}
+
+fn should_skip_dir(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|value| value.to_str())
+        .map(|name| {
+            let lowered = name.to_ascii_lowercase();
+            matches!(
+                lowered.as_str(),
+                ".git"
+                    | "node_modules"
+                    | "target"
+                    | ".venv"
+                    | "venv"
+                    | "__pycache__"
+                    | "appdata"
+                    | "library"
+                    | ".cache"
+                    | "windows"
+                    | "program files"
+                    | "program files (x86)"
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn attachment_from_path(path: &Path, discovery_source: &str) -> serde_json::Value {
     let name = display_name(path);
-    let size_bytes = fs::metadata(path).map(|metadata| metadata.len()).unwrap_or(0);
+    let size_bytes = fs::metadata(path)
+        .map(|metadata| metadata.len())
+        .unwrap_or(0);
     if !is_supported_text_path(path) {
         return serde_json::json!({
             "name": name,
             "mime_type": mime_type_for(path),
             "size_bytes": size_bytes,
             "token_status": "unknown",
-            "discovery_source": "workspace_match",
+            "discovery_source": discovery_source,
             "content_available": false,
             "path_available": true,
             "read_error": "unsupported_attachment_type"
@@ -445,7 +656,7 @@ fn attachment_from_path(path: &Path) -> serde_json::Value {
             "mime_type": mime_type_for(path),
             "size_bytes": size_bytes,
             "token_status": "unknown",
-            "discovery_source": "workspace_match",
+            "discovery_source": discovery_source,
             "content_available": false,
             "path_available": true,
             "read_error": "attachment_file_too_large"
@@ -458,7 +669,7 @@ fn attachment_from_path(path: &Path) -> serde_json::Value {
             "size_bytes": size_bytes,
             "content": content,
             "token_status": "unknown",
-            "discovery_source": "workspace_match",
+            "discovery_source": discovery_source,
             "content_available": true,
             "path_available": true
         }),
@@ -467,7 +678,7 @@ fn attachment_from_path(path: &Path) -> serde_json::Value {
             "mime_type": mime_type_for(path),
             "size_bytes": size_bytes,
             "token_status": "unknown",
-            "discovery_source": "workspace_match",
+            "discovery_source": discovery_source,
             "content_available": false,
             "path_available": true,
             "read_error": format!("read_failed:{error}")
@@ -528,7 +739,18 @@ fn is_supported_text_path(path: &Path) -> bool {
         .map(|extension| {
             matches!(
                 extension.to_ascii_lowercase().as_str(),
-                "csv" | "json" | "log" | "md" | "txt" | "py" | "ts" | "tsx" | "js" | "jsx" | "java" | "sql"
+                "csv"
+                    | "json"
+                    | "log"
+                    | "md"
+                    | "txt"
+                    | "py"
+                    | "ts"
+                    | "tsx"
+                    | "js"
+                    | "jsx"
+                    | "java"
+                    | "sql"
             )
         })
         .unwrap_or(false)

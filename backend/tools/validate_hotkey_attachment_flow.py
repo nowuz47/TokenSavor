@@ -20,15 +20,17 @@ def main() -> int:
     assert health["status"] == "ok"
 
     readable = exercise_readable_attachment(args.api)
+    uia = exercise_codex_uia_attachment(args.api)
     unknown = exercise_unknown_attachment(args.api)
     records = get_json(args.api, "/api/audit/records?limit=10000")
     summary = get_json(args.api, "/api/dashboard/summary?period=all")
 
-    request_ids = {readable["request_id"], unknown["request_id"]}
+    request_ids = {readable["request_id"], uia["request_id"], unknown["request_id"]}
     matching_records = [record for record in records if record["request_id"] in request_ids]
-    assert len(matching_records) == 2
+    assert len(matching_records) == 3
 
     readable_record = next(record for record in matching_records if record["request_id"] == readable["request_id"])
+    uia_record = next(record for record in matching_records if record["request_id"] == uia["request_id"])
     unknown_record = next(record for record in matching_records if record["request_id"] == unknown["request_id"])
 
     assert readable_record["capture_source"] == "hotkey"
@@ -37,19 +39,26 @@ def main() -> int:
     assert readable_record["attachment_content_available_count"] == 1
     assert readable_record["attachment_saved_tokens"] > 0
 
+    assert uia_record["capture_source"] == "hotkey"
+    assert uia_record["attachment_token_status"] == "measured"
+    assert uia_record["attachment_discovery_source"] == "codex_uia"
+    assert uia_record["attachment_content_available_count"] == 1
+    assert uia_record["attachment_saved_tokens"] > 0
+
     assert unknown_record["capture_source"] == "hotkey"
     assert unknown_record["attachment_token_status"] == "unknown"
     assert unknown_record["attachment_discovery_source"] == "prompt_reference"
     assert unknown_record["attachment_content_available_count"] == 0
     assert unknown_record["total_savings_rate"] is None
 
-    assert summary["hotkey_discovered_attachments"] >= 2
-    assert summary["hotkey_content_available_attachments"] >= 1
+    assert summary["hotkey_discovered_attachments"] >= 3
+    assert summary["hotkey_content_available_attachments"] >= 2
     assert summary["hotkey_unknown_attachments"] >= 1
 
     report = {
         "api": args.api,
         "readable": readable,
+        "codex_uia": uia,
         "unknown": unknown,
         "matching_records": matching_records,
         "summary": summary,
@@ -103,6 +112,59 @@ def exercise_readable_attachment(api: str) -> dict[str, Any]:
             "status": "optimized_pasted",
             "saved_tokens": response["saved_tokens"],
             "elapsed_ms": 350,
+            "discovered_attachment_count": 1,
+            "content_available_attachment_count": 1,
+            "unknown_attachment_count": 0,
+            "unsupported_attachment_count": 0,
+        },
+    )
+    return {
+        "request_id": response["request_id"],
+        "attachment_saved_tokens": summary["attachment_saved_tokens"],
+        "attachment_savings_rate": summary["attachment_savings_rate"],
+    }
+
+
+def exercise_codex_uia_attachment(api: str) -> dict[str, Any]:
+    content = "\n".join(
+        ["region,orders,revenue,error_count"]
+        + ["KR,120,3810000,0" for _ in range(250)]
+        + ["KR,7,12000,5", "US,92,2510000,0"]
+    )
+    response = post_json(
+        api,
+        "/api/optimize",
+        {
+            "prompt": "Codex에 이미 붙은 orders.csv 파일을 보고 한국 지역 매출 이상치를 찾아주세요.",
+            "provider": "openai",
+            "model": "gpt-5.4-mini",
+            "capture_source": "hotkey",
+            "attachments": [
+                {
+                    "name": "orders.csv",
+                    "mime_type": "text/csv",
+                    "size_bytes": len(content.encode("utf-8")),
+                    "content": content,
+                    "token_status": "unknown",
+                    "discovery_source": "codex_uia",
+                    "content_available": True,
+                    "path_available": True,
+                }
+            ],
+        },
+    )
+    summary = response["attachment_summary"]
+    assert summary["token_status"] == "measured"
+    assert summary["attachment_saved_tokens"] > 0
+    assert "orders.csv" in response["optimized_prompt"]
+    post_json(
+        api,
+        "/api/hotkey/events",
+        {
+            "request_id": response["request_id"],
+            "status": "optimized_pasted",
+            "saved_tokens": response["saved_tokens"],
+            "elapsed_ms": 420,
             "discovered_attachment_count": 1,
             "content_available_attachment_count": 1,
             "unknown_attachment_count": 0,
