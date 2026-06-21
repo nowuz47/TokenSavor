@@ -53,6 +53,22 @@ fn hide_main_window(app: &AppHandle) {
     }
 }
 
+#[tauri::command]
+fn scrooge_minimize_window(app: AppHandle) -> Result<(), String> {
+    let Some(window) = app.get_webview_window("main") else {
+        return Err("main window not found".to_string());
+    };
+    window.minimize().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn scrooge_hide_main_window(app: AppHandle) -> Result<(), String> {
+    let Some(window) = app.get_webview_window("main") else {
+        return Err("main window not found".to_string());
+    };
+    window.hide().map_err(|error| error.to_string())
+}
+
 fn health_check_backend() -> bool {
     let Ok(mut stream) = TcpStream::connect_timeout(
         &"127.0.0.1:8750"
@@ -892,6 +908,10 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(shortcut_plugin)
         .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![
+            scrooge_minimize_window,
+            scrooge_hide_main_window
+        ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();

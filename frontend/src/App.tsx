@@ -32,6 +32,7 @@ import {
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -722,18 +723,25 @@ export default function App() {
 
   async function minimizeWindow() {
     try {
-      await getCurrentWindow().minimize();
+      await invoke("scrooge_minimize_window");
     } catch {
-      showToast(labels.toast.minimizeFallback);
+      try {
+        await getCurrentWindow().minimize();
+      } catch {
+        showToast(labels.toast.minimizeFallback);
+      }
     }
   }
 
   async function hideWindowToTray() {
     try {
-      await getCurrentWindow().hide();
-      showToast(labels.toast.hideFallback);
+      await invoke("scrooge_hide_main_window");
     } catch {
-      showToast(labels.toast.hideFallback);
+      try {
+        await getCurrentWindow().hide();
+      } catch {
+        showToast(labels.toast.hideFallback);
+      }
     }
   }
 

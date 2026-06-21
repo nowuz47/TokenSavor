@@ -7,6 +7,8 @@
     "shell:default",
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
+    "core:window:allow-hide",
+    "core:window:allow-minimize",
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
     "global-shortcut:allow-is-registered",
