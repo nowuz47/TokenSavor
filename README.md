@@ -1,138 +1,119 @@
-# Scrooge
+<p align="center">
+  <img src="frontend/public/scrooge_flat_no_coin.png" alt="Scrooge logo" width="132" />
+</p>
 
-Scrooge는 AI에 보내는 프롬프트를 더 짧고 명확하게 다듬어, 같은 AI 크레딧으로 더 많은 일을 할 수 있게 돕는 데스크톱 앱입니다.
+<h1 align="center">TokenSavor Scrooge</h1>
 
-개발자뿐 아니라 사내에서 Codex, Claude Code, Gemini CLI 같은 AI 도구를 쓰는 사람이라면 사용할 수 있도록 만들고 있습니다. 핵심 목표는 단순한 "문장 줄이기"가 아니라, 필요한 의미는 유지하면서 낭비되는 토큰과 비용을 줄이는 것입니다.
+<p align="center">
+  <strong>한정된 AI 크레딧으로 더 많은 일을.</strong><br />
+  Codex에 보내기 전 프롬프트와 텍스트 첨부 컨텍스트를 줄이고, 절감량을 감사 가능한 방식으로 기록하는 로컬 우선 데스크톱 앱입니다.
+</p>
 
-## 한 줄 요약
+<p align="center">
+  <a href="#빠른-사용법">빠른 사용법</a> ·
+  <a href="#실측-자료">실측 자료</a> ·
+  <a href="#신뢰성-원칙">신뢰성 원칙</a> ·
+  <a href="#설치와-실행">설치와 실행</a>
+</p>
 
-프롬프트를 AI에 보내기 전에 Scrooge가 한 번 점검해 줍니다.
+![Scrooge usage demo](docs/assets/scrooge-demo.svg)
 
-- 중복되거나 불필요한 내용을 줄입니다.
-- 로그, 오류 메시지, 긴 diff처럼 반복이 많은 내용을 압축합니다.
-- 줄어든 토큰과 예상 비용 절감액을 보여줍니다.
-- 최적화 결과를 자동으로 보내지 않고, 사용자가 확인할 수 있게 합니다.
-- 원문 전체를 기본 저장하지 않고, 감사에 필요한 해시와 수치 중심으로 기록합니다.
+## 무엇을 하나요?
 
-## 왜 필요한가요?
+Scrooge는 AI에 보내는 요청에서 낭비되는 토큰을 줄입니다. 단순히 문장을 짧게 만드는 도구가 아니라, 작업에 필요한 의미를 보존하면서 반복 로그, 긴 오류 출력, CSV/JSON/코드 첨부 컨텍스트를 AI가 처리하기 좋은 형태로 압축합니다.
 
-사내 AI 사용은 보통 월별 크레딧, 사용자별 사용량, 비용 관리 기준이 있습니다. 그런데 같은 일을 요청하더라도 프롬프트 작성 방식에 따라 토큰 사용량이 크게 달라집니다.
+주요 목표는 세 가지입니다.
 
-Scrooge는 사용자가 AI를 쓰는 방식을 크게 바꾸지 않고, 다음 문제를 줄이는 것을 목표로 합니다.
+- 사용자의 Codex 사용 흐름을 크게 바꾸지 않기
+- 절감량을 `추정`, `통제 실측`, `provider 실측`으로 나누어 과장하지 않기
+- 원문 전체를 저장하지 않고 감사 가능한 메타데이터 중심으로 기록하기
 
-- 너무 긴 요청 때문에 AI 크레딧이 빠르게 소모되는 문제
-- 같은 오류 로그가 반복되어 불필요하게 토큰을 쓰는 문제
-- 비용 절감 수치가 추정인지 실측인지 알기 어려운 문제
-- 개인 감시처럼 느껴지는 사용량 관리 방식
-- 최적화 과정에서 중요한 요구사항이 사라질 수 있다는 불안
+## 빠른 사용법
 
-## 어떻게 사용하나요?
+### Codex에서 바로 쓰기
 
-현재 기본 사용 흐름은 두 가지입니다.
+1. Codex 입력창에 평소처럼 프롬프트를 작성합니다.
+2. 파일을 첨부한 경우에도 그대로 둡니다.
+3. 입력창에 커서를 둔 상태에서 `Ctrl + Alt + S`를 누릅니다.
+4. Scrooge가 입력창 텍스트를 최적화하고, 가능한 경우 다시 붙여넣습니다.
+5. 절감량은 Scrooge 앱의 사용 기록과 대시보드에 반영됩니다.
 
-### 1. 앱에서 직접 최적화
+### 첨부 파일이 있을 때
 
-1. Scrooge 앱을 실행합니다.
-2. `절약하기` 화면에 프롬프트를 붙여넣습니다.
-3. `최적화` 버튼을 누릅니다.
-4. 바뀐 프롬프트와 개선 내용을 확인합니다.
-5. 필요한 경우 AI 도구에 복사해서 사용합니다.
+Scrooge는 추가 조작을 줄이기 위해 같은 핫키에서 첨부 파일도 함께 처리합니다.
 
-### 2. 단축키로 빠르게 최적화
+- Codex 화면에 보이는 첨부 파일명 칩을 감지합니다.
+- 로컬에서 같은 파일을 유일하게 찾으면 텍스트 파일 본문을 읽어 압축합니다.
+- `.log`, `.csv`, `.json`, `.md`, `.txt`, `.py`, `.ts`, `.tsx`, `.js`, `.java`, `.sql` 같은 텍스트 파일을 우선 지원합니다.
+- 파일을 찾지 못하거나 PDF/이미지/Office처럼 본문 토큰을 안전하게 계산할 수 없으면 `첨부 미측정`으로 남깁니다.
 
-1. Codex 같은 AI 입력창에 프롬프트를 작성합니다.
-2. 입력창에 커서를 둔 상태에서 `Ctrl + Alt + S`를 누릅니다.
-3. Scrooge가 입력 내용을 읽고 최적화한 뒤, 가능한 경우 입력창에 다시 붙여넣습니다.
-4. 처리 결과와 절감량은 Scrooge 앱의 사용 기록과 대시보드에 반영됩니다.
+이 방식은 Codex 내부 저장소나 메모리를 훑지 않습니다. 화면에 보이는 파일명과 로컬 파일 매칭만 사용합니다.
 
-짧고 이미 잘 정리된 프롬프트는 절감량이 `0`으로 나올 수 있습니다. 이것은 오류가 아니라, 의미를 해치지 않는 쪽을 우선하는 정상 동작입니다.
+## 실측 자료
 
-## 화면에서 볼 수 있는 것
+아래 수치는 저장소의 검증 리포트에서 가져온 통제 실측 결과입니다. 실제 청구 토큰은 provider usage metadata가 들어올 때 별도로 확정해야 합니다.
 
-- 현재 요청의 원래 토큰 수
-- 최적화 후 토큰 수
-- 절감 토큰 수와 절감률
-- 예상 비용 절감액
-- 작업 유형별 절감 통계
-- 사용 기록
-- 실측 데이터가 있는 경우 추정값과 실측값의 차이
-- 단축키 처리 성공/실패 상태
+| 항목 | 결과 |
+| --- | ---: |
+| 품질 검증 세트 | 165 / 165 통과 |
+| Backend tests | 48개 통과 |
+| Hotkey 첨부 검증 | 통과 |
+| Codex UI 첨부 감지 샘플 | `codex_uia` |
+| `orders.csv` 첨부 절감 | 1,771 -> 148 tokens |
+| `orders.csv` 첨부 절감률 | 91.64% |
+| 전체 첨부 샘플 절감 | 7,491 -> 250 tokens |
+| 전체 첨부 샘플 절감률 | 96.66% |
+| 핫키 샘플 성공률 | 100% |
 
-## 수치를 어떻게 믿을 수 있나요?
+검증 리포트:
 
-Scrooge는 절감 수치를 세 단계로 구분합니다.
+- [Hotkey attachment UIA validation](reports/hotkey-attachment-validation-uia-dev.json)
+- [Installed attachment validation](reports/attachment-validation-installed.json)
+- [A-ready validation snapshot](reports/a-ready-20260620-231540.json)
 
-| 상태 | 뜻 |
+## 신뢰성 원칙
+
+Scrooge는 절감액을 크게 보이게 만드는 것보다, 틀린 절감액을 보여주지 않는 것을 우선합니다.
+
+| 상태 | 의미 |
 | --- | --- |
-| 추정 | 로컬 토큰 계산기로 미리 계산한 값입니다. 실제 청구량과 차이가 날 수 있습니다. |
-| 전송됨 | 사용자가 승인하거나 단축키로 실제 AI 입력에 사용한 요청입니다. |
-| 실측 | AI 제공자가 usage metadata를 제공한 경우, 실제 input/output token 기준으로 확정한 값입니다. |
+| 추정 | 로컬 토크나이저 기반 사전 계산입니다. 실제 청구량과 차이가 날 수 있습니다. |
+| 통제 실측 | Scrooge가 원본 텍스트와 압축 텍스트를 같은 로컬 기준으로 다시 계산한 값입니다. |
+| provider 실측 | AI provider의 usage metadata로 확인된 값입니다. 가장 신뢰도가 높습니다. |
+| 첨부 미측정 | 첨부 본문을 안전하게 읽지 못해 전체 절감률을 확정하지 않은 상태입니다. |
 
-비용 절감액도 실제 사용량 정보가 없으면 `예상 절감액`으로 취급합니다. 이 구분은 사내 감사와 신뢰 확보를 위해 중요합니다.
-
-## 개인정보와 보안 정책
-
-Scrooge는 개인 감시 도구가 아니라 팀 단위 효율 개선 도구를 지향합니다.
-
-기본 정책은 다음과 같습니다.
+보안과 감사 기준:
 
 - 원문 프롬프트 전문은 기본 저장하지 않습니다.
-- 감사에 필요한 해시, 토큰 수, 작업 유형, 적용 규칙, 승인/거절 여부를 저장합니다.
-- 민감정보 후보는 보안 스캔에서 감지하고 마스킹합니다.
-- 대시보드는 개인별 감시보다 팀 단위 추세 확인에 맞춰 설계합니다.
-- 진단 번들에는 원문 프롬프트 본문을 포함하지 않습니다.
+- 첨부 파일 전문도 저장하지 않습니다.
+- 저장 대상은 해시, 토큰 수, 적용 규칙, 가격표 버전, 토크나이저 버전, 승인/거절 상태 중심입니다.
+- 개인 감시보다 팀 단위 효율 개선을 기본 방향으로 둡니다.
 
-## 어떤 작업에 효과가 큰가요?
+## 주요 기능
 
-효과가 큰 작업:
+- Prompt Optimizer: 장황한 요청을 구조화합니다.
+- Context Compressor: 로그, stack trace, diff, CSV, JSON, 코드 파일을 핵심 중심으로 압축합니다.
+- Token Meter: 원본/최적화 토큰과 예상 비용을 비교합니다.
+- Efficiency Dashboard: 일간/주간/월간 절감 추세와 실측 커버리지를 보여줍니다.
+- Hotkey Capture: `Ctrl + Alt + S`로 현재 입력창을 최적화합니다.
+- Attachment-Aware Flow: Codex 화면의 첨부 파일명을 감지하고 가능한 경우 로컬 텍스트 파일을 압축합니다.
+- Local Audit Storage: SQLite에 감사 가능한 최소 데이터만 저장합니다.
 
-- 긴 로그 분석
-- 반복되는 오류 메시지 분석
-- 긴 stack trace 정리
-- 큰 git diff 리뷰
-- 테스트 실패 출력 요약
-- 여러 파일의 변경 내용을 AI에게 설명해야 하는 경우
+## 설치와 실행
 
-효과가 작을 수 있는 작업:
+### 일반 사용자
 
-- 이미 짧고 명확한 질문
-- 한두 문장짜리 코딩 요청
-- 압축하면 요구사항이 사라질 위험이 큰 요청
+GitHub Release에 올라간 설치 파일을 실행합니다.
 
-Scrooge는 모든 프롬프트를 무조건 줄이려고 하지 않습니다. 중요한 요구사항 보존이 더 중요하면 절감을 포기합니다.
+```text
+Scrooge_0.1.0_x64-setup.exe
+```
 
-## 파일을 첨부한 요청은 어떻게 보나요?
+설치 후 Scrooge를 실행하면 백엔드는 sidecar로 함께 실행됩니다. 별도 터미널을 열 필요가 없습니다.
 
-Codex에 파일을 첨부한 상태에서 프롬프트를 최적화할 때, Scrooge는 파일 자체를 임의로 읽거나 바꾸지 않습니다. 대신 프롬프트 텍스트 절감량과 첨부 파일 포함 여부를 분리해서 표시합니다.
+### 개발자
 
-- 첨부 파일 토큰을 모르면 전체 절감률을 확정값처럼 표시하지 않습니다.
-- 화면에는 `첨부 미측정`, `첨부 추정`, `첨부 실측` 상태가 따로 표시됩니다.
-- 원본 파일 전문은 기본 저장하지 않고, 파일명/크기/hash 같은 감사용 메타데이터만 저장합니다.
-- provider usage metadata가 들어오면 첨부 포함 실측값으로 갱신할 수 있습니다.
-
-## 현재 검증 상태
-
-최근 설치 앱 기준으로 다음 검증을 통과했습니다.
-
-- 백엔드 테스트: 42개 통과
-- 품질 검증 세트: 165개 통과
-- 설치 앱 실행 확인
-- 백그라운드 sidecar 실행 확인
-- 단축키 등록 확인
-- cmd 창 미노출 확인
-- 보안 마스킹 확인
-- 진단 데이터에서 프롬프트 본문 제외 확인
-- Codex 단축키 quick validation: 30회 중 30회 성공
-
-현재 Codex Desktop 호환성은 30회 기준 `limited` 검증 상태입니다. 전사 배포 수준의 full 검증은 100회 이상 실사용 검증, 파일럿 운영, 실측 커버리지 확대가 필요합니다.
-
-## 설치 및 실행
-
-일반 사용자는 설치 파일을 실행한 뒤 Scrooge 앱을 열면 됩니다. 앱이 실행되면 백엔드도 함께 백그라운드에서 실행됩니다.
-
-개발 또는 검증용으로 직접 실행하려면 아래 명령을 사용할 수 있습니다.
-
-### 백엔드 실행
+Backend:
 
 ```powershell
 cd backend
@@ -142,7 +123,7 @@ pip install -e ".[dev]"
 uvicorn scrooge.main:app --reload --port 8750
 ```
 
-### 프론트엔드 실행
+Frontend:
 
 ```powershell
 cd frontend
@@ -150,65 +131,51 @@ npm install
 npm run dev
 ```
 
-### 설치 앱 빌드 및 재설치
+설치 패키지 빌드:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build_reinstall_verify.ps1 -ApiBase http://127.0.0.1:8750
 ```
 
-### A-Ready 검증
+## 검증 명령
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\verify_a_ready.ps1 -ApiBase http://127.0.0.1:8750 -RecordCompatibilityQuickRun
+.\backend\.venv\Scripts\python.exe -m pytest backend\tests
+.\backend\.venv\Scripts\python.exe backend\tools\evaluate_optimization_quality.py
+.\backend\.venv\Scripts\python.exe backend\tools\validate_hotkey_attachment_flow.py --api http://127.0.0.1:8750
 ```
 
-## 프로젝트 구조
+## 현재 준비도
 
-```text
-backend/    프롬프트 최적화, 토큰 계산, 비용 계산, 기록 저장, API 서버
-frontend/   데스크톱 앱 화면, 트레이 동작, 단축키 연동
-docs/       아키텍처와 신뢰 모델 문서
-scripts/    빌드, 설치, 검증 자동화 스크립트
-reports/    검증 결과 리포트
-samples/    테스트용 샘플 데이터
-```
+| 범위 | 판단 |
+| --- | --- |
+| 개인/개발 검증 | 가능 |
+| 부서 내 제한 파일럿 | 가능 |
+| 전사 배포 | 추가 파일럿 필요 |
+| 실제 청구 절감 확정 | provider usage 연동 확대 필요 |
 
-## 주요 기능
+권장 파일럿:
 
-- Prompt Optimizer: 프롬프트를 더 짧고 명확하게 정리합니다.
-- Context Compressor: 긴 로그, stack trace, diff를 핵심 중심으로 압축합니다.
-- Token Meter: 원문과 최적화문 토큰 수를 비교합니다.
-- Pricing Registry: 모델별 가격표 버전을 기준으로 비용을 계산합니다.
-- Usage Collector: 사용 기록과 절감 통계를 SQLite에 저장합니다.
-- Efficiency Dashboard: 절감량, 실측 커버리지, 품질 지표를 보여줍니다.
-- Security Scan: 민감정보 후보를 감지하고 마스킹합니다.
+- 대상: 5~10명
+- 기간: 1~2주
+- 지표: 핫키 성공률, 절감률, 첨부 미측정률, 사용자가 원문으로 되돌린 비율
+- 운영 원칙: 실측값 없는 수치는 `예상 절감`으로만 표시
 
-## 앞으로 더 필요한 것
+## 기술 스택
 
-전사 배포 수준으로 끌어올리기 위해 남은 과제는 다음과 같습니다.
+- Desktop: Tauri, React, TypeScript
+- Backend: Python, FastAPI
+- Storage: SQLite
+- Packaging: PyInstaller sidecar, Tauri Windows bundle
+- OS integration: Global hotkey, tray app, Windows UI Automation based attachment-name detection
 
-- Codex Desktop 실제 입력 100회 이상 검증
-- 5명 이상 파일럿 2주 운영
-- 20명 이상 팀 파일럿 4주 운영
-- provider usage metadata 기반 실측 커버리지 확대
-- Claude Code, Gemini CLI, Cursor, Windsurf 호환성 검증
-- 관리자 정책 화면과 배포 정책 정리
+## 한계
 
-## 라이선스
+- Codex 내부 첨부 본문을 강제로 읽지 않습니다.
+- 파일명이 중복되면 임의로 선택하지 않고 미측정 처리합니다.
+- PDF, 이미지, Office 파일은 v1에서 토큰 절감 대상이 아니라 미측정 대상입니다.
+- 실제 청구 절감액은 provider usage metadata가 있어야 확정할 수 있습니다.
 
-이 저장소의 라이선스는 [LICENSE](LICENSE)를 확인하세요.
+## License
 
-## 첨부파일 실측 리포트
-
-Scrooge에 텍스트 파일을 직접 첨부하면 파일 본문을 로컬에서 요약하고, 첨부 원본 토큰과 요약 토큰을 `measured_controlled`로 기록합니다. 본문 전체는 기록에 저장하지 않고, 파일명/크기/hash/토큰 수만 남깁니다.
-
-최신 검증 결과는 [reports/attachment-validation-dev.json](reports/attachment-validation-dev.json)에 있습니다. 이 리포트는 로그, CSV, JSON, Python 코드, 짧은 Markdown 파일을 사용해 첨부 절감량이 API, SQLite 기록, 대시보드 요약과 일치하는지 확인합니다.
-
-## 단일 핫키 첨부 처리
-
-Codex 입력창에서 `Ctrl + Alt + S`를 누르면 첨부 여부와 관계없이 같은 흐름으로 동작합니다.
-
-- 입력창 텍스트를 캡처하고 최적화합니다.
-- 프롬프트 안에 로컬 텍스트 파일 경로가 있으면 파일을 읽어 첨부 컨텍스트를 압축합니다.
-- Codex Desktop에 이미 붙은 첨부처럼 파일 본문을 읽을 수 없는 경우에는 `첨부 미측정`으로 기록하고 전체 절감률을 확정값처럼 표시하지 않습니다.
-- 최신 핫키 첨부 검증 결과는 [reports/hotkey-attachment-validation-dev.json](reports/hotkey-attachment-validation-dev.json)에 있습니다.
+See [LICENSE](LICENSE).
