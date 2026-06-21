@@ -78,8 +78,6 @@ def compress_context(text: str, max_lines: int = 80) -> CompressionResult:
 def _compress_routed_context(lines: list[str], max_lines: int) -> CompressionResult | None:
     if _looks_like_js_build_output(lines):
         return _compress_js_build_output(lines, max_lines)
-    if _looks_like_search_output(lines):
-        return _compress_search_output(lines, max_lines)
     if _looks_like_container_output(lines):
         return _compress_container_output(lines, max_lines)
     if _looks_like_test_output(lines):
@@ -92,6 +90,8 @@ def _compress_routed_context(lines: list[str], max_lines: int) -> CompressionRes
         return _compress_stacktrace(lines, max_lines)
     if _looks_like_log(lines):
         return _compress_log(lines, max_lines)
+    if _looks_like_search_output(lines):
+        return _compress_search_output(lines, max_lines)
     return None
 
 
@@ -187,8 +187,19 @@ def _compress_log(lines: list[str], max_lines: int) -> CompressionResult:
     summary = ["Log summary:", f"- Total lines: {len(lines)}", f"- Error-like lines: {len(error_lines)}"]
     summary.extend(f"- {count}x {sample}" for sample, count in counts.most_common(10))
 
+    sample_budget = max(5, max_lines - len(summary) - 2)
+    representative: list[str] = []
+    for line in error_lines[: max(1, sample_budget // 2)] + error_lines[-max(1, sample_budget // 2) :]:
+        if line not in representative:
+            representative.append(line)
+    for line in error_lines:
+        normalized_line = re.sub(r"\d+", "<n>", line)
+        if counts[normalized_line] == 1 and line not in representative:
+            representative.append(line)
+        if len(representative) >= sample_budget:
+            break
     samples = ["Representative samples:"]
-    samples.extend(error_lines[: max(5, max_lines - len(summary) - 2)])
+    samples.extend(representative[:sample_budget])
     return CompressionResult(
         text="\n".join(summary + [""] + samples),
         rules=["log_error_frequency_summary", "log_representative_samples"],

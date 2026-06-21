@@ -79,7 +79,7 @@ def optimize(
         provider=provider,
         model=model,
         capture_source=request.capture_source,
-        attachments=normalized.attachments,
+        attachments=response.attachments,
     )
     return response
 

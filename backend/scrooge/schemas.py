@@ -93,9 +93,15 @@ class AttachmentMetadata(BaseModel):
     mime_type: str | None = None
     size_bytes: int | None = Field(default=None, ge=0)
     content_hash: str | None = None
+    content: str | None = Field(default=None, exclude=True)
     token_status: AttachmentTokenStatus = AttachmentTokenStatus.UNKNOWN
     estimated_tokens: int | None = Field(default=None, ge=0)
     measured_tokens: int | None = Field(default=None, ge=0)
+    original_tokens: int | None = Field(default=None, ge=0)
+    optimized_tokens: int | None = Field(default=None, ge=0)
+    saved_tokens: int | None = Field(default=None, ge=0)
+    savings_rate: float | None = Field(default=None, ge=0)
+    measurement_source: str | None = None
 
 
 class AttachmentSummary(BaseModel):
@@ -107,6 +113,11 @@ class AttachmentSummary(BaseModel):
     prompt_saved_tokens: int = 0
     estimated_attachment_tokens: int | None = None
     measured_attachment_tokens: int | None = None
+    attachment_original_tokens: int | None = None
+    attachment_optimized_tokens: int | None = None
+    attachment_saved_tokens: int | None = None
+    attachment_savings_rate: float | None = None
+    attachment_measurement_source: str | None = None
     total_original_tokens: int | None = None
     total_optimized_tokens: int | None = None
     total_saved_tokens: int | None = None
@@ -135,6 +146,7 @@ class OptimizeResponse(BaseModel):
     prompt_savings_rate: float
     total_savings_rate: float | None = None
     attachment_summary: AttachmentSummary
+    attachments: list[AttachmentMetadata] = Field(default_factory=list)
     reasons: list[OptimizationReason]
     created_at: datetime
 
@@ -212,6 +224,10 @@ class DashboardSummary(BaseModel):
     attachment_unknown_requests: int = 0
     attachment_measured_requests: int = 0
     attachment_measured_coverage: float = 0
+    attachment_original_tokens: int = 0
+    attachment_optimized_tokens: int = 0
+    attachment_saved_tokens: int = 0
+    attachment_savings_rate: float = 0
 
 
 class QualityCaseResult(BaseModel):
@@ -289,6 +305,11 @@ class AuditRecordSummary(BaseModel):
     attachment_token_status: AttachmentTokenStatus = AttachmentTokenStatus.NOT_PRESENT
     attachment_estimated_tokens: int | None = None
     attachment_measured_tokens: int | None = None
+    attachment_original_tokens: int | None = None
+    attachment_optimized_tokens: int | None = None
+    attachment_saved_tokens: int | None = None
+    attachment_savings_rate: float | None = None
+    attachment_measurement_source: str | None = None
     possible_attachment_reference: bool = False
     prompt_savings_rate: float = 0
     total_savings_rate: float | None = None

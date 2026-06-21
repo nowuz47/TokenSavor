@@ -104,3 +104,39 @@ def test_estimated_attachment_tokens_lower_total_savings_rate() -> None:
     assert response.attachment_summary.estimated_attachment_tokens == 5000
     assert response.attachment_summary.total_savings_rate is not None
     assert response.attachment_summary.total_savings_rate <= response.prompt_savings_rate
+
+
+def test_text_attachment_content_is_compressed_and_measured_controlled() -> None:
+    log_content = "\n".join(
+        ["2026-06-21 09:00:00 ERROR payment-api timeout order_id=1001 latency=5300ms" for _ in range(200)]
+        + ['File "/app/payment.py", line 42, in charge']
+        + ["TimeoutError: payment gateway timeout"]
+    )
+
+    response = optimize_prompt(
+        OptimizeRequest(
+            prompt="Analyze the attached large-error.log and keep the file, line, and exception.",
+            provider="openai",
+            model="gpt-5.4-mini",
+            attachments=[
+                AttachmentMetadata(
+                    name="large-error.log",
+                    mime_type="text/plain",
+                    content=log_content,
+                    token_status=AttachmentTokenStatus.UNKNOWN,
+                )
+            ],
+        )
+    )
+
+    assert response.attachment_summary.token_status == AttachmentTokenStatus.MEASURED
+    assert response.attachment_summary.attachment_original_tokens
+    assert response.attachment_summary.attachment_optimized_tokens
+    assert response.attachment_summary.attachment_saved_tokens is not None
+    assert response.attachment_summary.attachment_savings_rate is not None
+    assert response.attachment_summary.attachment_savings_rate >= 0.3
+    assert response.attachment_summary.attachment_measurement_source == "measured_controlled"
+    assert "large-error.log" in response.optimized_prompt
+    assert "TimeoutError" in response.optimized_prompt
+    assert response.attachments[0].content is None
+    assert response.attachments[0].content_hash is not None

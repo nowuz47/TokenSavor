@@ -271,3 +271,52 @@ def test_measurement_marks_attachments_measured_when_total_input_is_available(tm
     assert summary["attachment_requests"] == 1
     assert summary["attachment_measured_requests"] == 1
     assert summary["attachment_measured_coverage"] == 1
+
+
+def test_storage_records_controlled_text_attachment_savings(tmp_path) -> None:
+    db_path = tmp_path / "scrooge.db"
+    settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)
+    store = UsageStore(settings)
+    content = "\n".join(
+        ["2026-06-21 ERROR worker failed job_id=abc123 retry=true" for _ in range(180)]
+        + ["Traceback (most recent call last):", 'File "/app/jobs.py", line 88, in run']
+    )
+    response = optimize_prompt(
+        OptimizeRequest(
+            prompt="Use the attached trace.log to find the exception and next checks.",
+            provider="openai",
+            attachments=[
+                AttachmentMetadata(
+                    name="trace.log",
+                    mime_type="text/plain",
+                    content=content,
+                    token_status=AttachmentTokenStatus.UNKNOWN,
+                )
+            ],
+        )
+    )
+
+    store.save_preview(response, provider="openai", model="gpt-5.4-mini", attachments=response.attachments)
+    store.record_measurement(
+        response.request_id,
+        MeasurementRequest(
+            measured_original_tokens=response.original_tokens.input_tokens,
+            measured_input_tokens=response.optimized_tokens.input_tokens,
+            measured_total_input_tokens=response.optimized_tokens.input_tokens,
+            measured_output_tokens=24,
+            source="measured_controlled",
+        ),
+    )
+
+    record = store.list_records()[0]
+    summary = store.summary("all")
+
+    assert record["attachment_token_status"] == "measured"
+    assert record["attachment_original_tokens"] == response.attachment_summary.attachment_original_tokens
+    assert record["attachment_optimized_tokens"] == response.attachment_summary.attachment_optimized_tokens
+    assert record["attachment_saved_tokens"] == response.attachment_summary.attachment_saved_tokens
+    assert record["attachment_measurement_source"] == "measured_controlled"
+    assert summary["attachment_requests"] == 1
+    assert summary["attachment_measured_coverage"] == 1
+    assert summary["attachment_saved_tokens"] == response.attachment_summary.attachment_saved_tokens
+    assert summary["attachment_savings_rate"] >= 0.3

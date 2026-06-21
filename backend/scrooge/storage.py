@@ -139,10 +139,20 @@ class UsageStore:
                 token_status TEXT NOT NULL,
                 estimated_tokens INTEGER,
                 measured_tokens INTEGER,
+                original_tokens INTEGER,
+                optimized_tokens INTEGER,
+                saved_tokens INTEGER,
+                savings_rate REAL,
+                measurement_source TEXT,
                 FOREIGN KEY(request_id) REFERENCES usage_records(request_id) ON DELETE CASCADE
             )
             """
         )
+        self._ensure_column(db, "request_attachments", "original_tokens", "INTEGER")
+        self._ensure_column(db, "request_attachments", "optimized_tokens", "INTEGER")
+        self._ensure_column(db, "request_attachments", "saved_tokens", "INTEGER")
+        self._ensure_column(db, "request_attachments", "savings_rate", "REAL")
+        self._ensure_column(db, "request_attachments", "measurement_source", "TEXT")
         db.execute(
             """
             CREATE TABLE IF NOT EXISTS hotkey_events (
@@ -614,17 +624,18 @@ class UsageStore:
                     request_id,
                 ),
             )
-            if measured_total_input is not None:
+            if measured_total_input is not None and measurement.source != "measured_controlled":
                 measured_attachment_tokens = max(0, measured_total_input - measured_optimized)
                 db.execute(
                     """
                     UPDATE request_attachments
-                    SET token_status = ?, measured_tokens = ?
+                    SET token_status = ?, measured_tokens = ?, measurement_source = COALESCE(?, measurement_source)
                     WHERE request_id = ?
                     """,
                     (
                         AttachmentTokenStatus.MEASURED.value,
                         measured_attachment_tokens,
+                        "measured_provider",
                         request_id,
                     ),
                 )
@@ -664,7 +675,11 @@ class UsageStore:
                     SUM(CASE WHEN token_status = 'unknown' THEN 1 ELSE 0 END) as unknown_count,
                     SUM(CASE WHEN token_status = 'measured' THEN 1 ELSE 0 END) as measured_count,
                     SUM(estimated_tokens) as estimated_tokens,
-                    SUM(measured_tokens) as measured_tokens
+                    SUM(measured_tokens) as measured_tokens,
+                    SUM(original_tokens) as original_tokens,
+                    SUM(optimized_tokens) as optimized_tokens,
+                    SUM(saved_tokens) as saved_tokens,
+                    GROUP_CONCAT(DISTINCT measurement_source) as measurement_source
                 FROM request_attachments
                 GROUP BY request_id
                 """
@@ -676,6 +691,10 @@ class UsageStore:
                 "measured_count": int(row["measured_count"] or 0),
                 "estimated_tokens": row["estimated_tokens"],
                 "measured_tokens": row["measured_tokens"],
+                "original_tokens": row["original_tokens"],
+                "optimized_tokens": row["optimized_tokens"],
+                "saved_tokens": row["saved_tokens"],
+                "measurement_source": row["measurement_source"],
             }
             for row in attachment_rows
         }
@@ -741,6 +760,15 @@ class UsageStore:
                     "attachment_token_status": attachment_status,
                     "attachment_estimated_tokens": attachment.get("estimated_tokens"),
                     "attachment_measured_tokens": attachment.get("measured_tokens"),
+                    "attachment_original_tokens": attachment.get("original_tokens"),
+                    "attachment_optimized_tokens": attachment.get("optimized_tokens"),
+                    "attachment_saved_tokens": attachment.get("saved_tokens"),
+                    "attachment_savings_rate": (
+                        round(float(attachment.get("saved_tokens") or 0) / float(attachment.get("original_tokens") or 0), 4)
+                        if attachment.get("original_tokens")
+                        else None
+                    ),
+                    "attachment_measurement_source": attachment.get("measurement_source"),
                     "possible_attachment_reference": possible_reference,
                     "prompt_savings_rate": round(float(row["prompt_savings_rate"] or 0), 4),
                     "total_savings_rate": (
@@ -840,6 +868,10 @@ class UsageStore:
             "attachment_unknown_requests": attachment_metrics["attachment_unknown_requests"],
             "attachment_measured_requests": attachment_metrics["attachment_measured_requests"],
             "attachment_measured_coverage": attachment_metrics["attachment_measured_coverage"],
+            "attachment_original_tokens": attachment_metrics["attachment_original_tokens"],
+            "attachment_optimized_tokens": attachment_metrics["attachment_optimized_tokens"],
+            "attachment_saved_tokens": attachment_metrics["attachment_saved_tokens"],
+            "attachment_savings_rate": attachment_metrics["attachment_savings_rate"],
         }
 
     def category_summary(self, period: str = "month") -> list[dict[str, object]]:
@@ -1023,7 +1055,10 @@ class UsageStore:
                 COUNT(DISTINCT CASE
                     WHEN request_attachments.token_status = 'measured'
                     THEN usage_records.request_id
-                END) as attachment_measured_requests
+                END) as attachment_measured_requests,
+                SUM(request_attachments.original_tokens) as attachment_original_tokens,
+                SUM(request_attachments.optimized_tokens) as attachment_optimized_tokens,
+                SUM(request_attachments.saved_tokens) as attachment_saved_tokens
             FROM usage_records
             LEFT JOIN request_attachments ON request_attachments.request_id = usage_records.request_id
             {where}
@@ -1035,12 +1070,20 @@ class UsageStore:
         ).fetchone()
         attachment_requests = int(row["attachment_requests"] or 0)
         measured_requests = int(row["attachment_measured_requests"] or 0)
+        attachment_original_tokens = int(row["attachment_original_tokens"] or 0)
+        attachment_saved_tokens = int(row["attachment_saved_tokens"] or 0)
         return {
             "attachment_requests": attachment_requests,
             "attachment_unknown_requests": int(row["attachment_unknown_requests"] or 0),
             "attachment_measured_requests": measured_requests,
             "attachment_measured_coverage": round(measured_requests / attachment_requests, 4)
             if attachment_requests
+            else 0,
+            "attachment_original_tokens": attachment_original_tokens,
+            "attachment_optimized_tokens": int(row["attachment_optimized_tokens"] or 0),
+            "attachment_saved_tokens": attachment_saved_tokens,
+            "attachment_savings_rate": round(attachment_saved_tokens / attachment_original_tokens, 4)
+            if attachment_original_tokens
             else 0,
         }
 
@@ -1056,8 +1099,9 @@ class UsageStore:
                 """
                 INSERT INTO request_attachments (
                     attachment_id, request_id, name, mime_type, size_bytes, content_hash,
-                    token_status, estimated_tokens, measured_tokens
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    token_status, estimated_tokens, measured_tokens, original_tokens,
+                    optimized_tokens, saved_tokens, savings_rate, measurement_source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     uuid4().hex,
@@ -1069,6 +1113,11 @@ class UsageStore:
                     item.token_status.value,
                     item.estimated_tokens,
                     item.measured_tokens,
+                    item.original_tokens,
+                    item.optimized_tokens,
+                    item.saved_tokens,
+                    item.savings_rate,
+                    item.measurement_source,
                 ),
             )
 

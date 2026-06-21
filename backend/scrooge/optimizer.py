@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
 
+from scrooge.attachment_optimizer import optimize_text_attachments
 from scrooge.compressor import compress_context
 from scrooge.pricing import calculate_cost
 from scrooge.schemas import (
@@ -218,9 +219,18 @@ def _has_trust_policy_context(lowered_prompt: str) -> bool:
 
 
 def optimize_prompt(request: OptimizeRequest) -> OptimizeResponse:
+    attachment_optimization = optimize_text_attachments(request.attachments, request.provider, request.model)
     draft = build_optimized_draft(request.prompt, request.task_type)
-    original_tokens = estimate_tokens(request.prompt, request.provider, request.model)
-    optimized_tokens = estimate_tokens(draft.prompt, request.provider, request.model)
+    prompt_original_tokens = estimate_tokens(request.prompt, request.provider, request.model)
+    prompt_optimized_tokens = estimate_tokens(draft.prompt, request.provider, request.model)
+    optimized_prompt = draft.prompt
+    if attachment_optimization.context_text:
+        optimized_prompt = f"{draft.prompt}\n\n{attachment_optimization.context_text}".strip()
+
+    attachment_original_tokens = sum(item.original_tokens or 0 for item in attachment_optimization.attachments)
+    original_token_count = prompt_original_tokens.input_tokens + attachment_original_tokens
+    original_tokens = prompt_original_tokens.model_copy(update={"input_tokens": original_token_count})
+    optimized_tokens = estimate_tokens(optimized_prompt, request.provider, request.model)
     original_cost = calculate_cost(
         original_tokens, request.provider, request.model, request.expected_output_tokens
     )
@@ -230,20 +240,24 @@ def optimize_prompt(request: OptimizeRequest) -> OptimizeResponse:
     saved_tokens = max(0, original_tokens.input_tokens - optimized_tokens.input_tokens)
     saved_cost = max(0.0, original_cost.total_cost_usd - optimized_cost.total_cost_usd)
     savings_rate = saved_tokens / original_tokens.input_tokens if original_tokens.input_tokens else 0
+    prompt_saved_tokens = max(0, prompt_original_tokens.input_tokens - prompt_optimized_tokens.input_tokens)
+    prompt_savings_rate = (
+        prompt_saved_tokens / prompt_original_tokens.input_tokens if prompt_original_tokens.input_tokens else 0
+    )
     attachment_summary = build_attachment_summary(
         prompt=request.prompt,
-        attachments=request.attachments,
-        original_input_tokens=original_tokens.input_tokens,
+        attachments=attachment_optimization.attachments,
+        original_input_tokens=prompt_original_tokens.input_tokens,
         optimized_input_tokens=optimized_tokens.input_tokens,
-        saved_tokens=saved_tokens,
-        prompt_savings_rate=savings_rate,
+        saved_tokens=prompt_saved_tokens,
+        prompt_savings_rate=prompt_savings_rate,
     )
 
     return OptimizeResponse(
         request_id=str(uuid4()),
         task_type=draft.task_type,
         original_prompt=request.prompt,
-        optimized_prompt=draft.prompt,
+        optimized_prompt=optimized_prompt,
         original_tokens=original_tokens,
         optimized_tokens=optimized_tokens,
         original_cost=original_cost,
@@ -251,10 +265,11 @@ def optimize_prompt(request: OptimizeRequest) -> OptimizeResponse:
         saved_tokens=saved_tokens,
         saved_cost_usd=round(saved_cost, 8),
         savings_rate=round(savings_rate, 4),
-        prompt_savings_rate=round(savings_rate, 4),
+        prompt_savings_rate=round(prompt_savings_rate, 4),
         total_savings_rate=attachment_summary.total_savings_rate,
         attachment_summary=attachment_summary,
-        reasons=draft.reasons,
+        attachments=attachment_optimization.attachments,
+        reasons=draft.reasons + attachment_optimization.reasons,
         created_at=datetime.now(timezone.utc),
     )
 
@@ -317,6 +332,50 @@ def build_attachment_summary(
     )
     estimated_attachment_tokens = sum(known_estimated) if known_estimated else None
     measured_attachment_tokens = sum(known_measured) if known_measured else None
+    controlled_original = [
+        int(item.original_tokens)
+        for item in attachments
+        if item.original_tokens is not None and item.token_status == AttachmentTokenStatus.MEASURED
+    ]
+    controlled_optimized = [
+        int(item.optimized_tokens)
+        for item in attachments
+        if item.optimized_tokens is not None and item.token_status == AttachmentTokenStatus.MEASURED
+    ]
+    controlled_sources = {
+        item.measurement_source
+        for item in attachments
+        if item.measurement_source and item.token_status == AttachmentTokenStatus.MEASURED
+    }
+    if controlled_original and len(controlled_original) == len(attachments) and len(controlled_optimized) == len(attachments):
+        attachment_original = sum(controlled_original)
+        attachment_optimized = sum(controlled_optimized)
+        attachment_saved = max(0, attachment_original - attachment_optimized)
+        total_original = original_input_tokens + attachment_original
+        total_optimized = optimized_input_tokens
+        total_saved = max(0, total_original - total_optimized)
+        return AttachmentSummary(
+            attachment_count=len(attachments),
+            token_status=AttachmentTokenStatus.MEASURED,
+            possible_attachment_reference=possible_reference,
+            prompt_original_tokens=original_input_tokens,
+            prompt_optimized_tokens=max(0, optimized_input_tokens - attachment_optimized),
+            prompt_saved_tokens=saved_tokens,
+            estimated_attachment_tokens=attachment_original,
+            measured_attachment_tokens=attachment_optimized,
+            attachment_original_tokens=attachment_original,
+            attachment_optimized_tokens=attachment_optimized,
+            attachment_saved_tokens=attachment_saved,
+            attachment_savings_rate=round(attachment_saved / attachment_original, 4) if attachment_original else 0,
+            attachment_measurement_source=",".join(sorted(controlled_sources)) or "measured_controlled",
+            total_original_tokens=total_original,
+            total_optimized_tokens=total_optimized,
+            total_saved_tokens=total_saved,
+            prompt_savings_rate=round(prompt_savings_rate, 4),
+            total_savings_rate=round(total_saved / total_original, 4) if total_original else 0,
+            note="Text attachment savings use controlled local measurement.",
+        )
+
     attachment_tokens_for_total = measured_attachment_tokens if all_measured else estimated_attachment_tokens
 
     if has_unknown or attachment_tokens_for_total is None:
@@ -347,6 +406,11 @@ def build_attachment_summary(
         prompt_saved_tokens=saved_tokens,
         estimated_attachment_tokens=estimated_attachment_tokens,
         measured_attachment_tokens=measured_attachment_tokens,
+        attachment_original_tokens=estimated_attachment_tokens or measured_attachment_tokens,
+        attachment_optimized_tokens=attachment_tokens_for_total,
+        attachment_saved_tokens=0 if attachment_tokens_for_total is not None else None,
+        attachment_savings_rate=0 if attachment_tokens_for_total is not None else None,
+        attachment_measurement_source="measured_provider" if all_measured else None,
         total_original_tokens=total_original,
         total_optimized_tokens=total_optimized,
         total_saved_tokens=total_saved,

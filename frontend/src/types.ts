@@ -32,9 +32,15 @@ export interface AttachmentMetadata {
   mime_type?: string | null;
   size_bytes?: number | null;
   content_hash?: string | null;
+  content?: string | null;
   token_status: AttachmentTokenStatus;
   estimated_tokens?: number | null;
   measured_tokens?: number | null;
+  original_tokens?: number | null;
+  optimized_tokens?: number | null;
+  saved_tokens?: number | null;
+  savings_rate?: number | null;
+  measurement_source?: string | null;
 }
 
 export interface AttachmentSummary {
@@ -46,6 +52,11 @@ export interface AttachmentSummary {
   prompt_saved_tokens: number;
   estimated_attachment_tokens?: number | null;
   measured_attachment_tokens?: number | null;
+  attachment_original_tokens?: number | null;
+  attachment_optimized_tokens?: number | null;
+  attachment_saved_tokens?: number | null;
+  attachment_savings_rate?: number | null;
+  attachment_measurement_source?: string | null;
   total_original_tokens?: number | null;
   total_optimized_tokens?: number | null;
   total_saved_tokens?: number | null;
@@ -74,6 +85,7 @@ export interface OptimizeResponse {
   prompt_savings_rate: number;
   total_savings_rate?: number | null;
   attachment_summary: AttachmentSummary;
+  attachments: AttachmentMetadata[];
   reasons: OptimizationReason[];
   created_at: string;
 }
@@ -111,6 +123,10 @@ export interface DashboardSummary {
   attachment_unknown_requests: number;
   attachment_measured_requests: number;
   attachment_measured_coverage: number;
+  attachment_original_tokens: number;
+  attachment_optimized_tokens: number;
+  attachment_saved_tokens: number;
+  attachment_savings_rate: number;
 }
 
 export interface QualityCategorySummary {
@@ -195,6 +211,11 @@ export interface AuditRecordSummary {
   attachment_token_status: AttachmentTokenStatus;
   attachment_estimated_tokens?: number | null;
   attachment_measured_tokens?: number | null;
+  attachment_original_tokens?: number | null;
+  attachment_optimized_tokens?: number | null;
+  attachment_saved_tokens?: number | null;
+  attachment_savings_rate?: number | null;
+  attachment_measurement_source?: string | null;
   possible_attachment_reference: boolean;
   prompt_savings_rate: number;
   total_savings_rate?: number | null;
