@@ -5,113 +5,138 @@
 <h1 align="center">TokenSavor Scrooge</h1>
 
 <p align="center">
-  <strong>한정된 AI 크레딧으로 더 많은 일을.</strong><br />
-  Codex에 보내기 전 프롬프트와 텍스트 첨부 컨텍스트를 줄이고, 절감량을 감사 가능한 방식으로 기록하는 로컬 우선 데스크톱 앱입니다.
+  <strong>Do more work with limited AI credits.</strong><br />
+  A local-first desktop app that optimizes prompts, compresses text attachments, and records token savings in an auditable way before requests are sent to AI tools.
 </p>
 
 <p align="center">
-  <a href="#빠른-사용법">빠른 사용법</a> ·
-  <a href="#실측-자료">실측 자료</a> ·
-  <a href="#신뢰성-원칙">신뢰성 원칙</a> ·
-  <a href="#설치와-실행">설치와 실행</a>
+  <a href="#why-scrooge">Why</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#measured-results">Measured results</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#trust-model">Trust model</a>
 </p>
 
-![Scrooge usage demo](docs/assets/scrooge-demo.svg)
+> Status: alpha build for individual validation and limited department pilots. It is not yet positioned as a company-wide rollout product.
 
-## 무엇을 하나요?
+## Why Scrooge
 
-Scrooge는 AI에 보내는 요청에서 낭비되는 토큰을 줄입니다. 단순히 문장을 짧게 만드는 도구가 아니라, 작업에 필요한 의미를 보존하면서 반복 로그, 긴 오류 출력, CSV/JSON/코드 첨부 컨텍스트를 AI가 처리하기 좋은 형태로 압축합니다.
+AI coding tools are powerful, but enterprise teams often operate under monthly credit limits, user-level usage policies, and token-based cost tracking. The same task can consume very different token counts depending on how the prompt, logs, stack traces, diffs, and attached files are prepared.
 
-주요 목표는 세 가지입니다.
+Scrooge focuses on one practical goal:
 
-- 사용자의 Codex 사용 흐름을 크게 바꾸지 않기
-- 절감량을 `추정`, `통제 실측`, `provider 실측`으로 나누어 과장하지 않기
-- 원문 전체를 저장하지 않고 감사 가능한 메타데이터 중심으로 기록하기
+> Reduce wasted input tokens without hiding uncertainty or changing the user's workflow too much.
 
-## 빠른 사용법
+It is not a generic prompt-shortening toy. It is designed around auditability, local storage, explicit measurement states, and conservative optimization rules.
 
-### Codex에서 바로 쓰기
+## What It Does
 
-1. Codex 입력창에 평소처럼 프롬프트를 작성합니다.
-2. 파일을 첨부한 경우에도 그대로 둡니다.
-3. 입력창에 커서를 둔 상태에서 `Ctrl + Alt + S`를 누릅니다.
-4. Scrooge가 입력창 텍스트를 최적화하고, 가능한 경우 다시 붙여넣습니다.
-5. 절감량은 Scrooge 앱의 사용 기록과 대시보드에 반영됩니다.
+- Optimizes long prompts before they are sent.
+- Compresses repeated logs, stack traces, diffs, CSV, JSON, and source-code context.
+- Estimates original and optimized token counts.
+- Shows expected savings while clearly separating estimated values from measured values.
+- Records minimal audit metadata in SQLite.
+- Supports a global hotkey flow for Codex-style input boxes.
+- Detects visible attachment file names in Codex Desktop and tries to match them to local files.
 
-### 첨부 파일이 있을 때
+## How It Works
 
-Scrooge는 추가 조작을 줄이기 위해 같은 핫키에서 첨부 파일도 함께 처리합니다.
+### Hotkey Flow
 
-- Codex 화면에 보이는 첨부 파일명 칩을 감지합니다.
-- 로컬에서 같은 파일을 유일하게 찾으면 텍스트 파일 본문을 읽어 압축합니다.
-- `.log`, `.csv`, `.json`, `.md`, `.txt`, `.py`, `.ts`, `.tsx`, `.js`, `.java`, `.sql` 같은 텍스트 파일을 우선 지원합니다.
-- 파일을 찾지 못하거나 PDF/이미지/Office처럼 본문 토큰을 안전하게 계산할 수 없으면 `첨부 미측정`으로 남깁니다.
+1. Write your prompt in Codex as usual.
+2. Attach files as usual if needed.
+3. Put the cursor in the input field.
+4. Press `Ctrl + Alt + S`.
+5. Scrooge captures the input text, optimizes it, and pastes the optimized version back when savings are available.
+6. The result is reflected in the local dashboard and audit history.
 
-이 방식은 Codex 내부 저장소나 메모리를 훑지 않습니다. 화면에 보이는 파일명과 로컬 파일 매칭만 사용합니다.
+Short, already clear prompts may show `0` saved tokens. That is intentional. Scrooge prioritizes preserving requirements over forcing a smaller prompt.
 
-## 실측 자료
+### Attachment-Aware Flow
 
-아래 수치는 저장소의 검증 리포트에서 가져온 통제 실측 결과입니다. 실제 청구 토큰은 provider usage metadata가 들어올 때 별도로 확정해야 합니다.
+When files are already attached in Codex Desktop, Scrooge tries to reduce user effort:
 
-| 항목 | 결과 |
+- It reads visible attachment names from the active window through Windows UI Automation.
+- It searches safe local locations for a uniquely matching file name.
+- If a supported text file is found, it compresses the file context and records controlled attachment savings.
+- If the file cannot be found, is ambiguous, or is unsupported, it records the request as attachment-unmeasured instead of inventing savings.
+
+Supported text-like file types include:
+
+```text
+.log, .csv, .json, .md, .txt, .py, .ts, .tsx, .js, .jsx, .java, .sql
+```
+
+Unsupported or unsafe-to-measure files, such as PDF, images, and Office documents, are treated as unmeasured in v1.
+
+## Demo Video
+
+No synthetic demo is included in this README. The previous animated SVG mock did not match the actual app and has been removed.
+
+The right next step is to add a short real screen recording from the installed app:
+
+- open Scrooge,
+- type a Codex prompt,
+- press `Ctrl + Alt + S`,
+- show the dashboard update,
+- show an attachment-aware case with a text file.
+
+Until that recording exists, this README intentionally uses only the actual logo, measured reports, and implementation details.
+
+## Measured Results
+
+These numbers come from repository validation reports. They are controlled measurements unless provider usage metadata is explicitly available. Controlled measurements are useful for product validation, but they are not the same as billing-confirmed provider usage.
+
+| Metric | Result |
 | --- | ---: |
-| 품질 검증 세트 | 165 / 165 통과 |
-| Backend tests | 48개 통과 |
-| Hotkey 첨부 검증 | 통과 |
-| Codex UI 첨부 감지 샘플 | `codex_uia` |
-| `orders.csv` 첨부 절감 | 1,771 -> 148 tokens |
-| `orders.csv` 첨부 절감률 | 91.64% |
-| 전체 첨부 샘플 절감 | 7,491 -> 250 tokens |
-| 전체 첨부 샘플 절감률 | 96.66% |
-| 핫키 샘플 성공률 | 100% |
+| Golden quality suite | 165 / 165 passed |
+| Backend test suite | 48 passed |
+| Hotkey attachment validation | Passed |
+| Codex UI attachment discovery sample | `codex_uia` |
+| `orders.csv` attachment reduction | 1,771 -> 148 tokens |
+| `orders.csv` attachment savings | 91.64% |
+| Combined attachment sample reduction | 7,491 -> 250 tokens |
+| Combined attachment sample savings | 96.66% |
+| Hotkey sample success rate | 100% |
 
-검증 리포트:
+Validation reports:
 
 - [Hotkey attachment UIA validation](reports/hotkey-attachment-validation-uia-dev.json)
 - [Installed attachment validation](reports/attachment-validation-installed.json)
 - [A-ready validation snapshot](reports/a-ready-20260620-231540.json)
 
-## 신뢰성 원칙
+## Trust Model
 
-Scrooge는 절감액을 크게 보이게 만드는 것보다, 틀린 절감액을 보여주지 않는 것을 우선합니다.
+Scrooge separates savings into explicit states.
 
-| 상태 | 의미 |
+| State | Meaning |
 | --- | --- |
-| 추정 | 로컬 토크나이저 기반 사전 계산입니다. 실제 청구량과 차이가 날 수 있습니다. |
-| 통제 실측 | Scrooge가 원본 텍스트와 압축 텍스트를 같은 로컬 기준으로 다시 계산한 값입니다. |
-| provider 실측 | AI provider의 usage metadata로 확인된 값입니다. 가장 신뢰도가 높습니다. |
-| 첨부 미측정 | 첨부 본문을 안전하게 읽지 못해 전체 절감률을 확정하지 않은 상태입니다. |
+| Estimated | Local tokenizer estimate. May differ from billed provider usage. |
+| Controlled measured | Scrooge recalculates original and optimized content with the same local measurement method. |
+| Provider measured | Confirmed by provider usage metadata. This is the highest-confidence state. |
+| Attachment unmeasured | Attachment content was not safely readable, so total savings are not confirmed. |
 
-보안과 감사 기준:
+Default privacy and audit behavior:
 
-- 원문 프롬프트 전문은 기본 저장하지 않습니다.
-- 첨부 파일 전문도 저장하지 않습니다.
-- 저장 대상은 해시, 토큰 수, 적용 규칙, 가격표 버전, 토크나이저 버전, 승인/거절 상태 중심입니다.
-- 개인 감시보다 팀 단위 효율 개선을 기본 방향으로 둡니다.
+- Full prompt bodies are not stored by default.
+- Full attachment contents are not stored by default.
+- Audit records keep hashes, token counts, applied rules, tokenizer version, pricing version, and approval/rejection state.
+- The dashboard is intended for team efficiency review, not individual surveillance.
 
-## 주요 기능
+## Install
 
-- Prompt Optimizer: 장황한 요청을 구조화합니다.
-- Context Compressor: 로그, stack trace, diff, CSV, JSON, 코드 파일을 핵심 중심으로 압축합니다.
-- Token Meter: 원본/최적화 토큰과 예상 비용을 비교합니다.
-- Efficiency Dashboard: 일간/주간/월간 절감 추세와 실측 커버리지를 보여줍니다.
-- Hotkey Capture: `Ctrl + Alt + S`로 현재 입력창을 최적화합니다.
-- Attachment-Aware Flow: Codex 화면의 첨부 파일명을 감지하고 가능한 경우 로컬 텍스트 파일을 압축합니다.
-- Local Audit Storage: SQLite에 감사 가능한 최소 데이터만 저장합니다.
+Download the latest alpha release:
 
-## 설치와 실행
+[Scrooge v0.1.0 alpha](https://github.com/nowuz47/TokenSavor/releases/tag/v0.1.0-alpha.1)
 
-### 일반 사용자
+Available installers:
 
-GitHub Release에 올라간 설치 파일을 실행합니다.
+- `Scrooge_0.1.0_x64-setup.exe`
+- `Scrooge_0.1.0_x64_en-US.msi`
 
-```text
-Scrooge_0.1.0_x64-setup.exe
-```
+After installation, Scrooge runs as a tray app and starts its FastAPI backend as a sidecar process. A separate terminal window is not required.
 
-설치 후 Scrooge를 실행하면 백엔드는 sidecar로 함께 실행됩니다. 별도 터미널을 열 필요가 없습니다.
-
-### 개발자
+## Development
 
 Backend:
 
@@ -131,13 +156,13 @@ npm install
 npm run dev
 ```
 
-설치 패키지 빌드:
+Build and verify the Windows installer:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build_reinstall_verify.ps1 -ApiBase http://127.0.0.1:8750
 ```
 
-## 검증 명령
+## Verification
 
 ```powershell
 .\backend\.venv\Scripts\python.exe -m pytest backend\tests
@@ -145,36 +170,41 @@ powershell -ExecutionPolicy Bypass -File scripts\build_reinstall_verify.ps1 -Api
 .\backend\.venv\Scripts\python.exe backend\tools\validate_hotkey_attachment_flow.py --api http://127.0.0.1:8750
 ```
 
-## 현재 준비도
+## Readiness
 
-| 범위 | 판단 |
+| Scope | Current status |
 | --- | --- |
-| 개인/개발 검증 | 가능 |
-| 부서 내 제한 파일럿 | 가능 |
-| 전사 배포 | 추가 파일럿 필요 |
-| 실제 청구 절감 확정 | provider usage 연동 확대 필요 |
+| Individual development validation | Ready |
+| Limited department pilot | Ready with caveats |
+| Company-wide rollout | Needs more pilot data |
+| Billing-confirmed savings | Needs broader provider usage integration |
 
-권장 파일럿:
+Recommended pilot:
 
-- 대상: 5~10명
-- 기간: 1~2주
-- 지표: 핫키 성공률, 절감률, 첨부 미측정률, 사용자가 원문으로 되돌린 비율
-- 운영 원칙: 실측값 없는 수치는 `예상 절감`으로만 표시
+- 5 to 10 users
+- 1 to 2 weeks
+- Track hotkey success rate, savings rate, attachment-unmeasured rate, and user rollback rate
+- Label non-provider-measured values as expected or controlled savings, not confirmed billing savings
 
-## 기술 스택
+## Tech Stack
 
 - Desktop: Tauri, React, TypeScript
 - Backend: Python, FastAPI
 - Storage: SQLite
 - Packaging: PyInstaller sidecar, Tauri Windows bundle
-- OS integration: Global hotkey, tray app, Windows UI Automation based attachment-name detection
+- OS integration: global hotkey, tray app, Windows UI Automation attachment-name detection
 
-## 한계
+## Limitations
 
-- Codex 내부 첨부 본문을 강제로 읽지 않습니다.
-- 파일명이 중복되면 임의로 선택하지 않고 미측정 처리합니다.
-- PDF, 이미지, Office 파일은 v1에서 토큰 절감 대상이 아니라 미측정 대상입니다.
-- 실제 청구 절감액은 provider usage metadata가 있어야 확정할 수 있습니다.
+- Scrooge does not scrape Codex internal storage or process memory.
+- If multiple local files share the same visible attachment name, Scrooge does not guess.
+- PDF, image, and Office file token savings are not supported in v1.
+- Billing-confirmed savings require provider usage metadata.
+- Current release is Windows-focused.
+
+## Korean Summary
+
+Scrooge는 Codex에 보내기 전 프롬프트와 텍스트 첨부 컨텍스트를 줄이고, 절감량을 `추정`, `통제 실측`, `provider 실측`으로 구분해 기록하는 로컬 우선 데스크톱 앱입니다. 현재는 개인 검증과 부서 내 제한 파일럿에 적합하며, 전사 배포 전에는 추가 파일럿과 provider usage 연동 확대가 필요합니다.
 
 ## License
 
