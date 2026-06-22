@@ -71,6 +71,11 @@ class AttachmentDiscoverySource(StrEnum):
     UNKNOWN = "unknown"
 
 
+class OptimizationMode(StrEnum):
+    TOKEN_SAVINGS = "token_savings"
+    TASK_OPTIMIZATION = "task_optimization"
+
+
 class TokenBreakdown(BaseModel):
     input_tokens: int
     output_tokens: int = 0
@@ -161,6 +166,10 @@ class OptimizeResponse(BaseModel):
     total_savings_rate: float | None = None
     attachment_summary: AttachmentSummary
     attachments: list[AttachmentMetadata] = Field(default_factory=list)
+    optimization_mode: OptimizationMode = OptimizationMode.TOKEN_SAVINGS
+    estimated_work_savings_minutes: int = 0
+    estimated_followup_reduction: float = 0
+    work_optimization_reason: str | None = None
     reasons: list[OptimizationReason]
     created_at: datetime
 
@@ -350,6 +359,10 @@ class AuditRecordSummary(BaseModel):
     possible_attachment_reference: bool = False
     prompt_savings_rate: float = 0
     total_savings_rate: float | None = None
+    optimization_mode: OptimizationMode = OptimizationMode.TOKEN_SAVINGS
+    estimated_work_savings_minutes: int = 0
+    estimated_followup_reduction: float = 0
+    work_optimization_reason: str | None = None
 
 
 class RuntimeStatusResponse(BaseModel):

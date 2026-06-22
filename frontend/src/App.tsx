@@ -630,7 +630,7 @@ export default function App() {
         expected_output_tokens: expectedOutputTokens,
         capture_source: "clipboard"
       });
-      if (response.saved_tokens <= 0) {
+      if (response.saved_tokens <= 0 && response.optimization_mode !== "task_optimization") {
         const reason = getNoSavingsReason(response);
         await approvePrompt(response.request_id, false, reason);
         setResult(response);
@@ -1073,14 +1073,27 @@ function WorkspaceTab(props: {
 }
 
 function ImprovementInsights(props: { copy: Copy; result: OptimizeResponse }) {
+  const isTaskOptimization = props.result.optimization_mode === "task_optimization";
+  const isEnglish = props.copy.nav.workspace === "Save";
   const savedRate = `${(props.result.prompt_savings_rate * 100).toFixed(1)}%`;
   const savedTokens = `${props.result.saved_tokens.toLocaleString()} tokens`;
   const savedCost = `$${props.result.saved_cost_usd.toFixed(4)}`;
+  const followupReduction = `${Math.round(props.result.estimated_followup_reduction * 100)}%`;
   const attachmentText = formatAttachmentSummary(props.result, props.copy);
   const ruleSummary =
     props.result.reasons.length > 0
       ? props.result.reasons.slice(0, 2).map((reason) => reason.description).join(" / ")
       : props.copy.workspace.privacyNote;
+  const modeTitle = isTaskOptimization
+    ? isEnglish
+      ? "Task optimization"
+      : "작업 최적화"
+    : props.copy.workspace.analysisCost;
+  const modeBody = isTaskOptimization
+    ? isEnglish
+      ? `Estimated work saved: ${props.result.estimated_work_savings_minutes} min | Expected fewer follow-ups: ${followupReduction} | Token savings: ${savedTokens} | ${props.result.work_optimization_reason ?? ruleSummary}`
+      : `예상 작업 절약: ${props.result.estimated_work_savings_minutes}분 | 예상 재질문 감소: ${followupReduction} | 토큰 절감: ${savedTokens} | ${props.result.work_optimization_reason ?? ruleSummary}`
+    : `${savedTokens} | ${savedRate} | ${savedCost} | ${props.copy.workspace.analysisRules}: ${ruleSummary}`;
 
   const items = [
     {
@@ -1100,8 +1113,8 @@ function ImprovementInsights(props: { copy: Copy; result: OptimizeResponse }) {
     },
     {
       icon: Banknote,
-      title: props.copy.workspace.analysisCost,
-      body: `${savedTokens} · ${savedRate} · ${savedCost} · ${props.copy.workspace.analysisRules}: ${ruleSummary}`
+      title: modeTitle,
+      body: modeBody
     }
   ];
 

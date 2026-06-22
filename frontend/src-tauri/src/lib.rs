@@ -207,8 +207,12 @@ fn optimize_active_field_via_backend(app: AppHandle) {
             .get("saved_tokens")
             .and_then(|value| value.as_i64())
             .unwrap_or(0);
+        let optimization_mode = response
+            .get("optimization_mode")
+            .and_then(|value| value.as_str())
+            .unwrap_or("token_savings");
 
-        if saved_tokens <= 0 {
+        if saved_tokens <= 0 && optimization_mode != "task_optimization" {
             let rejection_note = no_savings_note(&response);
             if !request_id.is_empty() {
                 let _ = post_json(

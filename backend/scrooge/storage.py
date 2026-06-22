@@ -107,7 +107,11 @@ class UsageStore:
                 tokenizer_confidence TEXT,
                 possible_attachment_reference INTEGER,
                 prompt_savings_rate REAL,
-                total_savings_rate REAL
+                total_savings_rate REAL,
+                optimization_mode TEXT,
+                estimated_work_savings_minutes INTEGER,
+                estimated_followup_reduction REAL,
+                work_optimization_reason TEXT
             )
             """
         )
@@ -127,6 +131,10 @@ class UsageStore:
         self._ensure_column(db, "usage_records", "possible_attachment_reference", "INTEGER")
         self._ensure_column(db, "usage_records", "prompt_savings_rate", "REAL")
         self._ensure_column(db, "usage_records", "total_savings_rate", "REAL")
+        self._ensure_column(db, "usage_records", "optimization_mode", "TEXT")
+        self._ensure_column(db, "usage_records", "estimated_work_savings_minutes", "INTEGER")
+        self._ensure_column(db, "usage_records", "estimated_followup_reduction", "REAL")
+        self._ensure_column(db, "usage_records", "work_optimization_reason", "TEXT")
         db.execute(
             """
             CREATE TABLE IF NOT EXISTS request_attachments (
@@ -231,7 +239,10 @@ class UsageStore:
                 prompt_savings_rate = COALESCE(
                     prompt_savings_rate,
                     CASE WHEN original_tokens > 0 THEN saved_tokens * 1.0 / original_tokens ELSE 0 END
-                )
+                ),
+                optimization_mode = COALESCE(optimization_mode, 'token_savings'),
+                estimated_work_savings_minutes = COALESCE(estimated_work_savings_minutes, 0),
+                estimated_followup_reduction = COALESCE(estimated_followup_reduction, 0)
             """
         )
 
@@ -268,8 +279,9 @@ class UsageStore:
                     tokenizer_version, pricing_version, pricing_source_url, applied_rules,
                     request_family_hash, capture_source, delivery_status, measurement_status,
                     tokenizer_confidence, possible_attachment_reference, prompt_savings_rate,
-                    total_savings_rate
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    total_savings_rate, optimization_mode, estimated_work_savings_minutes,
+                    estimated_followup_reduction, work_optimization_reason
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     response.request_id,
@@ -302,6 +314,10 @@ class UsageStore:
                     1 if response.attachment_summary.possible_attachment_reference else 0,
                     response.prompt_savings_rate,
                     response.total_savings_rate,
+                    response.optimization_mode.value,
+                    response.estimated_work_savings_minutes,
+                    response.estimated_followup_reduction,
+                    response.work_optimization_reason,
                 ),
             )
             self._replace_attachments(db, response.request_id, attachments or [])
@@ -682,7 +698,9 @@ class UsageStore:
                     measured_input_tokens, measured_output_tokens, decision_notes,
                     provider_usage_source, upstream_status, capture_source, failure_reason,
                     delivery_status, measurement_status, tokenizer_confidence,
-                    possible_attachment_reference, prompt_savings_rate, total_savings_rate
+                    possible_attachment_reference, prompt_savings_rate, total_savings_rate,
+                    optimization_mode, estimated_work_savings_minutes,
+                    estimated_followup_reduction, work_optimization_reason
                 FROM usage_records
                 ORDER BY created_at DESC
                 LIMIT ?
@@ -810,6 +828,10 @@ class UsageStore:
                         if row["total_savings_rate"] is not None
                         else None
                     ),
+                    "optimization_mode": row["optimization_mode"] or "token_savings",
+                    "estimated_work_savings_minutes": int(row["estimated_work_savings_minutes"] or 0),
+                    "estimated_followup_reduction": round(float(row["estimated_followup_reduction"] or 0), 4),
+                    "work_optimization_reason": row["work_optimization_reason"],
                 }
             )
         return records

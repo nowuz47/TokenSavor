@@ -98,6 +98,10 @@ export interface OptimizeResponse {
   total_savings_rate?: number | null;
   attachment_summary: AttachmentSummary;
   attachments: AttachmentMetadata[];
+  optimization_mode: "token_savings" | "task_optimization";
+  estimated_work_savings_minutes: number;
+  estimated_followup_reduction: number;
+  work_optimization_reason?: string | null;
   reasons: OptimizationReason[];
   created_at: string;
 }
@@ -250,6 +254,10 @@ export interface AuditRecordSummary {
   possible_attachment_reference: boolean;
   prompt_savings_rate: number;
   total_savings_rate?: number | null;
+  optimization_mode: "token_savings" | "task_optimization";
+  estimated_work_savings_minutes: number;
+  estimated_followup_reduction: number;
+  work_optimization_reason?: string | null;
 }
 
 export interface CategoryDashboardSummary {

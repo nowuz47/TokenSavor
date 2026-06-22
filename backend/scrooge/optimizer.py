@@ -10,6 +10,7 @@ from scrooge.schemas import (
     AttachmentMetadata,
     AttachmentSummary,
     AttachmentTokenStatus,
+    OptimizationMode,
     OptimizationReason,
     OptimizeRequest,
     OptimizeResponse,
@@ -139,6 +140,10 @@ class OptimizedDraft:
     task_type: TaskType
     prompt: str
     reasons: list[OptimizationReason]
+    optimization_mode: OptimizationMode = OptimizationMode.TOKEN_SAVINGS
+    estimated_work_savings_minutes: int = 0
+    estimated_followup_reduction: float = 0
+    work_optimization_reason: str | None = None
 
 
 def detect_task_type(prompt: str) -> TaskType:
@@ -269,6 +274,10 @@ def optimize_prompt(request: OptimizeRequest) -> OptimizeResponse:
         total_savings_rate=attachment_summary.total_savings_rate,
         attachment_summary=attachment_summary,
         attachments=attachment_optimization.attachments,
+        optimization_mode=draft.optimization_mode,
+        estimated_work_savings_minutes=draft.estimated_work_savings_minutes,
+        estimated_followup_reduction=draft.estimated_followup_reduction,
+        work_optimization_reason=draft.work_optimization_reason,
         reasons=draft.reasons + attachment_optimization.reasons,
         created_at=datetime.now(timezone.utc),
     )
@@ -455,6 +464,24 @@ def build_optimized_draft(prompt: str, task_type: TaskType | None = None) -> Opt
         for rule in cleanup_rules + compressed.rules
     )
 
+    if _looks_like_broad_task_request(cleaned):
+        reason = _task_optimization_reason(cleaned)
+        reasons.append(
+            OptimizationReason(
+                rule_id="task_optimization_template",
+                description=reason,
+            )
+        )
+        return OptimizedDraft(
+            task_type=resolved_task,
+            prompt=_build_task_optimization_prompt(cleaned, resolved_task),
+            reasons=reasons,
+            optimization_mode=OptimizationMode.TASK_OPTIMIZATION,
+            estimated_work_savings_minutes=_estimate_work_savings_minutes(cleaned, resolved_task),
+            estimated_followup_reduction=0.25,
+            work_optimization_reason=reason,
+        )
+
     optimized = (
         f"{TEMPLATES[resolved_task]}\n\n"
         "Constraints:\n"
@@ -464,6 +491,136 @@ def build_optimized_draft(prompt: str, task_type: TaskType | None = None) -> Opt
         f"User request/context:\n{compressed.text.strip()}"
     )
     return OptimizedDraft(task_type=resolved_task, prompt=optimized.strip(), reasons=reasons)
+
+
+def _looks_like_broad_task_request(prompt: str) -> bool:
+    stripped = prompt.strip()
+    if not stripped or len(stripped) > 240 or len(stripped.splitlines()) > 4:
+        return False
+    lowered = stripped.lower()
+    english_broad_terms = (
+        "all",
+        "entire",
+        "whole",
+        "project",
+        "repo",
+        "repository",
+        "workspace",
+        "codebase",
+        "logs",
+        "log files",
+        "files",
+        "attached files",
+    )
+    korean_broad_terms = (
+        "모두",
+        "전체",
+        "전부",
+        "프로젝트",
+        "저장소",
+        "워크스페이스",
+        "코드베이스",
+        "로그파일",
+        "로그 파일",
+        "파일들",
+        "첨부파일",
+        "첨부 파일",
+    )
+    english_action_terms = (
+        "read",
+        "scan",
+        "find",
+        "analyze",
+        "review",
+        "summarize",
+        "debug",
+    )
+    korean_action_terms = (
+        "읽",
+        "찾",
+        "분석",
+        "검토",
+        "정리",
+        "확인",
+        "디버그",
+    )
+    scope_like = _contains_english_term(lowered, english_broad_terms) or any(
+        term in lowered for term in korean_broad_terms
+    )
+    action_like = _contains_english_term(lowered, english_action_terms) or any(
+        term in lowered for term in korean_action_terms
+    )
+    return scope_like and action_like
+
+
+def _contains_english_term(lowered_prompt: str, terms: tuple[str, ...]) -> bool:
+    return any(re.search(rf"\b{re.escape(term)}\b", lowered_prompt) for term in terms)
+
+
+def _contains_hangul(prompt: str) -> bool:
+    return bool(re.search(r"[가-힣]", prompt))
+
+
+def _task_optimization_reason(prompt: str) -> str:
+    if _contains_hangul(prompt):
+        return "짧지만 프로젝트/파일 범위가 넓은 요청이라 작업 최적화 템플릿을 적용했습니다."
+    return "Applied task optimization because the prompt is short but asks for broad project/file scope."
+
+
+def _estimate_work_savings_minutes(prompt: str, task_type: TaskType) -> int:
+    lowered = prompt.lower()
+    minutes = 6
+    if any(term in lowered for term in ("project", "repo", "repository", "workspace", "프로젝트", "저장소", "워크스페이스")):
+        minutes += 4
+    if any(term in lowered for term in ("logs", "log files", "로그파일", "로그 파일")):
+        minutes += 4
+    if any(term in lowered for term in ("all", "entire", "whole", "모두", "전체", "전부")):
+        minutes += 3
+    if task_type in {TaskType.LOG_ANALYSIS, TaskType.DATA_ANALYSIS, TaskType.BUG_ANALYSIS}:
+        minutes += 2
+    return min(minutes, 18)
+
+
+def _build_task_optimization_prompt(prompt: str, task_type: TaskType) -> str:
+    if _contains_hangul(prompt):
+        return (
+            "작업 최적화 요청:\n"
+            "목표:\n"
+            f"- {prompt.strip()}\n\n"
+            "작업 범위:\n"
+            "- 현재 프로젝트, 첨부, 작업공간에서 관련 파일과 로그를 먼저 찾습니다.\n"
+            "- 확인한 파일명, 경로, 명령, 근거를 결과에 남깁니다.\n"
+            "- 반복 로그는 빈도별로 묶고 대표 에러와 예외 원인을 보존합니다.\n\n"
+            "출력 형식:\n"
+            "1. 확인한 범위\n"
+            "2. 핵심 신호(top signals)와 빈도\n"
+            "3. 원인 후보(suspected cause)와 권장안(recommendation)\n"
+            "4. 대안(alternatives), 위험(risks), 추가로 확인할 파일/명령\n"
+            "5. 바로 실행할 다음 조치\n\n"
+            "제약:\n"
+            "- 실제로 확인하지 않은 파일 내용은 추정하지 않습니다.\n"
+            "- 접근할 수 없는 파일이나 누락된 권한은 명확히 표시합니다.\n"
+            "- 사용자 목표를 줄이지 말고, 불필요한 재질문을 줄이는 방향으로 진행합니다."
+        )
+    return (
+        "Task optimization request:\n"
+        "Goal:\n"
+        f"- {prompt.strip()}\n\n"
+        "Scope:\n"
+        "- First discover relevant files, logs, and workspace context.\n"
+        "- Report the file paths, commands, and evidence that were actually checked.\n"
+        "- Group repeated log lines by frequency while preserving representative errors and exception causes.\n\n"
+        "Return format:\n"
+        "1. Checked scope\n"
+        "2. Top signals and frequency\n"
+        "3. Suspected cause and recommendation\n"
+        "4. Alternatives, risks, and files/commands to verify next\n"
+        "5. Immediate next actions\n\n"
+        "Constraints:\n"
+        "- Do not infer contents of files that were not inspected.\n"
+        "- Call out missing access or unavailable files explicitly.\n"
+        "- Preserve the user's goal and reduce avoidable follow-up questions."
+    )
 
 
 def _normalize_prompt(prompt: str) -> tuple[str, list[str]]:

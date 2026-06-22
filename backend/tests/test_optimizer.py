@@ -1,5 +1,11 @@
 from scrooge.optimizer import detect_task_type, optimize_prompt
-from scrooge.schemas import AttachmentMetadata, AttachmentTokenStatus, OptimizeRequest, TaskType
+from scrooge.schemas import (
+    AttachmentMetadata,
+    AttachmentTokenStatus,
+    OptimizationMode,
+    OptimizeRequest,
+    TaskType,
+)
 
 
 def test_optimizer_detects_bug_analysis_and_reduces_duplicate_noise() -> None:
@@ -78,6 +84,26 @@ def test_attachment_reference_keeps_total_savings_unknown_without_metadata() -> 
     assert response.attachment_summary.total_savings_rate is None
     assert response.total_savings_rate is None
     assert response.prompt_savings_rate == response.savings_rate
+
+
+def test_short_broad_korean_project_request_is_task_optimization() -> None:
+    response = optimize_prompt(
+        OptimizeRequest(
+            prompt="이 프로젝트의 로그파일들을 모두 읽어서 분석",
+            provider="openai",
+            model="gpt-5.4-mini",
+        )
+    )
+
+    assert response.optimization_mode == OptimizationMode.TASK_OPTIMIZATION
+    assert response.saved_tokens == 0
+    assert response.estimated_work_savings_minutes >= 10
+    assert response.estimated_followup_reduction == 0.25
+    assert response.work_optimization_reason is not None
+    assert "작업 최적화" in response.optimized_prompt
+    assert "로그" in response.optimized_prompt
+    assert "확인한 범위" in response.optimized_prompt
+    assert any(reason.rule_id == "task_optimization_template" for reason in response.reasons)
 
 
 def test_estimated_attachment_tokens_lower_total_savings_rate() -> None:
