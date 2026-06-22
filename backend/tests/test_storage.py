@@ -283,6 +283,38 @@ def test_summary_counts_repeated_prompt_family_as_followup_request(tmp_path) -> 
     assert summary["reask_rate"] == 0.5
 
 
+def test_summary_tracks_task_optimization_separately_from_token_savings(tmp_path) -> None:
+    db_path = tmp_path / "scrooge.db"
+    settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)
+    store = UsageStore(settings)
+
+    task_response = optimize_prompt(
+        OptimizeRequest(prompt="Analyze all project log files", provider="openai")
+    )
+    token_response = optimize_prompt(
+        OptimizeRequest(
+            prompt="\n".join(["ERROR payment timeout"] * 80 + ["Traceback File /app/payment.py line 42 TimeoutError"]),
+            provider="openai",
+        )
+    )
+
+    store.save_preview(task_response, provider="openai", model="gpt-5.4-mini")
+    store.save_preview(token_response, provider="openai", model="gpt-5.4-mini")
+
+    summary = store.summary("all")
+    categories = {item["category"]: item for item in store.category_summary("all")}
+
+    assert task_response.optimization_mode == "task_optimization"
+    assert task_response.saved_tokens == 0
+    assert summary["task_optimization_requests"] == 1
+    assert summary["estimated_work_savings_minutes"] == task_response.estimated_work_savings_minutes
+    assert summary["average_followup_reduction"] == task_response.estimated_followup_reduction
+    assert summary["zero_token_task_optimizations"] == 1
+    assert summary["token_savings_requests"] == 1
+    assert categories["log_analysis"]["task_optimization_requests"] == 1
+    assert categories["log_analysis"]["token_savings_requests"] == 1
+
+
 def test_storage_tracks_attachment_metadata_without_prompt_body(tmp_path) -> None:
     db_path = tmp_path / "scrooge.db"
     settings = Settings(SCROOGE_DATABASE_URL=f"sqlite:///{db_path}", SCROOGE_STORE_PROMPT_BODIES=False)

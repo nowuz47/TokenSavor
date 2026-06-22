@@ -136,6 +136,11 @@ export interface DashboardSummary {
   reask_rate: number;
   quality_preservation_rate: number;
   long_context_savings_rate: number;
+  task_optimization_requests: number;
+  estimated_work_savings_minutes: number;
+  average_followup_reduction: number;
+  token_savings_requests: number;
+  zero_token_task_optimizations: number;
   short_prompt_over_optimization_count: number;
   short_prompt_protected_count: number;
   hotkey_attempts: number;
@@ -267,6 +272,8 @@ export interface CategoryDashboardSummary {
   savings_rate: number;
   measured_requests: number;
   avg_token_error_rate: number;
+  task_optimization_requests: number;
+  token_savings_requests: number;
 }
 
 export interface RuntimeStatus {

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Do more work with limited AI credits.</strong><br />
-  A local-first desktop app that optimizes prompts, compresses text attachments, and records token savings in an auditable way before requests are sent to AI tools.
+  A local-first desktop app that reduces wasted AI work by optimizing prompts, clarifying broad tasks, compressing text attachments, and recording savings in an auditable way before requests are sent to AI tools.
 </p>
 
 <p align="center">
@@ -21,19 +21,21 @@
 
 ## Why Scrooge
 
-AI coding tools are powerful, but enterprise teams often operate under monthly credit limits, user-level usage policies, and token-based cost tracking. The same task can consume very different token counts depending on how the prompt, logs, stack traces, diffs, and attached files are prepared.
+AI coding tools are powerful, but enterprise teams often operate under monthly credit limits, user-level usage policies, and token-based cost tracking. The same task can consume very different cost depending on how the request is framed, how much context is sent, and whether the model has to ask follow-up questions or scan irrelevant files.
 
 Scrooge focuses on one practical goal:
 
-> Reduce wasted input tokens without hiding uncertainty or changing the user's workflow too much.
+> Reduce total AI work cost without hiding uncertainty or adding setup steps.
 
-It is not a generic prompt-shortening toy. It is designed around auditability, local storage, explicit measurement states, and conservative optimization rules.
+It is not a generic prompt-shortening toy. It is designed around auditability, local storage, explicit measurement states, conservative optimization rules, and task guidance that helps the model do the right work sooner.
 
 ## What It Does
 
 - Optimizes long prompts before they are sent.
+- Turns short but broad requests into clearer task instructions when token savings would be misleading.
 - Compresses repeated logs, stack traces, diffs, CSV, JSON, and source-code context.
 - Estimates original and optimized token counts.
+- Separates token savings from task optimization and estimated follow-up reduction.
 - Shows expected savings while clearly separating estimated values from measured values.
 - Records minimal audit metadata in SQLite.
 - Supports a global hotkey flow for Codex-style input boxes.
@@ -47,10 +49,10 @@ It is not a generic prompt-shortening toy. It is designed around auditability, l
 2. Attach files as usual if needed.
 3. Put the cursor in the input field.
 4. Press `Ctrl + Alt + S`.
-5. Scrooge captures the input text, optimizes it, and pastes the optimized version back when savings are available.
+5. Scrooge captures the input text, optimizes it, and pastes the optimized version back when token savings or task optimization is available.
 6. The result is reflected in the local dashboard and audit history.
 
-Short, already clear prompts may show `0` saved tokens. That is intentional. Scrooge prioritizes preserving requirements over forcing a smaller prompt.
+Short, already clear prompts may show `0` saved tokens. That is intentional. Scrooge prioritizes preserving requirements over forcing a smaller prompt. Short but broad requests, such as "analyze all project logs", may instead be recorded as task optimization with estimated work savings.
 
 ### Attachment-Aware Flow
 
@@ -106,7 +108,7 @@ These numbers come from repository validation reports. They are controlled measu
 | Metric | Result |
 | --- | ---: |
 | Golden quality suite | 165 / 165 passed |
-| Backend test suite | 48 passed |
+| Backend test suite | 51 passed |
 | Hotkey attachment validation | Passed |
 | Codex UI attachment discovery sample | `codex_uia` |
 | `orders.csv` attachment reduction | 1,771 -> 148 tokens |
@@ -131,6 +133,7 @@ Scrooge separates savings into explicit states.
 | Controlled measured | Scrooge recalculates original and optimized content with the same local measurement method. |
 | Provider measured | Confirmed by provider usage metadata. This is the highest-confidence state. |
 | Attachment unmeasured | Attachment content was not safely readable, so total savings are not confirmed. |
+| Task optimization | Token savings may be `0`, but the request was clarified to reduce unnecessary scanning, follow-up prompts, or repeated AI work. |
 
 Default privacy and audit behavior:
 
@@ -138,6 +141,7 @@ Default privacy and audit behavior:
 - Full attachment contents are not stored by default.
 - Audit records keep hashes, token counts, applied rules, tokenizer version, pricing version, and approval/rejection state.
 - The dashboard is intended for team efficiency review, not individual surveillance.
+- Work-savings estimates are shown separately from billing-confirmed token savings.
 
 ## Install
 
@@ -199,7 +203,7 @@ Recommended pilot:
 
 - 5 to 10 users
 - 1 to 2 weeks
-- Track hotkey success rate, savings rate, attachment-unmeasured rate, and user rollback rate
+- Track hotkey success rate, token savings rate, task optimization rate, attachment-unmeasured rate, and user rollback rate
 - Label non-provider-measured values as expected or controlled savings, not confirmed billing savings
 
 ## Tech Stack
@@ -216,6 +220,7 @@ Recommended pilot:
 - If multiple local files share the same visible attachment name, Scrooge does not guess.
 - PDF, image, and Office file token savings are not supported in v1.
 - Billing-confirmed savings require provider usage metadata.
+- Estimated work savings are product-quality indicators, not invoice-grade billing values.
 - Current release is Windows-focused.
 
 ## License

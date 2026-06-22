@@ -130,6 +130,9 @@ interface AuditRecord {
   possibleAttachmentReference: boolean;
   promptSavingsRate: number;
   totalSavingsRate?: number | null;
+  optimizationMode: "token_savings" | "task_optimization";
+  estimatedWorkSavingsMinutes: number;
+  estimatedFollowupReduction: number;
 }
 
 const modelsRegistry: ModelOption[] = [
@@ -282,7 +285,10 @@ function toAuditRecord(record: AuditRecordSummary): AuditRecord {
     attachmentReadErrorCount: record.attachment_read_error_count ?? 0,
     possibleAttachmentReference: record.possible_attachment_reference,
     promptSavingsRate: record.prompt_savings_rate,
-    totalSavingsRate: record.total_savings_rate
+    totalSavingsRate: record.total_savings_rate,
+    optimizationMode: record.optimization_mode,
+    estimatedWorkSavingsMinutes: record.estimated_work_savings_minutes,
+    estimatedFollowupReduction: record.estimated_followup_reduction
   };
 }
 
@@ -337,6 +343,11 @@ export default function App() {
       followupRequests: summary?.followup_requests ?? 0,
       reaskRate: summary?.reask_rate ?? 0,
       longContextSavingsRate: summary?.long_context_savings_rate ?? 0,
+      taskOptimizationRequests: summary?.task_optimization_requests ?? 0,
+      estimatedWorkSavingsMinutes: summary?.estimated_work_savings_minutes ?? 0,
+      averageFollowupReduction: summary?.average_followup_reduction ?? 0,
+      tokenSavingsRequests: summary?.token_savings_requests ?? 0,
+      zeroTokenTaskOptimizations: summary?.zero_token_task_optimizations ?? 0,
       shortPromptOverOptimizationCount: summary?.short_prompt_over_optimization_count ?? 0,
       shortPromptProtectedCount: summary?.short_prompt_protected_count ?? 0,
       hotkeyAttempts: summary?.hotkey_attempts ?? 0,
@@ -1263,6 +1274,8 @@ function DashboardTab(props: {
     attachmentSavedTokens: number;
     attachmentSavingsRate: number;
     dailySavingsTrend: DailySavingsTrendItem[];
+    averageFollowupReduction: number;
+    estimatedWorkSavingsMinutes: number;
     longContextSavingsRate: number;
     maxTokenErrorRate: number;
     measuredRequests: number;
@@ -1272,6 +1285,9 @@ function DashboardTab(props: {
     savedCost: number;
     savedTokens: number;
     savingsRate: number;
+    taskOptimizationRequests: number;
+    tokenSavingsRequests: number;
+    zeroTokenTaskOptimizations: number;
     shortPromptOverOptimizationCount: number;
     shortPromptProtectedCount: number;
     sidecarStatus: string;
@@ -1311,8 +1327,8 @@ function DashboardTab(props: {
         />
         <StatusSummaryCard
           icon={<Award />}
-          label={props.copy.dashboard.monthlySavings}
-          value={formatTokenCount(props.aggregate.savedTokens)}
+          label={props.copy.dashboard.aiWorkSaved}
+          value={formatWorkMinutes(props.aggregate.estimatedWorkSavingsMinutes)}
           tone="gold"
         />
         <StatusSummaryCard
@@ -1331,8 +1347,8 @@ function DashboardTab(props: {
 
       <div className="db-grid savings-summary-grid">
         <DashboardCard icon={<Award />} label={props.copy.dashboard.savedTokens} value={formatTokenCount(props.aggregate.savedTokens)} highlight />
-        <DashboardCard icon={<Terminal />} label={props.copy.dashboard.longContextSavings} value={`${(props.aggregate.longContextSavingsRate * 100).toFixed(1)}%`} />
-        <DashboardCard icon={<ShieldCheck />} label={props.copy.dashboard.qualityPreservation} value={`${(props.aggregate.qualityPreservationRate * 100).toFixed(0)}%`} />
+        <DashboardCard icon={<SlidersHorizontal />} label={props.copy.dashboard.taskOptimization} value={props.aggregate.taskOptimizationRequests} />
+        <DashboardCard icon={<RefreshCw />} label={props.copy.dashboard.expectedFollowupReduction} value={`${(props.aggregate.averageFollowupReduction * 100).toFixed(0)}%`} />
         <DashboardCard icon={<Activity />} label={props.copy.dashboard.measuredCoverage} value={measuredCoveragePercent} />
       </div>
 
@@ -1378,7 +1394,11 @@ function DashboardTab(props: {
                 <span className={`activity-dot ${record.state}`} />
                 <strong>{record.id}</strong>
                 <span>{record.type}</span>
-                <em>{(record.rate * 100).toFixed(0)}% {props.copy.dashboard.saved}</em>
+                <em>
+                  {record.optimizationMode === "task_optimization"
+                    ? `${formatWorkMinutes(record.estimatedWorkSavingsMinutes)} ${props.copy.dashboard.aiWorkSaved}`
+                    : `${(record.rate * 100).toFixed(0)}% ${props.copy.dashboard.saved}`}
+                </em>
               </div>
             ))
           )}
@@ -1395,9 +1415,14 @@ function DashboardTab(props: {
           <div className="db-grid dashboard-detail-grid">
             <DashboardCard icon={<Database />} label={props.copy.dashboard.totalAudits} value={props.aggregate.totalAudits} />
             <DashboardCard icon={<RefreshCw />} label={props.copy.dashboard.followupRequests} value={props.aggregate.followupRequests} />
+            <DashboardCard icon={<Award />} label={props.copy.dashboard.aiWorkSaved} value={formatWorkMinutes(props.aggregate.estimatedWorkSavingsMinutes)} />
+            <DashboardCard icon={<SlidersHorizontal />} label={props.copy.dashboard.taskOptimization} value={props.aggregate.taskOptimizationRequests} />
+            <DashboardCard icon={<Terminal />} label={props.copy.dashboard.tokenSavingRequests} value={props.aggregate.tokenSavingsRequests} />
+            <DashboardCard icon={<CheckCircle />} label={props.copy.dashboard.zeroTokenTaskOptimizations} value={props.aggregate.zeroTokenTaskOptimizations} />
             <DashboardCard icon={<Banknote />} label={props.copy.dashboard.savedUsd} value={`$${props.aggregate.savedCost.toFixed(2)}`} />
             <DashboardCard icon={<Flame />} label={props.copy.dashboard.estimatedSavings} value={`${(props.aggregate.savingsRate * 100).toFixed(1)}%`} />
             <DashboardCard icon={<RefreshCw />} label={props.copy.dashboard.reaskRate} value={`${(props.aggregate.reaskRate * 100).toFixed(1)}%`} />
+            <DashboardCard icon={<RefreshCw />} label={props.copy.dashboard.expectedFollowupReduction} value={`${(props.aggregate.averageFollowupReduction * 100).toFixed(0)}%`} />
             <DashboardCard
               icon={<ClipboardCheck />}
               label={props.copy.dashboard.hotkeyValidation}
@@ -1998,6 +2023,13 @@ function formatTokenCount(tokens: number) {
   if (tokens < 1000) return tokens.toLocaleString();
   if (tokens < 1_000_000) return `${(tokens / 1000).toFixed(tokens < 10_000 ? 1 : 0)}K`;
   return `${(tokens / 1_000_000).toFixed(1)}M`;
+}
+
+function formatWorkMinutes(minutes: number) {
+  if (minutes <= 0) return "0 min";
+  if (minutes < 60) return `${minutes.toLocaleString()} min`;
+  const hours = minutes / 60;
+  return `${hours.toFixed(hours < 10 ? 1 : 0)} h`;
 }
 
 function formatTrendDate(value: string) {

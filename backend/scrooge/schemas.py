@@ -248,6 +248,11 @@ class DashboardSummary(BaseModel):
     reask_rate: float = 0
     quality_preservation_rate: float = 0
     long_context_savings_rate: float = 0
+    task_optimization_requests: int = 0
+    estimated_work_savings_minutes: int = 0
+    average_followup_reduction: float = 0
+    token_savings_requests: int = 0
+    zero_token_task_optimizations: int = 0
     short_prompt_over_optimization_count: int = 0
     short_prompt_protected_count: int = 0
     hotkey_attempts: int = 0
@@ -461,6 +466,8 @@ class CategoryDashboardSummary(BaseModel):
     savings_rate: float
     measured_requests: int
     avg_token_error_rate: float
+    task_optimization_requests: int = 0
+    token_savings_requests: int = 0
 
 
 class ProxyCaptureResponse(BaseModel):

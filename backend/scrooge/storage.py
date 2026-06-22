@@ -887,6 +887,7 @@ class UsageStore:
             short_prompt_protected_count = self._short_prompt_protected_count(db, where)
             used_assumed_requests = self._used_assumed_requests(db, where)
             daily_savings_trend = self._daily_savings_trend(db, where)
+            work_optimization_metrics = self._work_optimization_metrics(db, where)
 
         total_original = int(row["original_tokens"] or 0)
         saved = int(row["saved_tokens"] or 0)
@@ -913,6 +914,11 @@ class UsageStore:
             "followup_requests": followup_requests,
             "reask_rate": round(followup_requests / total_requests, 4) if total_requests else 0,
             "long_context_savings_rate": long_context_savings_rate,
+            "task_optimization_requests": work_optimization_metrics["task_optimization_requests"],
+            "estimated_work_savings_minutes": work_optimization_metrics["estimated_work_savings_minutes"],
+            "average_followup_reduction": work_optimization_metrics["average_followup_reduction"],
+            "token_savings_requests": work_optimization_metrics["token_savings_requests"],
+            "zero_token_task_optimizations": work_optimization_metrics["zero_token_task_optimizations"],
             "short_prompt_protected_count": short_prompt_protected_count,
             "hotkey_attempts": hotkey_metrics["attempts"],
             "hotkey_failed_requests": hotkey_metrics["failed_requests"],
@@ -947,6 +953,8 @@ class UsageStore:
                     SUM(saved_tokens) as saved_tokens,
                     SUM(original_tokens) as original_tokens,
                     SUM(CASE WHEN state = 'measured' THEN 1 ELSE 0 END) as measured_requests,
+                    SUM(CASE WHEN optimization_mode = 'task_optimization' THEN 1 ELSE 0 END) as task_optimization_requests,
+                    SUM(CASE WHEN optimization_mode = 'token_savings' AND saved_tokens > 0 THEN 1 ELSE 0 END) as token_savings_requests,
                     AVG(
                         CASE
                             WHEN measured_input_tokens IS NOT NULL
@@ -974,9 +982,36 @@ class UsageStore:
                     "savings_rate": round(saved_tokens / original_tokens, 4) if original_tokens else 0,
                     "measured_requests": int(row["measured_requests"] or 0),
                     "avg_token_error_rate": round(float(row["avg_token_error_rate"] or 0), 4),
+                    "task_optimization_requests": int(row["task_optimization_requests"] or 0),
+                    "token_savings_requests": int(row["token_savings_requests"] or 0),
                 }
             )
         return summaries
+
+    def _work_optimization_metrics(self, db: sqlite3.Connection, where: str) -> dict[str, int | float]:
+        row = db.execute(
+            f"""
+            SELECT
+                SUM(CASE WHEN optimization_mode = 'task_optimization' THEN 1 ELSE 0 END) as task_optimization_requests,
+                SUM(CASE WHEN optimization_mode = 'task_optimization' THEN estimated_work_savings_minutes ELSE 0 END)
+                    as estimated_work_savings_minutes,
+                AVG(CASE WHEN optimization_mode = 'task_optimization' THEN estimated_followup_reduction ELSE NULL END)
+                    as average_followup_reduction,
+                SUM(CASE WHEN optimization_mode = 'token_savings' AND saved_tokens > 0 THEN 1 ELSE 0 END)
+                    as token_savings_requests,
+                SUM(CASE WHEN optimization_mode = 'task_optimization' AND saved_tokens = 0 THEN 1 ELSE 0 END)
+                    as zero_token_task_optimizations
+            FROM usage_records
+            {where}
+            """
+        ).fetchone()
+        return {
+            "task_optimization_requests": int(row["task_optimization_requests"] or 0),
+            "estimated_work_savings_minutes": int(row["estimated_work_savings_minutes"] or 0),
+            "average_followup_reduction": round(float(row["average_followup_reduction"] or 0), 4),
+            "token_savings_requests": int(row["token_savings_requests"] or 0),
+            "zero_token_task_optimizations": int(row["zero_token_task_optimizations"] or 0),
+        }
 
     def _count_followups(self, db: sqlite3.Connection, where: str) -> int:
         rows = db.execute(
