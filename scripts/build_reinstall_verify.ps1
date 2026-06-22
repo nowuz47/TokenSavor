@@ -8,7 +8,8 @@ param(
     [int]$InstallTimeoutSeconds = 120,
     [switch]$SkipOps,
     [switch]$SkipInstall,
-    [switch]$SkipSmoke
+    [switch]$SkipSmoke,
+    [switch]$RequireSigned
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,6 +21,10 @@ $vsDevCmd = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Comm
 
 if (-not $CargoTargetDir) {
     $CargoTargetDir = Join-Path $env:TEMP "scrooge-tauri-target-$TargetTriple"
+}
+
+if ($RequireSigned -and -not $env:SCROOGE_WINDOWS_CERT_THUMBPRINT -and -not $env:SCROOGE_WINDOWS_SIGN_COMMAND) {
+    throw "RequireSigned was set, but no signing configuration was found. Set SCROOGE_WINDOWS_CERT_THUMBPRINT or SCROOGE_WINDOWS_SIGN_COMMAND."
 }
 
 function Invoke-CmdChecked {
@@ -71,6 +76,42 @@ function Start-AsyncDirectoryCleanup {
     }
 }
 
+function Set-WindowsSigningConfig {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$TauriConfigPath
+    )
+
+    $thumbprint = $env:SCROOGE_WINDOWS_CERT_THUMBPRINT
+    $timestampUrl = $env:SCROOGE_WINDOWS_TIMESTAMP_URL
+    $digestAlgorithm = if ($env:SCROOGE_WINDOWS_DIGEST_ALGORITHM) { $env:SCROOGE_WINDOWS_DIGEST_ALGORITHM } else { "sha256" }
+    $signCommand = $env:SCROOGE_WINDOWS_SIGN_COMMAND
+
+    if (-not $thumbprint -and -not $signCommand) {
+        Write-Warning "Windows code signing is not configured. Set SCROOGE_WINDOWS_CERT_THUMBPRINT or SCROOGE_WINDOWS_SIGN_COMMAND for lower SmartScreen/AV false-positive risk."
+        return
+    }
+
+    $config = Get-Content -LiteralPath $TauriConfigPath -Raw | ConvertFrom-Json
+    if (-not $config.bundle.windows) {
+        $config.bundle | Add-Member -MemberType NoteProperty -Name windows -Value ([pscustomobject]@{})
+    }
+
+    if ($signCommand) {
+        $config.bundle.windows | Add-Member -MemberType NoteProperty -Name signCommand -Value $signCommand -Force
+    }
+    else {
+        $config.bundle.windows | Add-Member -MemberType NoteProperty -Name certificateThumbprint -Value $thumbprint -Force
+        $config.bundle.windows | Add-Member -MemberType NoteProperty -Name digestAlgorithm -Value $digestAlgorithm -Force
+        if ($timestampUrl) {
+            $config.bundle.windows | Add-Member -MemberType NoteProperty -Name timestampUrl -Value $timestampUrl -Force
+        }
+    }
+
+    $config | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath $TauriConfigPath -Encoding UTF8
+    Write-Host "Applied Windows signing configuration to temporary Tauri config."
+}
+
 Stop-Process -Name "Scrooge" -ErrorAction SilentlyContinue
 Stop-Process -Name "scrooge-backend" -ErrorAction SilentlyContinue
 
@@ -84,6 +125,7 @@ New-Item -ItemType Directory -Force -Path $frontendBuildDir | Out-Null
 foreach ($item in @("package.json", "package-lock.json", "index.html", "tsconfig.json", "vite.config.ts", "src", "public", "src-tauri")) {
     Copy-Item -Path (Join-Path $frontendDir $item) -Destination $frontendBuildDir -Recurse -Force
 }
+Set-WindowsSigningConfig -TauriConfigPath (Join-Path $frontendBuildDir "src-tauri\tauri.conf.json")
 
 $hostArch = if ($TargetTriple -like "x86_64*") { "x64" } else { "arm64" }
 $buildCommand = @(
@@ -119,6 +161,11 @@ if (-not $installer) {
 }
 
 Write-Host "Built installer: $($installer.FullName)"
+
+& (Join-Path $scriptRoot "verify_release_trust.ps1") -ArtifactPath $installer.FullName -RequireSigned:$RequireSigned
+if ($LASTEXITCODE -ne 0) {
+    throw "Release trust verification failed with exit code $LASTEXITCODE"
+}
 
 if (-not $SkipInstall) {
     $installProcess = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -PassThru

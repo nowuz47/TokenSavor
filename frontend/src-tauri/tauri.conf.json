@@ -32,6 +32,12 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "DeveloperTool",
+    "publisher": "TokenSavor contributors",
+    "copyright": "Copyright (c) 2026 TokenSavor contributors",
+    "homepage": "https://github.com/nowuz47/TokenSavor",
+    "shortDescription": "Local-first AI work optimization for Codex-style prompts.",
+    "longDescription": "Scrooge reduces wasted AI work by optimizing prompts, compressing text attachments, and recording estimated or measured savings locally before requests are sent to AI tools.",
     "externalBin": [
       "binaries/scrooge-backend"
     ],

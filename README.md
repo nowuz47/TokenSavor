@@ -14,6 +14,7 @@
   <a href="#how-it-works">How it works</a> |
   <a href="#measured-results">Measured results</a> |
   <a href="#install">Install</a> |
+  <a href="#windows-security-and-trust">Windows trust</a> |
   <a href="#trust-model">Trust model</a>
 </p>
 
@@ -155,6 +156,23 @@ Available installers:
 - `Scrooge_0.1.0_x64_en-US.msi`
 
 After installation, Scrooge runs as a tray app and starts its FastAPI backend as a sidecar process. A separate terminal window is not required.
+
+## Windows Security And Trust
+
+For low-friction installs on other computers, release artifacts should be Authenticode-signed and timestamped. Unsigned alpha builds may show Microsoft SmartScreen or antivirus reputation warnings because Scrooge is a fresh Windows app that uses a backend sidecar, clipboard access, and a global hotkey.
+
+Release trust checks are documented in [docs/RELEASE_TRUST.md](docs/RELEASE_TRUST.md).
+
+Before publishing a Windows release:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\verify_release_trust.ps1 `
+  -ArtifactPath "path\to\Scrooge_0.1.0_x64-setup.exe" `
+  -RequireSigned `
+  -ScanWithDefender
+```
+
+Signing can be enabled in `scripts\build_reinstall_verify.ps1` by setting `SCROOGE_WINDOWS_CERT_THUMBPRINT` or `SCROOGE_WINDOWS_SIGN_COMMAND` before the build. The certificate itself must never be committed to this repository.
 
 ## Development
 

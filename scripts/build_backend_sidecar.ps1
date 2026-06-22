@@ -11,6 +11,7 @@ $repoRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSP
 $backendDir = Join-Path $repoRoot "backend"
 $sidecarDir = Join-Path $repoRoot "frontend\src-tauri\binaries"
 $pythonExe = Join-Path $backendDir ".venv\Scripts\python.exe"
+$versionInfoFile = Join-Path $backendDir "scrooge_backend_version_info.txt"
 $sidecarName = "scrooge-backend-$TargetTriple"
 
 if (-not (Test-Path $pythonExe)) {
@@ -30,6 +31,7 @@ try {
         "--paths", $backendDir,
         "--collect-submodules", "scrooge",
         "--collect-data", "scrooge",
+        "--version-file", $versionInfoFile,
         "--distpath", $sidecarDir,
         "--workpath", (Join-Path $backendDir "build\pyinstaller"),
         "--specpath", (Join-Path $backendDir "build")
