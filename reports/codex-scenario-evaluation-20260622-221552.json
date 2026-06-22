@@ -1,0 +1,1939 @@
+{
+  "generated_at": "2026-06-22T13:15:52.370552+00:00",
+  "provider": "openai",
+  "model": "gpt-5.4-mini",
+  "tokenizer_status": {
+    "tiktoken_available": false,
+    "measurement_grade": "heuristic_directional",
+    "note": "tiktoken is unavailable in this environment, so counts use heuristic-v1 and should not be treated as billing-grade."
+  },
+  "summary": {
+    "total": 80,
+    "actual_kind_counts": {
+      "pass_overhead": 65,
+      "token_saving": 15
+    },
+    "expected_kind_counts": {
+      "task_optimization": 62,
+      "token_saving": 15,
+      "context_hygiene": 3
+    },
+    "tokenizer_confidence_counts": {
+      "heuristic_fallback": 80
+    },
+    "preservation_pass_rate": 1.0,
+    "average_prompt_savings_rate": 0.1558,
+    "token_saving_cases": 15,
+    "task_optimization_cases": 0,
+    "pass_overhead_cases": 65,
+    "total_original_tokens": 79682,
+    "total_optimized_tokens": 15073,
+    "total_saved_tokens": 69443,
+    "total_overhead_tokens": 4834,
+    "estimated_work_savings_minutes": 12,
+    "category_summary": {
+      "coding": {
+        "total": 10,
+        "actual_kind_counts": {
+          "pass_overhead": 10
+        },
+        "expected_kind_counts": {
+          "task_optimization": 10
+        },
+        "preservation_pass_rate": 1.0,
+        "average_prompt_savings_rate": 0.0,
+        "average_overhead_tokens": 69.1,
+        "estimated_work_savings_minutes": 0
+      },
+      "data": {
+        "total": 10,
+        "actual_kind_counts": {
+          "token_saving": 2,
+          "pass_overhead": 8
+        },
+        "expected_kind_counts": {
+          "token_saving": 2,
+          "task_optimization": 8
+        },
+        "preservation_pass_rate": 1.0,
+        "average_prompt_savings_rate": 0.129,
+        "average_overhead_tokens": 70,
+        "estimated_work_savings_minutes": 0
+      },
+      "debugging": {
+        "total": 10,
+        "actual_kind_counts": {
+          "pass_overhead": 8,
+          "token_saving": 2
+        },
+        "expected_kind_counts": {
+          "task_optimization": 8,
+          "token_saving": 2
+        },
+        "preservation_pass_rate": 1.0,
+        "average_prompt_savings_rate": 0.1317,
+        "average_overhead_tokens": 59.3,
+        "estimated_work_savings_minutes": 0
+      },
+      "docs_planning": {
+        "total": 10,
+        "actual_kind_counts": {
+          "pass_overhead": 10
+        },
+        "expected_kind_counts": {
+          "task_optimization": 7,
+          "context_hygiene": 3
+        },
+        "preservation_pass_rate": 1.0,
+        "average_prompt_savings_rate": 0.0,
+        "average_overhead_tokens": 73.5,
+        "estimated_work_savings_minutes": 0
+      },
+      "logs": {
+        "total": 10,
+        "actual_kind_counts": {
+          "token_saving": 10
+        },
+        "expected_kind_counts": {
+          "token_saving": 10
+        },
+        "preservation_pass_rate": 1.0,
+        "average_prompt_savings_rate": 0.9469,
+        "average_overhead_tokens": 0,
+        "estimated_work_savings_minutes": 12
+      },
+      "refactor": {
+        "total": 10,
+        "actual_kind_counts": {
+          "pass_overhead": 10
+        },
+        "expected_kind_counts": {
+          "task_optimization": 10
+        },
+        "preservation_pass_rate": 1.0,
+        "average_prompt_savings_rate": 0.0,
+        "average_overhead_tokens": 69.4,
+        "estimated_work_savings_minutes": 0
+      },
+      "review_security": {
+        "total": 10,
+        "actual_kind_counts": {
+          "token_saving": 1,
+          "pass_overhead": 9
+        },
+        "expected_kind_counts": {
+          "token_saving": 1,
+          "task_optimization": 9
+        },
+        "preservation_pass_rate": 1.0,
+        "average_prompt_savings_rate": 0.0391,
+        "average_overhead_tokens": 73.7,
+        "estimated_work_savings_minutes": 0
+      },
+      "testing": {
+        "total": 10,
+        "actual_kind_counts": {
+          "pass_overhead": 10
+        },
+        "expected_kind_counts": {
+          "task_optimization": 10
+        },
+        "preservation_pass_rate": 1.0,
+        "average_prompt_savings_rate": 0.0,
+        "average_overhead_tokens": 68.4,
+        "estimated_work_savings_minutes": 0
+      }
+    }
+  },
+  "recommendations": [
+    "Most Codex-style prompts are short or workflow-oriented. Treat token savings as a subset, not the main success metric.",
+    "Do not auto-rewrite short prompts. Offer task optimization as an explicit work-plan mode or paste only when the user accepts.",
+    "Install/use a model tokenizer or provider count endpoint. heuristic-v1 is useful for direction, but not billing-grade.",
+    "Prioritize logs, stack traces, diffs, CSV, and JSON attachments because they show real input-token reduction.",
+    "Add a context hygiene feature for AGENTS.md, CLAUDE.md, GEMINI.md, and Cursor rules. Always-on instructions are a better savings target than short chat prompts.",
+    "Highest overhead cases should be pass-by-default or plan-only: data_63_sql_retention, data_68_monthly_cost, data_69_team_aggregate, data_70_token_error, data_64_outlier."
+  ],
+  "rows": [
+    {
+      "scenario_id": "coding_01_calculator_app",
+      "category": "coding",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "general",
+      "optimization_mode": "token_savings",
+      "original_tokens": 30,
+      "optimized_tokens": 99,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "coding_02_crud_api",
+      "category": "coding",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "general",
+      "optimization_mode": "token_savings",
+      "original_tokens": 24,
+      "optimized_tokens": 93,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "coding_03_react_filter_sort",
+      "category": "coding",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "general",
+      "optimization_mode": "token_savings",
+      "original_tokens": 23,
+      "optimized_tokens": 92,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "coding_04_function_option",
+      "category": "coding",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "general",
+      "optimization_mode": "token_savings",
+      "original_tokens": 22,
+      "optimized_tokens": 92,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 70,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "coding_05_cli_command",
+      "category": "coding",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "general",
+      "optimization_mode": "token_savings",
+      "original_tokens": 24,
+      "optimized_tokens": 93,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "coding_06_auth_middleware",
+      "category": "coding",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "general",
+      "optimization_mode": "token_savings",
+      "original_tokens": 20,
+      "optimized_tokens": 89,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "coding_07_file_upload",
+      "category": "coding",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "general",
+      "optimization_mode": "token_savings",
+      "original_tokens": 24,
+      "optimized_tokens": 93,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "coding_08_csv_import",
+      "category": "coding",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "general",
+      "optimization_mode": "token_savings",
+      "original_tokens": 22,
+      "optimized_tokens": 91,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "coding_09_batch_job",
+      "category": "coding",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "general",
+      "optimization_mode": "token_savings",
+      "original_tokens": 23,
+      "optimized_tokens": 92,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "coding_10_feature_flag",
+      "category": "coding",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "general",
+      "optimization_mode": "token_savings",
+      "original_tokens": 20,
+      "optimized_tokens": 89,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "debug_11_pytest_failure",
+      "category": "debugging",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "bug_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 26,
+      "optimized_tokens": 101,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 75,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "debug_12_python_stacktrace",
+      "category": "debugging",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "bug_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 1768,
+      "optimized_tokens": 1137,
+      "saved_tokens": 631,
+      "savings_rate": 0.3569,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "stacktrace_cause_preservation",
+        "stacktrace_frame_limit"
+      ]
+    },
+    {
+      "scenario_id": "debug_13_typescript_build",
+      "category": "debugging",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "bug_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 2606,
+      "optimized_tokens": 104,
+      "saved_tokens": 2502,
+      "savings_rate": 0.9601,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "dedupe_adjacent_lines"
+      ]
+    },
+    {
+      "scenario_id": "debug_14_sqlite_migration",
+      "category": "debugging",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "bug_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 23,
+      "optimized_tokens": 97,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "debug_15_port_conflict",
+      "category": "debugging",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "bug_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 24,
+      "optimized_tokens": 98,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "debug_16_tray_close",
+      "category": "debugging",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "bug_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 27,
+      "optimized_tokens": 101,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "debug_17_button_failure",
+      "category": "debugging",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "bug_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 29,
+      "optimized_tokens": 103,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "debug_18_api_500",
+      "category": "debugging",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "bug_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 23,
+      "optimized_tokens": 97,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "debug_19_race_condition",
+      "category": "debugging",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "bug_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 25,
+      "optimized_tokens": 99,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "debug_20_repro_steps",
+      "category": "debugging",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "bug_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 20,
+      "optimized_tokens": 94,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "logs_21_cloudwatch_repeat",
+      "category": "logs",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "log_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 7425,
+      "optimized_tokens": 1356,
+      "saved_tokens": 6069,
+      "savings_rate": 0.8174,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "stacktrace_cause_preservation",
+        "stacktrace_frame_limit"
+      ]
+    },
+    {
+      "scenario_id": "logs_22_error_1000",
+      "category": "logs",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "log_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 15011,
+      "optimized_tokens": 101,
+      "saved_tokens": 14910,
+      "savings_rate": 0.9933,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "dedupe_adjacent_lines"
+      ]
+    },
+    {
+      "scenario_id": "logs_23_mixed_frequency",
+      "category": "logs",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "log_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 2763,
+      "optimized_tokens": 153,
+      "saved_tokens": 2610,
+      "savings_rate": 0.9446,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "dedupe_adjacent_lines",
+        "log_error_frequency_summary",
+        "log_representative_samples"
+      ]
+    },
+    {
+      "scenario_id": "logs_24_k8s_restart",
+      "category": "logs",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "log_analysis",
+      "optimization_mode": "task_optimization",
+      "original_tokens": 4188,
+      "optimized_tokens": 194,
+      "saved_tokens": 3994,
+      "savings_rate": 0.9537,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 12,
+      "estimated_followup_reduction": 0.25,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "dedupe_adjacent_lines",
+        "task_optimization_template"
+      ]
+    },
+    {
+      "scenario_id": "logs_25_nginx_spike",
+      "category": "logs",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "log_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 8406,
+      "optimized_tokens": 1179,
+      "saved_tokens": 7227,
+      "savings_rate": 0.8597,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "generic_head_tail_compaction"
+      ]
+    },
+    {
+      "scenario_id": "logs_26_payment_timeout",
+      "category": "logs",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "log_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 5258,
+      "optimized_tokens": 101,
+      "saved_tokens": 5157,
+      "savings_rate": 0.9808,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "dedupe_adjacent_lines"
+      ]
+    },
+    {
+      "scenario_id": "logs_27_auth_failure",
+      "category": "logs",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "log_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 4887,
+      "optimized_tokens": 98,
+      "saved_tokens": 4789,
+      "savings_rate": 0.9799,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "dedupe_adjacent_lines"
+      ]
+    },
+    {
+      "scenario_id": "logs_28_post_deploy",
+      "category": "logs",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "log_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 4430,
+      "optimized_tokens": 102,
+      "saved_tokens": 4328,
+      "savings_rate": 0.977,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "dedupe_adjacent_lines"
+      ]
+    },
+    {
+      "scenario_id": "logs_29_slow_query",
+      "category": "logs",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "log_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 4554,
+      "optimized_tokens": 97,
+      "saved_tokens": 4457,
+      "savings_rate": 0.9787,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "dedupe_adjacent_lines"
+      ]
+    },
+    {
+      "scenario_id": "logs_30_retry_storm",
+      "category": "logs",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "log_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 5990,
+      "optimized_tokens": 95,
+      "saved_tokens": 5895,
+      "savings_rate": 0.9841,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "dedupe_adjacent_lines"
+      ]
+    },
+    {
+      "scenario_id": "refactor_31_mass_rename",
+      "category": "refactor",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "refactoring",
+      "optimization_mode": "token_savings",
+      "original_tokens": 24,
+      "optimized_tokens": 93,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "refactor_32_legacy_class",
+      "category": "refactor",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "refactoring",
+      "optimization_mode": "token_savings",
+      "original_tokens": 21,
+      "optimized_tokens": 90,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "refactor_33_js_to_ts",
+      "category": "refactor",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "refactoring",
+      "optimization_mode": "token_savings",
+      "original_tokens": 20,
+      "optimized_tokens": 89,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "refactor_34_router_split",
+      "category": "refactor",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "refactoring",
+      "optimization_mode": "token_savings",
+      "original_tokens": 20,
+      "optimized_tokens": 89,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "refactor_35_react_state",
+      "category": "refactor",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "refactoring",
+      "optimization_mode": "token_savings",
+      "original_tokens": 16,
+      "optimized_tokens": 86,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 70,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "refactor_36_util_dedupe",
+      "category": "refactor",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "refactoring",
+      "optimization_mode": "token_savings",
+      "original_tokens": 17,
+      "optimized_tokens": 87,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 70,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "refactor_37_deprecated_api",
+      "category": "refactor",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "refactoring",
+      "optimization_mode": "token_savings",
+      "original_tokens": 17,
+      "optimized_tokens": 87,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 70,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "refactor_38_db_migration",
+      "category": "refactor",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "refactoring",
+      "optimization_mode": "token_savings",
+      "original_tokens": 20,
+      "optimized_tokens": 90,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 70,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "refactor_39_module_split",
+      "category": "refactor",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "refactoring",
+      "optimization_mode": "token_savings",
+      "original_tokens": 22,
+      "optimized_tokens": 91,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "refactor_40_config_change",
+      "category": "refactor",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "refactoring",
+      "optimization_mode": "token_savings",
+      "original_tokens": 20,
+      "optimized_tokens": 89,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "test_41_pytest",
+      "category": "testing",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "test_generation",
+      "optimization_mode": "token_savings",
+      "original_tokens": 19,
+      "optimized_tokens": 87,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 68,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "test_42_react_testing",
+      "category": "testing",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "test_generation",
+      "optimization_mode": "token_savings",
+      "original_tokens": 22,
+      "optimized_tokens": 90,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 68,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "test_43_playwright_smoke",
+      "category": "testing",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "test_generation",
+      "optimization_mode": "token_savings",
+      "original_tokens": 24,
+      "optimized_tokens": 92,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 68,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "test_44_regression",
+      "category": "testing",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "test_generation",
+      "optimization_mode": "token_savings",
+      "original_tokens": 19,
+      "optimized_tokens": 88,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "test_45_edge_checklist",
+      "category": "testing",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "test_generation",
+      "optimization_mode": "token_savings",
+      "original_tokens": 19,
+      "optimized_tokens": 87,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 68,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "test_46_failing_first",
+      "category": "testing",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "test_generation",
+      "optimization_mode": "token_savings",
+      "original_tokens": 21,
+      "optimized_tokens": 89,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 68,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "test_47_snapshot_cleanup",
+      "category": "testing",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "test_generation",
+      "optimization_mode": "token_savings",
+      "original_tokens": 19,
+      "optimized_tokens": 88,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "test_48_contract",
+      "category": "testing",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "test_generation",
+      "optimization_mode": "token_savings",
+      "original_tokens": 18,
+      "optimized_tokens": 87,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "test_49_fixture",
+      "category": "testing",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "test_generation",
+      "optimization_mode": "token_savings",
+      "original_tokens": 18,
+      "optimized_tokens": 87,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "test_50_installer_matrix",
+      "category": "testing",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "test_generation",
+      "optimization_mode": "token_savings",
+      "original_tokens": 22,
+      "optimized_tokens": 90,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 68,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "review_51_pr_diff",
+      "category": "review_security",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "code_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 902,
+      "optimized_tokens": 549,
+      "saved_tokens": 353,
+      "savings_rate": 0.3914,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "generic_head_tail_compaction"
+      ]
+    },
+    {
+      "scenario_id": "review_52_sql_injection",
+      "category": "review_security",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "code_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 21,
+      "optimized_tokens": 103,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 82,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "review_53_secret_exposure",
+      "category": "review_security",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "code_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 20,
+      "optimized_tokens": 102,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 82,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "review_54_eval",
+      "category": "review_security",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "code_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 18,
+      "optimized_tokens": 100,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 82,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "review_55_auth_bypass",
+      "category": "review_security",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "code_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 17,
+      "optimized_tokens": 99,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 82,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "review_56_permission_scope",
+      "category": "review_security",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "code_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 23,
+      "optimized_tokens": 105,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 82,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "review_57_dependency",
+      "category": "review_security",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "code_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 21,
+      "optimized_tokens": 103,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 82,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "review_58_error_handling",
+      "category": "review_security",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "code_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 22,
+      "optimized_tokens": 103,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 81,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "review_59_privacy_logging",
+      "category": "review_security",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "code_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 19,
+      "optimized_tokens": 101,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 82,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "review_60_installer_trust",
+      "category": "review_security",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "code_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 21,
+      "optimized_tokens": 103,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 82,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "data_61_csv_sales",
+      "category": "data",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "data_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 5061,
+      "optimized_tokens": 1736,
+      "saved_tokens": 3325,
+      "savings_rate": 0.657,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "generic_head_tail_compaction"
+      ]
+    },
+    {
+      "scenario_id": "data_62_json_schema",
+      "category": "data",
+      "expected_kind": "token_saving",
+      "actual_kind": "token_saving",
+      "task_type": "data_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 5051,
+      "optimized_tokens": 1855,
+      "saved_tokens": 3196,
+      "savings_rate": 0.6327,
+      "overhead_tokens": 0,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "input tokens reduced",
+      "applied_rules": [
+        "task_template",
+        "log_error_frequency_summary",
+        "log_representative_samples"
+      ]
+    },
+    {
+      "scenario_id": "data_63_sql_retention",
+      "category": "data",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "data_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 21,
+      "optimized_tokens": 109,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 88,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "data_64_outlier",
+      "category": "data",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "data_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 21,
+      "optimized_tokens": 108,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 87,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "data_65_funnel",
+      "category": "data",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "data_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 22,
+      "optimized_tokens": 109,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 87,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "data_66_ab_test",
+      "category": "data",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "data_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 22,
+      "optimized_tokens": 109,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 87,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "data_67_dashboard_metrics",
+      "category": "data",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "data_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 22,
+      "optimized_tokens": 109,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 87,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "data_68_monthly_cost",
+      "category": "data",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "data_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 21,
+      "optimized_tokens": 109,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 88,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "data_69_team_aggregate",
+      "category": "data",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "data_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 16,
+      "optimized_tokens": 104,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 88,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "data_70_token_error",
+      "category": "data",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "data_analysis",
+      "optimization_mode": "token_savings",
+      "original_tokens": 20,
+      "optimized_tokens": 108,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 88,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "docs_71_architecture",
+      "category": "docs_planning",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "architecture_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 20,
+      "optimized_tokens": 94,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "docs_72_mvp_plan",
+      "category": "docs_planning",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "architecture_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 15,
+      "optimized_tokens": 89,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "docs_73_release_checklist",
+      "category": "docs_planning",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "architecture_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 21,
+      "optimized_tokens": 95,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "docs_74_runbook",
+      "category": "docs_planning",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "architecture_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 16,
+      "optimized_tokens": 90,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "docs_75_onboarding",
+      "category": "docs_planning",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "general",
+      "optimization_mode": "token_savings",
+      "original_tokens": 17,
+      "optimized_tokens": 86,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 69,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "docs_76_agents",
+      "category": "docs_planning",
+      "expected_kind": "context_hygiene",
+      "actual_kind": "pass_overhead",
+      "task_type": "architecture_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 24,
+      "optimized_tokens": 98,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "docs_77_memory_files",
+      "category": "docs_planning",
+      "expected_kind": "context_hygiene",
+      "actual_kind": "pass_overhead",
+      "task_type": "architecture_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 26,
+      "optimized_tokens": 100,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "docs_78_cursor_rules",
+      "category": "docs_planning",
+      "expected_kind": "context_hygiene",
+      "actual_kind": "pass_overhead",
+      "task_type": "architecture_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 24,
+      "optimized_tokens": 98,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "docs_79_human_audit",
+      "category": "docs_planning",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "architecture_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 21,
+      "optimized_tokens": 95,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    },
+    {
+      "scenario_id": "docs_80_rollout_gate",
+      "category": "docs_planning",
+      "expected_kind": "task_optimization",
+      "actual_kind": "pass_overhead",
+      "task_type": "architecture_review",
+      "optimization_mode": "token_savings",
+      "original_tokens": 24,
+      "optimized_tokens": 98,
+      "saved_tokens": 0,
+      "savings_rate": 0.0,
+      "overhead_tokens": 74,
+      "estimated_work_savings_minutes": 0,
+      "estimated_followup_reduction": 0.0,
+      "tokenizer": "openai:gpt-5.4-mini:heuristic-v1",
+      "tokenizer_confidence": "heuristic_fallback",
+      "preservation_passed": true,
+      "pass_reason": "short prompt; rewriting would likely increase tokens",
+      "applied_rules": [
+        "task_template"
+      ]
+    }
+  ]
+}
